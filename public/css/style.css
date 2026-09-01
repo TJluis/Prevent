@@ -23,3 +23,35 @@ body {
   font-size: 0.9rem;
   color: #8b93a7;
 }
+
+.hint {
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  color: #8b93a7;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.6rem 1.4rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #4c84ff;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.audio-row {
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: #8b93a7;
+}
+
+.audio-row audio {
+  margin-top: 0.4rem;
+}

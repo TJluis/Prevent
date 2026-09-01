@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spike WebRTC — Club Pingüi</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main id="app">
+    <h1>Prueba de audio (spike WebRTC)</h1>
+    <p>Estado: <strong id="state">esperando…</strong></p>
+    <p class="hint">Abre esta página en <strong>dos pestañas</strong> del navegador y pulsa el botón en ambas.</p>
+    <button id="join">Unirme a la prueba</button>
+    <div class="audio-row">
+      <div>Tu micrófono: <audio id="localAudio" autoplay muted></audio></div>
+      <div>Audio de la pareja: <audio id="remoteAudio" autoplay></audio></div>
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/spike.js"></script>
+</body>
+</html>
