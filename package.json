@@ -1,0 +1,19 @@
+{
+  "name": "proyecto-clubpingui",
+  "version": "0.1.0",
+  "description": "Plataforma web de interacción social en 3D con avatares, chat y salas privadas.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "three": "^0.185.1"
+  }
+}
