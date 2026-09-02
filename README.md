@@ -44,7 +44,7 @@ Abrir `http://localhost:3000`.
 ## Roadmap
 
 - **Fase 0** ✔ Entorno, repo y servidor base.
-- **Fase 0.5** Spike de WebRTC (validar riesgo de voz antes de construir UI).
+- **Fase 0.5** ✔ Spike de WebRTC: señalización validada y audio entre dos pestañas funcionando.
 - **Fase 1** Mapa 3D + avatar + movimiento + sincronización + chat de texto.
 - **Fase 2** Cuentas de usuario, persistencia (SQLite) e historial.
 - **Fase 3** Salas privadas y permisos de anfitrión.

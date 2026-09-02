@@ -4,34 +4,62 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: system-ui, sans-serif;
   background: #12151c;
   color: #e8eaf0;
+}
+
+#join-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-#app {
   text-align: center;
+  gap: 0.8rem;
 }
 
-#server-status {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-  color: #8b93a7;
+#join-screen h1 {
+  font-size: 2.4rem;
 }
 
 .hint {
-  margin: 1rem 0;
   font-size: 0.9rem;
   color: #8b93a7;
 }
 
+#join-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#join-error {
+  color: #f87171;
+  font-size: 0.85rem;
+}
+
+input {
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: 1px solid #2a3144;
+  background: #1b2029;
+  color: #e8eaf0;
+  outline: none;
+}
+
+input:focus {
+  border-color: #4c84ff;
+}
+
 button {
-  margin-top: 1rem;
   padding: 0.6rem 1.4rem;
   font-size: 1rem;
   border: none;
@@ -41,17 +69,96 @@ button {
   cursor: pointer;
 }
 
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+button:hover {
+  background: #3a6fe6;
 }
 
-.audio-row {
-  margin-top: 1.5rem;
+#game {
+  position: fixed;
+  inset: 0;
+}
+
+#instructions {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(10, 12, 20, 0.55);
+  font-size: 0.8rem;
+  color: #cdd3e0;
+  pointer-events: none;
+}
+
+#online-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 200px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(10, 12, 20, 0.6);
   font-size: 0.85rem;
-  color: #8b93a7;
 }
 
-.audio-row audio {
-  margin-top: 0.4rem;
+#online-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #cdd3e0;
+}
+
+#online-list {
+  list-style: none;
+}
+
+#online-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+#online-list li span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+#chat {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: 320px;
+  max-width: calc(100vw - 20px);
+}
+
+#chat-log {
+  height: 170px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(10, 12, 20, 0.6);
+  font-size: 0.85rem;
+  scrollbar-width: thin;
+}
+
+.chat-line {
+  margin-bottom: 4px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.chat-meta {
+  color: #5b6375;
+}
+
+.chat-author {
+  font-weight: 600;
+}
+
+#chat-form input {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 0.9rem;
 }
