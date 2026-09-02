@@ -16,12 +16,24 @@ export function createWorld() {
 
   const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  let renderer;
+  try {
+    if (!window.WebGL2RenderingContext) {
+      throw new Error("WebGL2 no está disponible en este navegador");
+    }
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch (err) {
+    throw new Error(
+      "No se pudo inicializar el 3D (" + err.message + "). Activa la aceleración de hardware de tu navegador."
+    );
+  }
+
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.domElement.style.position = "fixed";
-  renderer.domElement.style.inset = "0";
-  document.body.appendChild(renderer.domElement);
+  renderer.domElement.className = "penguin-canvas";
+
+  const container = document.getElementById("game");
+  container.appendChild(renderer.domElement);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   const sun = new THREE.DirectionalLight(0xffffff, 1.1);

@@ -10,10 +10,13 @@ const joinForm = document.getElementById("join-form");
 const nameInput = document.getElementById("name-input");
 const joinError = document.getElementById("join-error");
 const gameScreen = document.getElementById("game");
+const gameError = document.getElementById("game-error");
 const onlineList = document.getElementById("online-list");
 
 const WALK_SPEED = 6;
 const MOVE_SEND_INTERVAL = 50;
+
+let started = false;
 
 joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -28,21 +31,33 @@ joinForm.addEventListener("submit", (event) => {
 let chat;
 let scene;
 let camera;
+let renderer;
 let myId = null;
 let myAvatar = null;
 let myPosition = { x: 0, z: 0 };
 let lastMoveSend = 0;
+let lastUpdate = performance.now();
 const remotes = new Map();
 
 function startGame(name) {
-  joinScreen.hidden = true;
-  gameScreen.hidden = false;
-
-  const world = createWorld();
-  scene = world.scene;
-  camera = world.camera;
+  if (started) return;
+  started = true;
 
   chat = setupChatUI((text) => sendChat(text));
+
+  let world;
+  try {
+    world = createWorld();
+  } catch (err) {
+    console.error(err);
+    joinError.textContent = err.message;
+    started = false;
+    return;
+  }
+
+  scene = world.scene;
+  camera = world.camera;
+  renderer = world.renderer;
 
   connectToGame({
     name,
@@ -81,6 +96,9 @@ function startGame(name) {
     onChat: (message) => chat.appendMessage(message),
   });
 
+  joinScreen.hidden = true;
+  gameScreen.hidden = false;
+
   requestAnimationFrame(loop);
 }
 
@@ -88,42 +106,53 @@ function spawnRemote(player) {
   const group = createAvatar(player.name, player.color);
   group.position.set(player.x, 0, player.z);
   scene.add(group);
-  remotes.set(player.id, { group, targetX: player.x, targetZ: player.z, name: player.name, color: player.color });
+  remotes.set(player.id, { group, targetX: player.x, targetZ: player.z });
 }
 
-let lastUpdate = performance.now();
-
 function loop(now) {
-  const dt = Math.min((now - lastUpdate) / 1000, 0.05);
-  lastUpdate = now;
+  try {
+    const dt = Math.min((now - lastUpdate) / 1000, 0.05);
+    lastUpdate = now;
 
-  const { dx, dz } = getInputDirection();
-  if (dx || dz) {
-    const length = Math.hypot(dx, dz);
-    const next = moveWithCollisions(
-      myPosition.x + (dx / length) * WALK_SPEED * dt,
-      myPosition.z + (dz / length) * WALK_SPEED * dt
-    );
-    myPosition = next;
-    myAvatar.position.set(next.x, 0, next.z);
+    const { dx, dz } = getInputDirection();
+    if (myAvatar && (dx || dz)) {
+      const length = Math.hypot(dx, dz);
+      const next = moveWithCollisions(
+        myPosition.x + (dx / length) * WALK_SPEED * dt,
+        myPosition.z + (dz / length) * WALK_SPEED * dt
+      );
+      myPosition = next;
+      myAvatar.position.set(next.x, 0, next.z);
 
-    if (now - lastMoveSend >= MOVE_SEND_INTERVAL) {
-      sendMove(next.x, next.z);
-      lastMoveSend = now;
+      if (now - lastMoveSend >= MOVE_SEND_INTERVAL) {
+        sendMove(next.x, next.z);
+        lastMoveSend = now;
+      }
     }
+
+    remotes.forEach((remote) => {
+      const group = remote.group;
+      group.position.x += (remote.targetX - group.position.x) * Math.min(1, dt * 12);
+      group.position.z += (remote.targetZ - group.position.z) * Math.min(1, dt * 12);
+    });
+
+    const cameraTarget = myAvatar ? myAvatar.position : { x: 0, y: 0, z: 0 };
+    camera.position.set(cameraTarget.x, 7, cameraTarget.z + 10);
+    camera.lookAt(cameraTarget.x, 0, cameraTarget.z);
+
+    renderer.render(scene, camera);
+  } catch (err) {
+    console.error(err);
+    showGameError(err.message);
+    return;
   }
 
-  remotes.forEach((remote) => {
-    const group = remote.group;
-    group.position.x += (remote.targetX - group.position.x) * Math.min(1, dt * 12);
-    group.position.z += (remote.targetZ - group.position.z) * Math.min(1, dt * 12);
-  });
-
-  camera.position.set(myAvatar.position.x, 7, myAvatar.position.z + 10);
-  camera.lookAt(myAvatar.position.x, 0, myAvatar.position.z);
-
-  world.renderer.render(scene, camera);
   requestAnimationFrame(loop);
+}
+
+function showGameError(message) {
+  gameError.textContent = "Error: " + message;
+  gameError.hidden = false;
 }
 
 function updateOnlineList(players) {
