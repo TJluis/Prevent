@@ -2,7 +2,7 @@ import { createWorld } from "./world.js";
 import { createAvatar } from "./avatar.js";
 import { moveWithCollisions } from "./collision.js";
 import { getInputDirection } from "./input.js";
-import { connectToGame, sendMove, sendChat } from "./network.js";
+import { connectToGame, sendMove, sendChat, leaveServer } from "./network.js";
 import { setupChatUI } from "./chat.js";
 
 const joinScreen = document.getElementById("join-screen");
@@ -12,11 +12,15 @@ const joinError = document.getElementById("join-error");
 const gameScreen = document.getElementById("game");
 const gameError = document.getElementById("game-error");
 const onlineList = document.getElementById("online-list");
+const logoutBtn = document.getElementById("logout-btn");
 
 const WALK_SPEED = 6;
 const MOVE_SEND_INTERVAL = 50;
 
 let started = false;
+let running = false;
+
+logoutBtn.addEventListener("click", leaveGame);
 
 joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -98,8 +102,39 @@ function startGame(name) {
 
   joinScreen.hidden = true;
   gameScreen.hidden = false;
+  running = true;
 
   requestAnimationFrame(loop);
+}
+
+function leaveGame() {
+  if (!running) return;
+  running = false;
+
+  leaveServer();
+
+  if (myAvatar) scene.remove(myAvatar);
+  remotes.forEach((remote) => scene.remove(remote.group));
+  remotes.clear();
+
+  onlineList.innerHTML = "";
+  chat.clear();
+
+  if (renderer) {
+    renderer.dispose();
+    renderer.domElement.remove();
+  }
+
+  myId = null;
+  myAvatar = null;
+  scene = undefined;
+  camera = undefined;
+  renderer = undefined;
+  started = false;
+
+  gameScreen.hidden = true;
+  joinScreen.hidden = false;
+  nameInput.focus();
 }
 
 function spawnRemote(player) {
@@ -110,6 +145,8 @@ function spawnRemote(player) {
 }
 
 function loop(now) {
+  if (!running) return;
+
   try {
     const dt = Math.min((now - lastUpdate) / 1000, 0.05);
     lastUpdate = now;
@@ -147,7 +184,9 @@ function loop(now) {
     return;
   }
 
-  requestAnimationFrame(loop);
+  if (running) {
+    requestAnimationFrame(loop);
+  }
 }
 
 function showGameError(message) {

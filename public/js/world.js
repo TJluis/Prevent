@@ -33,7 +33,7 @@ export function createWorld() {
   renderer.domElement.className = "penguin-canvas";
 
   const container = document.getElementById("game");
-  container.appendChild(renderer.domElement);
+  container.prepend(renderer.domElement);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   const sun = new THREE.DirectionalLight(0xffffff, 1.1);

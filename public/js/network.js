@@ -25,3 +25,10 @@ export function sendChat(text) {
     socket.emit("chat:message", { text });
   }
 }
+
+export function leaveServer() {
+  if (socket) {
+    socket.disconnect();
+    socket = undefined;
+  }
+}

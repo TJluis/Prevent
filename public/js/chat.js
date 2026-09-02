@@ -13,6 +13,10 @@ export function setupChatUI(onSubmit) {
   });
 
   return {
+    clear() {
+      log.innerHTML = "";
+      input.value = "";
+    },
     appendMessage({ name, color = "#8b93a7", text, time }) {
       const line = document.createElement("div");
       line.className = "chat-line";
