@@ -45,6 +45,7 @@ Suites incluidas:
 | `t-armas.mjs` | clases, alcances, caída de daño, precios, radio de rayo, armas nuevas y recarga (estilos + progreso) | 13/13 |
 | `t-movimiento.mjs` | salto (altura, sin doble salto), sprint (stamina, regeneración, bloqueo contra paredes) y deslizamiento (duración, cooldown, coste) | 8/8 |
 | `t-loot.mjs` | oferta de cristal y recogida con Enter (`acceptOffer`) | 7/7 |
+| `t-modos.mjs` | registro de modos y portales, mapas `isla`/`pares`, obstáculos, partida de Pares determinista y flujo real isla → portal → partida → isla | 11/11 |
 | `t-assets.mjs` | imagen de tarjeta, iconos, manifest, Open Graph y caché de `/assets` | 10/10 |
 
 Suites auxiliares (se ejecutan aparte porque dependen de datos externos):
@@ -93,6 +94,20 @@ node public/test/runner.mjs public/test/t-tuningcheck.mjs
 - **Chat independiente (Ajustes 4.4):** `#chat` ya no es una pestaña ni una barra alargada. Colapsado es un **botón redondo 💬 de 46×46 abajo a la izquierda** (`left:14px; bottom:14px`; táctil `left:8px`), en la misma columna que el menú ☰ y visible en todas las plataformas. Al pulsarlo se abre el panel (270-320 px según ancho) que crece hacia arriba desde la esquina inferior izquierda; `#chat-toggle` cambia a `▾` y actualiza `aria-expanded`/`aria-label`. `Enter` abre el chat y enfoca el input.
 - **Coordinación:** `main.js` registra la API del chat con `registerChat(chat)`. Abrir un panel social colapsa el chat; abrir el chat (`chat.open()` o el evento `clubpingui:chat-open`) cierra los paneles sociales. En táctil, `body.chat-open` oculta `#combat-hud`, `.item-bar`, `#touch-actions`, `#touch-motion`, `#fire-btn` y `#joy-base`; `touch.js` bloquea los controles mientras hay una hoja abierta (`sheet-rooms` / `sheet-online`).
 - **Cierre de partida:** `leaveGame()` limpia `sheet-rooms`, `sheet-online`, `menu-open` y `chat-open` además del resto de clases del HUD.
+
+---
+
+## 2.4 Isla de Minijuegos y modos (Fase 8)
+
+- **Cómo se entra:** desde el lobby, botón **🎮 Minijuegos** del menú ☰ o el portal del Pueblo Nevado (sur de la pista de hockey, `x:0 z:-25`). También con `E` al acercarse al portal (`PORTAL_TRIGGER_RADIUS = 3.2`).
+- **La isla es una sala oculta persistente:** código reservado `ISLA`, mapa `isla` (64), 24 jugadores, `kind:"hub"`, `combat:false`. No aparece en `room:list`.
+- **Cada modo es otra sala oculta persistente:** código `MODO-<ID>`, `kind:"mode"`, `modeId`, `status` (`waiting`/`playing`/`finished`) y `combat:false`. El registro vive en `public/js/modeDefs.js` (datos puros, compartido cliente/servidor) y las reglas en `server/modes/`.
+- **Validación del servidor:** `mode:join` exige estar en la isla y a menos de **6 m** del portal (el aviso del cliente aparece a 3,2 m). Desde el lobby hay que pasar primero por la isla; no se acepta un salto directo.
+- **Portales «próximamente»:** solo `pares` tiene `status:"live"`. Los otros cinco se dibujan en la isla pero responden con «<Modo> todavía no está disponible.» sin mover al jugador.
+- **Salir:** el botón contextual del panel de zona muestra «← Volver a la isla» dentro de un modo y «Salir al lobby» en la isla. También `mode:leave`.
+- **Mapas internos:** `isla` (64) y `pares` (44) están en `mapDefs.js` con `room:false` para que no salgan en el selector de salas privadas; sus layouts están en `mapObstacles.js` y sus temas/monolitos/portales en `world.js`.
+- **Añadir una modalidad:** define su entrada en `modeDefs.js`, crea su controlador en `server/modes/`, regístralo en `setupGame()` y añade su portal en `hubDefs.js`. `t-modos` valida que el registro, los mapas y los portales sigan coherentes.
+- **Pendiente de Pares:** espectadores, reconexión como espectador, estadísticas persistentes, revancha votada, equipos y tableros 5×4/6×6.
 
 ---
 
@@ -182,6 +197,7 @@ Antes de programar cualquier modalidad nueva, leer estos dos documentos en este 
 Reglas que salen de esos documentos y aplican desde ya:
 
 1. **Nada de modos nuevos antes del 23/11/2026** (versión estable). Primero se cierra y se respalda.
+   - **Excepción aprobada (18/11/2026):** el usuario pidió adelantar la Ola 1. Se implementaron la isla y Pares con la versión estable ya respaldada y todas las suites en verde; el resto de modalidades siguen sujetas a la regla.
 2. Toda modalidad implementa el **contrato de modo** (`public/js/modeDefs.js` + `server/modes/`); no se añaden `if` de modo dentro de `server/game.js`.
 3. El cliente envía **intenciones**, nunca resultados; el servidor valida.
 4. Cada ola termina con `scripts\test-all.ps1` en 0, prueba manual en dos navegadores y respaldo zip.

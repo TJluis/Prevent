@@ -12,6 +12,7 @@
 //   atrapado entre coberturas.
 // - Simetría 180°: cada cobertura tiene su pareja opuesta, así ambos lados del
 //   mapa ofrecen las mismas ventajas.
+import { HUB_PORTALS } from "./hubDefs.js";
 
 const TAU = Math.PI * 2;
 const round = (value) => Math.round(value * 100) / 100;
@@ -213,6 +214,56 @@ rocks(gruta, [
   [6, 16, 1.2],
 ]);
 
+// --- Isla de Minijuegos -----------------------------------------------------
+// Un monolito por portal (las coordenadas vienen de hubDefs para que cliente y
+// servidor no se desincronicen), un monumento central y vegetación en el borde.
+// El anillo queda despejado para poder caminar de portal en portal.
+const isla = [
+  { kind: "monument", type: "circle", x: 0, z: 0, r: 2.6 },
+  ...HUB_PORTALS.map((portal) => ({
+    kind: "monolith",
+    type: "circle",
+    x: portal.x,
+    z: portal.z,
+    r: 1.15,
+  })),
+];
+
+for (const [x, z, r] of [
+  [-25, -14, 1.0],
+  [25, -14, 1.0],
+  [-25, 14, 1.0],
+  [25, 14, 1.0],
+  [-9, -28, 0.9],
+  [9, -28, 0.9],
+  [-9, 28, 0.9],
+  [9, 28, 0.9],
+]) {
+  isla.push({ kind: "leaf", type: "circle", x, z, r });
+}
+for (const [x, z, r] of [
+  [-21, 0, 1.1],
+  [21, 0, 1.1],
+  [0, -27, 1.0],
+  [0, 27, 1.0],
+]) {
+  isla.push({ kind: "rock", type: "circle", x, z, r });
+}
+
+// --- Arena de Pares ---------------------------------------------------------
+// Cuatro pilares en las esquinas y rocas bajas en los ejes: dan profundidad sin
+// tapar el centro, que es donde se coloca el tablero DOM.
+const pares = [
+  { kind: "pillar", type: "circle", x: -14, z: -14, r: 1.0, h: 4.2 },
+  { kind: "pillar", type: "circle", x: 14, z: -14, r: 1.0, h: 4.2 },
+  { kind: "pillar", type: "circle", x: -14, z: 14, r: 1.0, h: 4.2 },
+  { kind: "pillar", type: "circle", x: 14, z: 14, r: 1.0, h: 4.2 },
+  { kind: "rock", type: "circle", x: 0, z: -18, r: 1.2 },
+  { kind: "rock", type: "circle", x: 0, z: 18, r: 1.2 },
+  { kind: "rock", type: "circle", x: -18, z: 0, r: 1.2 },
+  { kind: "rock", type: "circle", x: 18, z: 0, r: 1.2 },
+];
+
 export const MAP_OBSTACLES = {
   selva,
   desierto,
@@ -220,6 +271,8 @@ export const MAP_OBSTACLES = {
   pradera,
   ciudad,
   gruta,
+  isla,
+  pares,
 };
 
 // Devuelve la lista de obstáculos de un mapa de sala (o null si no tiene layout

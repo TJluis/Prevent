@@ -1,6 +1,8 @@
 import * as THREE from "/vendor/three/three.module.js";
 import { MAPS, getMap, getRoomMaps, getMapBoundary } from "./mapDefs.js";
 import { MAP_OBSTACLES } from "./mapObstacles.js";
+import { HUB_PORTALS, LOBBY_PORTAL } from "./hubDefs.js";
+import { getMode } from "./modeDefs.js";
 
 export { MAPS, getMap, getRoomMaps, getMapBoundary };
 export { makeCordilleraScenery, makeTerrain };
@@ -776,6 +778,86 @@ function pillar(o, palette) {
   return group;
 }
 
+// Monolito de portal: piedra hexagonal con un aro luminoso en la cima. El aro
+// flotante, el haz y la etiqueta los añade makePortalGate (van aparte para poder
+// animarlos sin tocar la colisión).
+function monolith(palette) {
+  const group = new THREE.Group();
+  const h = 3.2;
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.78, 1.0, h, 6),
+    new THREE.MeshStandardMaterial({
+      color: palette.body || 0x5f6f7d,
+      roughness: 0.85,
+      flatShading: true,
+    })
+  );
+  body.position.y = h / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  const glowColor = palette.glow || 0x7ff0d0;
+  const cap = new THREE.Mesh(
+    new THREE.TorusGeometry(0.72, 0.08, 8, 18),
+    new THREE.MeshStandardMaterial({
+      color: glowColor,
+      emissive: glowColor,
+      emissiveIntensity: 1.3,
+      roughness: 0.35,
+    })
+  );
+  cap.rotation.x = Math.PI / 2;
+  cap.position.y = h + 0.05;
+  group.add(cap);
+
+  return group;
+}
+
+// Monumento central de la isla: un pingüino de piedra sobre un pedestal.
+function monument() {
+  const group = new THREE.Group();
+  const stone = new THREE.MeshStandardMaterial({ color: 0x8fa3b0, roughness: 0.95 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2f3b4a, roughness: 0.7 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xeaf4ff, roughness: 0.8 });
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.45, 0.55, 14), stone);
+  base.position.y = 0.275;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.5, 1.1, 12), stone);
+  pedestal.position.y = 1.05;
+  pedestal.castShadow = true;
+  group.add(pedestal);
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.05, 18, 14), dark);
+  body.scale.set(1, 1.25, 0.95);
+  body.position.y = 2.45;
+  body.castShadow = true;
+  group.add(body);
+
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.74, 16, 12), white);
+  belly.scale.set(0.95, 1.1, 0.6);
+  belly.position.set(0, 2.4, 0.55);
+  group.add(belly);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 12), dark);
+  head.position.y = 3.5;
+  head.castShadow = true;
+  group.add(head);
+
+  const beak = new THREE.Mesh(
+    new THREE.ConeGeometry(0.2, 0.42, 10),
+    new THREE.MeshStandardMaterial({ color: 0xf2a03d, roughness: 0.6 })
+  );
+  beak.rotation.x = Math.PI / 2;
+  beak.position.set(0, 3.44, 0.66);
+  group.add(beak);
+
+  return group;
+}
+
 function stalagmite(palette) {
   const group = new THREE.Group();
   const h = 1.6 + Math.random() * 1.2;
@@ -1292,6 +1374,25 @@ export const MAP_DEFS = {
       shroom: { stem: 0xc8bfa8, cap: 0x9a5bb8, glow: 0xd98aff },
     },
   },
+
+  isla: {
+    obstacles: MAP_OBSTACLES.isla,
+    palette: {
+      leaf: { trunk: 0x7a5230, shades: [0x2f9a5e, 0x47b874, 0x62d08c] },
+      rock: 0xb9a889,
+      pillar: { body: 0x5f6f7d, glow: 0x7ff0d0 },
+      crate: { box: 0xc9a468, bands: [0x2f9a5e, 0x7dd3fc, 0xfacc15] },
+    },
+  },
+
+  pares: {
+    obstacles: MAP_OBSTACLES.pares,
+    palette: {
+      pillar: { body: 0x3d4a6b, glow: 0x7dd3fc },
+      rock: 0x6b7a99,
+      crate: { box: 0x2c3350, bands: [0x7dd3fc, 0xf472b6, 0xfacc15] },
+    },
+  },
 };
 
 export const THEMES = {
@@ -1429,6 +1530,44 @@ export const THEMES = {
     sun: { color: 0x9fb8e8, intensity: 0.55 },
     particles: { color: 0x7fffe0, count: 260, size: 0.12, opacity: 0.75, rise: true, speed: 0.7 },
   },
+
+  isla: {
+    sky: { top: 0x1f8fd0, mid: 0x9fe6ff, horizon: 0xfff4d6 },
+    fog: { color: 0xcdefff, near: 60, far: 165 },
+    ground: {
+      base: "#e8d7a8",
+      light: "rgba(255,250,220,0.55)",
+      dark: "rgba(170,140,90,0.35)",
+      repeat: 5,
+      speckles: 2200,
+      roughness: 1,
+    },
+    wall: 0x1f6f8f,
+    wallTop: 0x8ff0d8,
+    hemisphere: 0xd8fff4,
+    sun: { color: 0xfff2cf, intensity: 1.6 },
+    particles: { color: 0xbdf7ff, count: 120, size: 0.1, opacity: 0.45, rise: true, speed: 0.5 },
+  },
+
+  pares: {
+    sky: { top: 0x120c2a, mid: 0x2a1b52, horizon: 0x4b2f86 },
+    fog: { color: 0x1b1238, near: 35, far: 115 },
+    ground: {
+      base: "#241a44",
+      light: "rgba(150,120,255,0.22)",
+      dark: "rgba(8,4,24,0.55)",
+      repeat: 4,
+      speckles: 1600,
+      roughness: 0.85,
+      grid: "rgba(125,211,252,0.25)",
+    },
+    wall: 0x2a2050,
+    wallTop: 0x7dd3fc,
+    hemisphere: 0x9f8cff,
+    ambient: { color: 0x6f5fbf, intensity: 0.55 },
+    sun: { color: 0xc9b8ff, intensity: 1.0 },
+    particles: { color: 0x7dd3fc, count: 160, size: 0.1, opacity: 0.6, rise: true, speed: 0.4 },
+  },
 };
 
 function renderObstacle(o, mapId) {
@@ -1460,6 +1599,10 @@ function renderObstacle(o, mapId) {
       return buildingMesh(o, palette.building);
     case "ruin":
       return ruinMesh(o, palette.ruin);
+    case "monolith":
+      return monolith(palette.pillar || {});
+    case "monument":
+      return monument();
     default:
       return null;
   }
@@ -1975,6 +2118,15 @@ export const GROUND_COVER = {
     tuftColor: [0x3f6f6a, 0x356059],
     pebbleColor: 0x5a6277,
   },
+  isla: {
+    seed: 4109,
+    keepOut: [{ x: 0, z: 0, r: 4.2 }],
+    tufts: 190,
+    pebbles: 90,
+    flowers: 46,
+    tuftColor: [0x5aa85a, 0x76bf6a, 0x8fd07a],
+    pebbleColor: 0xd9c79a,
+  },
 };
 
 function makeGroundCover(scene, mapId, boundary) {
@@ -2135,6 +2287,129 @@ function makeGroundCover(scene, mapId, boundary) {
   }
 
   if (group.children.length) scene.add(group);
+}
+
+// ---------------------------------------------------------------- portales de minijuegos
+
+// Etiqueta flotante. Se dibuja en un canvas y se monta en un Sprite para que
+// siempre mire a la cámara, sin importar desde dónde se acerque el jugador.
+function makeLabelSprite(text, color) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.font = "bold 56px 'Trebuchet MS', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = "rgba(6, 12, 24, 0.85)";
+  ctx.strokeText(text, 256, 66);
+  ctx.fillStyle = color || "#ffffff";
+  ctx.fillText(text, 256, 66);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
+  );
+  sprite.scale.set(4.8, 1.2, 1);
+  return sprite;
+}
+
+// Aro, haz de luz y etiqueta de un portal. El monolito (colisión) va aparte en
+// MAP_OBSTACLES para que el servidor también lo conozca.
+function makePortalGate(portal, { yaw = 0 } = {}) {
+  const group = new THREE.Group();
+  group.position.set(portal.x, 0, portal.z);
+  group.rotation.y = yaw;
+
+  const color = new THREE.Color(portal.color || "#7dd3fc");
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.5, 6.4, 20, 1, true),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.13,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+  );
+  beam.position.y = 3.2;
+  group.add(beam);
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.35, 0.08, 8, 36),
+    new THREE.MeshStandardMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 1.4,
+      roughness: 0.3,
+    })
+  );
+  ring.position.y = 2.1;
+  group.add(ring);
+
+  const label = makeLabelSprite(
+    `${portal.icon || "🌀"} ${portal.short || portal.label || ""}`,
+    portal.color
+  );
+  label.position.y = 4.15;
+  group.add(label);
+
+  return { group, ring };
+}
+
+// Isla: un portal por modalidad, orientado hacia el centro.
+function makeHubPortals() {
+  const group = new THREE.Group();
+  const rings = [];
+  for (const portal of HUB_PORTALS) {
+    const mode = getMode(portal.modeId);
+    const view = makePortalGate(
+      {
+        ...portal,
+        short: mode ? mode.short : portal.label,
+        color: mode ? mode.color : portal.color,
+      },
+      { yaw: -portal.angle + Math.PI / 2 }
+    );
+    group.add(view.group);
+    rings.push(view.ring);
+
+    if (!mode || mode.status !== "live") {
+      const tag = makeLabelSprite("próximamente", "#c7d2fe");
+      tag.scale.set(2.9, 0.72, 1);
+      tag.position.y = 3.35;
+      view.group.add(tag);
+    }
+  }
+
+  return {
+    group,
+    update(t) {
+      rings.forEach((ring, index) => {
+        ring.rotation.z = t * 0.8 + index;
+      });
+    },
+  };
+}
+
+// Lobby: puerta de entrada a la isla, al sur de la pista de hockey.
+function makeLobbyPortal() {
+  const view = makePortalGate({ ...LOBBY_PORTAL, short: "Minijuegos" }, { yaw: 0 });
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(1.8, 32),
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color(LOBBY_PORTAL.color),
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false,
+    })
+  );
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.y = 0.03;
+  view.group.add(disc);
+  return view;
 }
 
 function addFixedDecor(scene, mapId) {
@@ -2475,6 +2750,19 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
   addExtraDecor(scene, mapId);
   makeGroundCover(scene, mapId, boundary);
 
+  let portalUpdate = null;
+  if (mapId === "isla") {
+    const portals = makeHubPortals();
+    scene.add(portals.group);
+    portalUpdate = portals.update;
+  } else if (mapId === "nevado") {
+    const gate = makeLobbyPortal();
+    scene.add(gate.group);
+    portalUpdate = (t) => {
+      gate.ring.rotation.z = t * 0.9;
+    };
+  }
+
   let particleUpdate = null;
   if (theme.particles) {
     const { points, update } = makeParticles(theme.particles, boundary);
@@ -2484,12 +2772,15 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
 
   addResizeListener(camera, renderer);
 
+  let elapsed = 0;
   return {
     scene,
     camera,
     renderer,
     update(dt) {
+      elapsed += dt;
       if (particleUpdate) particleUpdate(dt);
+      if (portalUpdate) portalUpdate(elapsed);
       if (isTerrainMap(mapId)) sky.position.copy(camera.position);
     },
   };

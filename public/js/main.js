@@ -22,6 +22,10 @@ import {
   sendInventoryThrow,
   buyWeapon,
   leaveServer,
+  enterHub,
+  joinMode,
+  leaveMode,
+  sendModeAction,
 } from "./network.js";
 import { createVoiceManager } from "./voice.js";
 import { setupChatUI } from "./chat.js";
@@ -33,6 +37,8 @@ import { createLoot } from "./loot.js";
 import { createInventoryBar } from "./inventory.js";
 import { createScoreboard } from "./scoreboard.js";
 import { createShop } from "./shop.js";
+import { createPairsUI } from "./pairs.js";
+import { HUB_CODE, LOBBY_PORTAL, PORTAL_TRIGGER_RADIUS, nearestPortal } from "./hubDefs.js";
 import { getWeapon } from "./weaponDefs.js";
 import { isTouchMode, initTouchControls } from "./touch.js";
 import {
@@ -89,6 +95,9 @@ const fpCrosshairEl = document.getElementById("fp-crosshair");
 const fpHintEl = document.getElementById("fp-hint");
 const staminaHudEl = document.getElementById("motion-stamina");
 const staminaFillEl = document.getElementById("motion-stamina-fill");
+const portalPrompt = document.getElementById("portal-prompt");
+const portalPromptText = document.getElementById("portal-prompt-text");
+const portalPromptBtn = document.getElementById("portal-prompt-btn");
 
 const WALK_SPEED = 6;
 const MOVE_SEND_INTERVAL = 50;
@@ -134,7 +143,8 @@ roomJoinForm.addEventListener("submit", (event) => {
 
 roomLeaveBtn.addEventListener("click", () => {
   clearRoomError();
-  leaveRoom();
+  if (myRoom && myRoom.kind === "mode") leaveMode();
+  else leaveRoom();
 });
 
 roomCloseBtn.addEventListener("click", () => {
@@ -157,6 +167,10 @@ if (shopOpenBtn) {
   });
 }
 
+if (portalPromptBtn) {
+  portalPromptBtn.addEventListener("click", () => activatePortal());
+}
+
 voiceBtn.addEventListener("click", handleVoiceToggle);
 
 document.getElementById("wardrobe-btn").addEventListener("click", openWardrobe);
@@ -175,6 +189,7 @@ setupSettings({
 setupMobileMenu({
   onWardrobe: openWardrobe,
   onLogout: handleLogout,
+  onMinigames: handleMinigames,
 });
 
 let minimap = null;
@@ -212,6 +227,12 @@ addEventListener("keydown", (event) => {
       return;
     }
   }
+  if ((event.code === "KeyE" || event.key === "e" || event.key === "E") && !typing) {
+    if (activatePortal()) {
+      event.preventDefault();
+      return;
+    }
+  }
   if (event.key === "Enter" && !typing) {
     event.preventDefault();
     // Si hay un cristal ofrecido, Enter lo recoge (sin tocar el ratón).
@@ -240,7 +261,7 @@ addEventListener("keydown", (event) => {
     event.preventDefault();
     blockHeldKey = true;
     const def = combat ? combat.getWeaponDef() : null;
-    if (!myRoom) showToast("Entra a una sala para combatir");
+    if (!inPrivateRoom()) showToast("Entra a una sala para combatir");
     else if (def && def.block) combat.setBlock(true, cameraYaw);
     else showToast("Necesitas el escudo para bloquear");
   } else if ((event.code === "KeyR" || event.key === "r" || event.key === "R") && !typing) {
@@ -358,6 +379,9 @@ let loot = null;
 let inventoryBar = null;
 let scoreboard = null;
 let shop = null;
+let pairsUI = null;
+// Portal bajo los pies (isla) o puerta del lobby; se recalcula cada frame.
+let portalTarget = null;
 let myScore = 0;
 let slowUntil = 0;
 let motion = createMotionState();
@@ -405,7 +429,7 @@ function blockHeld() {
 // el jugador siguiera pulsando Q. Aquí se reenvía el bloqueo y, si el servidor
 // lo cortó por un hueco de red, se vuelve a levantar mientras siga pulsado.
 setInterval(() => {
-  if (!combat || !myRoom || !myOwnAlive || !blockHeld()) return;
+  if (!combat || !inPrivateRoom() || !myOwnAlive || !blockHeld()) return;
   const def = combat.getWeaponDef();
   if (!def || !def.block) return;
   // Durante el guard break o sin aguante no se reintenta: el servidor
@@ -625,7 +649,7 @@ function setFPMode(on) {
 }
 
 function toggleFPView() {
-  if (!running || !started || !myAvatar || !myOwnAlive || !myRoom) return;
+  if (!running || !started || !myAvatar || !myOwnAlive || !inPrivateRoom()) return;
   if (!combat) return;
   if (combat.isAnimating(myId)) return;
   setFPMode(!fpMode);
@@ -798,9 +822,16 @@ combat.setOwn(myOwnHp, myOwnAlive);
     },
   });
 
+  pairsUI = createPairsUI({
+    onFlip: (index) => sendModeAction({ type: "flip", index }),
+    onLeave: () => leaveMode(),
+    getMyId: () => myId,
+    notify: (text) => showToast(text, 2200),
+  });
+
   if (TOUCH_MODE) {
     const needRoom = () => {
-      if (!myRoom) {
+      if (!inPrivateRoom()) {
         showToast("Entra a una sala para combatir");
         return false;
       }
@@ -837,7 +868,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
     inventoryBar,
     scoreboard,
     shop,
+    pairsUI,
     remotes,
+    // Ganchos de prueba para la isla y los minijuegos: el servidor valida
+    // igualmente proximidad, turno y presupuesto de movimiento.
+    enterHub,
+    joinMode,
+    leaveMode,
+    sendModeAction,
+    sendMove,
     get myId() { return myId; },
     get myRoom() { return myRoom; },
     get myAvatar() { return myAvatar; },
@@ -954,15 +993,17 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onRoomState: ({ room, hosting: isHosting }) => {
       myRoom = room;
       hosting = !!isHosting;
+      const kind = room ? room.kind || "room" : "lobby";
+      const isPrivateRoom = kind === "room";
+      const hasCombat = !!(room && room.combat !== false);
       applyMap(room && room.mapId ? room.mapId : "nevado");
-      const isPrivateRoom = !!room;
-      if (!isPrivateRoom && fpMode) {
+      if (!hasCombat && fpMode) {
         setFPMode(false);
       }
-      if (combat) combat.setEnabled(isPrivateRoom);
-      if (!isPrivateRoom) stopBlocking();
+      if (combat) combat.setEnabled(hasCombat);
+      if (!hasCombat) stopBlocking();
       syncShieldButton();
-      if (hockey) hockey.setActive(!isPrivateRoom);
+      if (hockey) hockey.setActive(!room);
       if (inventoryBar) inventoryBar.setEnabled(true);
       if (loot) loot.setEnabled(isPrivateRoom);
       if (scoreboard) scoreboard.setRoom(isPrivateRoom);
@@ -971,6 +1012,11 @@ combat.setOwn(myOwnHp, myOwnAlive);
         shop.setScore(myScore);
         shop.setEquipped(combat ? combat.getWeaponId() : null);
       }
+      if (pairsUI) {
+        if (kind === "mode" && room.modeId === "pares") pairsUI.show();
+        else pairsUI.hide();
+      }
+      updatePortalPrompt();
       renderRoomPanel();
       syncRemotes();
       // Al entrar en una sala, los que ya estaban llevan arma: el welcome llega
@@ -989,7 +1035,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
       roomErrorEl.textContent = `El anfitrión cerró la sala "${name}".`;
     },
     onRoomOwnerChanged: ({ ownerId, ownerName }) => {
-      if (myRoom) {
+      if (myRoom && (myRoom.kind || "room") === "room") {
         myRoom.ownerId = ownerId;
         myRoom.ownerName = ownerName;
         hosting = ownerId === myId;
@@ -1148,6 +1194,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onShopResult: (data) => {
       if (shop) shop.handleResult(data);
     },
+    onModeState: (snapshot) => {
+      if (pairsUI) pairsUI.setState(snapshot);
+    },
+    onModeEvent: (payload) => {
+      if (pairsUI) pairsUI.event(payload);
+    },
+    onModeError: ({ error } = {}) => {
+      if (error) showToast(error, 2400);
+    },
     onGameFull: (error) => {
       leaveGame();
       showJoinError(error || "El lobby está lleno. Inténtalo más tarde.");
@@ -1267,6 +1322,13 @@ function leaveGame() {
     shop.dispose();
     shop = null;
   }
+
+  if (pairsUI) {
+    pairsUI.dispose();
+    pairsUI = null;
+  }
+  portalTarget = null;
+  if (portalPrompt) portalPrompt.hidden = true;
   myScore = 0;
   slowUntil = 0;
   motion = createMotionState();
@@ -1390,11 +1452,12 @@ function loop(now) {
     const dt = Math.min((now - lastUpdate) / 1000, 0.05);
     lastUpdate = now;
 
-    // Paneles que bloquean el movimiento: vestidor, tienda y marcador.
+    // Paneles que bloquean el movimiento: vestidor, tienda, marcador y tablero.
     const uiOpen =
       dressingOpen() ||
       !!(shop && shop.isOpen()) ||
-      !!(scoreboard && scoreboard.isOpen());
+      !!(scoreboard && scoreboard.isOpen()) ||
+      !!(pairsUI && pairsUI.isOpen());
     if (touchCtl && !uiOpen) {
       const l = touchCtl.consumeLook();
       if (l.dx || l.dy) {
@@ -1407,10 +1470,10 @@ function loop(now) {
         }
       }
       if (touchCtl.consumeFireTap()) {
-        if (!myRoom) showToast("Entra a una sala para combatir");
+        if (!inPrivateRoom()) showToast("Entra a una sala para combatir");
         else if (combat) combat.tryShoot();
       }
-      if (combat && myRoom) {
+      if (combat && inPrivateRoom()) {
         const wdef = combat.getWeaponDef();
         const auto = wdef && wdef.kind !== "melee" && wdef.cooldownMs <= 280;
         if (touchCtl.fireHeld && auto) combat.tryShoot();
@@ -1516,6 +1579,8 @@ function loop(now) {
       );
       lastMoveSend = now;
     }
+
+    updatePortalPrompt();
 
     // En 3.ª persona, bloquear gira al pingüino hacia donde mira la cámara:
     // el escudo debe apuntar al frente de la vista, no a la última caminata.
@@ -1659,15 +1724,99 @@ function setRoomInfoCollapsed(collapsed) {
 function updateRoomsTitle() {
   if (!roomsTitleText) return;
   if (myRoom) {
-    const collapsed = document.body.classList.contains("room-info-collapsed");
-    roomsTitleText.textContent = collapsed ? `${myRoom.name} (${myRoom.code})` : "Sala privada";
+    const kind = myRoom.kind || "room";
+    if (kind === "hub") {
+      roomsTitleText.textContent = "Isla de Minijuegos";
+    } else if (kind === "mode") {
+      roomsTitleText.textContent = myRoom.name;
+    } else {
+      const collapsed = document.body.classList.contains("room-info-collapsed");
+      roomsTitleText.textContent = collapsed ? `${myRoom.name} (${myRoom.code})` : "Sala privada";
+    }
   } else {
     roomsTitleText.textContent = "Salas privadas";
   }
 }
 
+function zoneKind() {
+  if (!myRoom) return "lobby";
+  return myRoom.kind || "room";
+}
+
+function inPrivateRoom() {
+  return zoneKind() === "room";
+}
+
+function inHub() {
+  return zoneKind() === "hub";
+}
+
+function inMode() {
+  return zoneKind() === "mode";
+}
+
+function handleMinigames() {
+  if (inPrivateRoom()) {
+    showToast("Sal de la sala para ir a los minijuegos.", 2400);
+    return;
+  }
+  if (inHub()) {
+    showToast("Ya estás en la isla: camina hasta un portal.", 2200);
+    return;
+  }
+  enterHub();
+}
+
+// Aviso de proximidad: puerta del lobby o portal de la isla. El radio visual
+// (3,2 m) es menor que el que valida el servidor (6 m) para tolerar la latencia.
+function updatePortalPrompt() {
+  if (!portalPrompt) return;
+  let target = null;
+
+  if (inHub()) {
+    const near = nearestPortal(myPosition.x, myPosition.z);
+    if (near) {
+      target = {
+        modeId: near.modeId,
+        label: near.label,
+        icon: near.icon,
+        live: near.status === "live",
+      };
+    }
+  } else if (!myRoom) {
+    const dist = Math.hypot(myPosition.x - LOBBY_PORTAL.x, myPosition.z - LOBBY_PORTAL.z);
+    if (dist <= PORTAL_TRIGGER_RADIUS) {
+      target = { modeId: "hub", label: "Minijuegos", icon: LOBBY_PORTAL.icon, live: true };
+    }
+  }
+
+  portalTarget = target;
+  if (!target) {
+    portalPrompt.hidden = true;
+    return;
+  }
+
+  portalPromptText.textContent = `${target.icon} ${target.label}`;
+  portalPromptBtn.textContent = target.live ? "Entrar (E)" : "Próximamente";
+  portalPromptBtn.disabled = !target.live;
+  portalPrompt.hidden = false;
+}
+
+function activatePortal() {
+  if (!portalTarget) return false;
+  if (!portalTarget.live) {
+    showToast(`${portalTarget.label} todavía no está disponible.`, 2200);
+    return true;
+  }
+  if (portalTarget.modeId === "hub") enterHub();
+  else joinMode(portalTarget.modeId);
+  return true;
+}
+
 function renderRoomPanel() {
-  const inRoom = !!myRoom;
+  const kind = zoneKind();
+  const inZone = !!myRoom;
+  const isPrivate = kind === "room";
   const roomCode = myRoom ? myRoom.code : null;
   // Al entrar o salir de una sala el panel vuelve a mostrarse completo; el
   // colapso es una preferencia momentánea, no se arrastra a la siguiente sala.
@@ -1675,24 +1824,46 @@ function renderRoomPanel() {
     lastRoomPanelCode = roomCode;
     setRoomInfoCollapsed(false);
   }
-  document.body.classList.toggle("in-room", inRoom);
-  if (roomInfoToggle) roomInfoToggle.hidden = !inRoom;
-  roomCreateForm.hidden = inRoom;
-  roomJoinForm.hidden = inRoom;
-  roomListEl.hidden = inRoom;
-  roomPlace.hidden = !inRoom;
+  document.body.classList.toggle("in-room", inZone);
+  if (roomInfoToggle) roomInfoToggle.hidden = !isPrivate;
+  roomCreateForm.hidden = inZone;
+  roomJoinForm.hidden = inZone;
+  roomListEl.hidden = inZone;
+  roomPlace.hidden = !inZone;
   const mapName = myRoom ? getMap(myRoom.mapId).name : null;
-  headerPlace.textContent = myRoom
-    ? `· ${myRoom.name} (${myRoom.code})${mapName ? ` · ${mapName}` : ""}`
-    : "· Lobby";
-  if (fpToggleBtn) fpToggleBtn.hidden = !myRoom;
+  headerPlace.textContent = !myRoom
+    ? "· Lobby"
+    : kind === "hub"
+      ? "· Isla de Minijuegos"
+      : kind === "mode"
+        ? `· ${myRoom.name}`
+        : `· ${myRoom.name} (${myRoom.code})${mapName ? ` · ${mapName}` : ""}`;
+  if (fpToggleBtn) fpToggleBtn.hidden = !isPrivate;
+  if (shopOpenBtn) shopOpenBtn.hidden = !isPrivate;
 
   if (myRoom) {
-    roomCurrent.textContent = `${myRoom.name} (${myRoom.code})${mapName ? ` — ${mapName}` : ""}`;
-    roomOwnerInfo.textContent = hosting
-      ? "Eres el anfitrión"
-      : `Anfitrión: ${myRoom.ownerName}`;
-    roomCloseBtn.hidden = !hosting;
+    if (kind === "hub") {
+      roomCurrent.textContent = "🎮 Isla de Minijuegos";
+      roomOwnerInfo.textContent = "Zona social · sin combate · camina hasta un portal";
+      roomLeaveBtn.textContent = "Salir al lobby";
+    } else if (kind === "mode") {
+      const statusText =
+        myRoom.status === "playing"
+          ? "Partida en curso"
+          : myRoom.status === "finished"
+            ? "Ronda terminada"
+            : "Esperando jugadores";
+      roomCurrent.textContent = `${myRoom.name}${mapName ? ` — ${mapName}` : ""}`;
+      roomOwnerInfo.textContent = `Minijuego · ${statusText} · sin combate`;
+      roomLeaveBtn.textContent = "← Volver a la isla";
+    } else {
+      roomCurrent.textContent = `${myRoom.name} (${myRoom.code})${mapName ? ` — ${mapName}` : ""}`;
+      roomOwnerInfo.textContent = hosting
+        ? "Eres el anfitrión"
+        : `Anfitrión: ${myRoom.ownerName}`;
+      roomLeaveBtn.textContent = "Salir de la sala";
+    }
+    roomCloseBtn.hidden = !(isPrivate && hosting);
   }
 
   renderOnlineList();
@@ -1718,7 +1889,7 @@ function renderRoomList(rooms) {
 
     const button = document.createElement("button");
     button.type = "button";
-    button.disabled = !!myRoom;
+    button.disabled = inPrivateRoom();
     button.textContent = "Unirse";
     button.addEventListener("click", () => {
       clearRoomError();

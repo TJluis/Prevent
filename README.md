@@ -1,8 +1,13 @@
 # Club Pingüi
 
 Plataforma web de interacción social en 3D: avatares que se mueven en un espacio
-compartido, chat de texto (general y por proximidad) y salas privadas con
-permisos de anfitrión.
+compartido, chat de texto (general y por proximidad), salas privadas con permisos
+de anfitrión y una **Isla de Minijuegos** con portales a cada modalidad.
+
+La primera modalidad jugable es **Encuentra los pares** (memoria por turnos, 2–6
+jugadores). Las otras cinco (TNT Run, karts, ciudad rol, coliseo melee y escondite)
+ya tienen su portal en la isla y se muestran como «próximamente» hasta que se
+implementen.
 
 ## Requisitos
 
@@ -64,6 +69,8 @@ Notas:
 - **Tiempo real:** Socket.IO (WebSocket) — sincronización de posiciones y chat.
 - **Backend:** Node.js + Express.
 - **DB (desde la Fase 2):** SQLite en desarrollo, migrable a MariaDB/MySQL.
+- **Modos de juego:** registro compartido en `public/js/modeDefs.js` + controladores
+  autoritativos en `server/modes/` (la isla y cada modo son salas ocultas persistentes).
 
 ## Seguridad y notas
 
@@ -110,5 +117,9 @@ Notas:
   - **7.1** ✔ Animación de muerte "líquida": al ser abatido, el pingüino se derrite/colapsa hacia el suelo dejando un charco en el lugar, y al reaparecer (10s) se materializa levantándose desde el charco. El charco permanece como marca durante todo el respawn. Criterio: la animación aplica por igual al jugador propio y a los demás (client-side), y se ve correctamente tanto al morir como al revivir.
   - **7.2** ✔ Personalización del avatar: pantalla de vestidor al entrar (cuerpo, panza, pico, sombrero, bufanda, lentes + vista previa 3D y aleatorio), persistencia por cuenta (`PUT /api/me/appearance`) y vestidor reabrible dentro del juego (botón "👕 Vestidor").
   - **7.3** ✔ Skins: selector de trajes al final del módulo de personalización — traje, playero, programador, sencillo, táctico, voleibol, sombrero de paja, pirata, ninja y fiesta — con variantes visuales en el avatar (cliente y servidor validan el mismo set).
+- **Fase 8** Expansión de modalidades (plan en `docs/PLAN_MODALIDADES_2026-12.md`).
+  - **8.0** ✔ Isla de Minijuegos: portal en el lobby, sala persistente oculta `ISLA` con mapa propio y seis portales (uno por modalidad). Los portales «próximamente» avisan sin cambiar de zona.
+  - **8.1** ✔ Encuentra los pares: tablero 4×4 por turnos, 2–6 jugadores, estado autoritativo en `server/modes/pairs.js`, overlay DOM sobre la arena 3D y vuelta a la isla al salir.
+  - **8.2** Coliseo melee · **8.3** Escondite · **8.4** TNT Run · **8.5** Karts · **8.6** Ciudad rol — pendientes.
 
 Criterio de "hecho" de cada fase: definido en cada commit de planificación.

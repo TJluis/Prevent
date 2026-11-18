@@ -11,6 +11,10 @@ export const MAPS = [
   { id: "ciudad", name: "Ciudad Neón", room: true, size: 120 },
   { id: "cordillera", name: "Cordillera Nevada", room: true, size: 600 },
   { id: "gruta", name: "Gruta Luminosa", room: true, size: 120 },
+  // Zonas internas de minijuegos: no aparecen en el selector de salas porque
+  // se entra a ellas desde la isla o desde el portal del lobby.
+  { id: "isla", name: "Isla de Minijuegos", room: false, size: 64 },
+  { id: "pares", name: "Arena de Pares", room: false, size: 44 },
 ];
 
 export function getMap(id) {

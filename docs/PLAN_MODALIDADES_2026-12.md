@@ -35,6 +35,26 @@ La petición no es "añadir seis mapas": es convertir un **lobby con salas PVP**
 **Esfuerzo total estimado:** ~55–65 días de trabajo enfocado (una persona + asistencia IA),
 repartidos entre diciembre de 2026 y febrero de 2027.
 
+### 0.1 Estado real (18/11/2026)
+
+El usuario pidió adelantar la Ola 1, así que la base de la expansión ya está en el
+código y probada:
+
+| Entregado | Dónde |
+|---|---|
+| Registro de las seis modalidades (`live`/`soon`) | `public/js/modeDefs.js` |
+| Isla con spawn, anillo de 6 portales y puerta del lobby | `public/js/hubDefs.js`, `public/js/world.js` |
+| Salas ocultas persistentes `ISLA` y `MODO-<ID>` | `server/game.js` (`ensureHub`, `ensureModeRoom`) |
+| Validación de portal (6 m) y guardas de combate/tienda | `server/game.js` (`mode:join`, `mode:action`) |
+| Pares autoritativo 4×4, 2–6 jugadores | `server/modes/pairs.js` |
+| Tablero DOM superpuesto en la arena 3D | `public/js/pairs.js`, `public/index.html`, `public/css/style.css` |
+| Mapas internos `isla` (64) y `pares` (44) | `public/js/mapDefs.js`, `public/js/mapObstacles.js` |
+| Suite de isla/modos/Pares (11 aserciones) | `public/test/t-modos.mjs` |
+
+Las otras cinco modalidades siguen en `status:"soon"`: su portal se ve, pero el
+servidor responde «todavía no está disponible» sin cambiar de zona. Lo pendiente de
+Pares está al final de §3.1.
+
 ---
 
 ## 1. Estado de partida verificado
@@ -205,16 +225,28 @@ encuentre.
 | Acciones | `flip {index}` · `leave` |
 | Trampa clásica | Doble clic rápido en la misma carta; se resuelve con `revealed` y un `lock` de 350 ms |
 | Victoria | Mayor número de parejas al agotar el tablero; desempate por menor tiempo acumulado |
-| Persistencia | `user_stats` gana `pairs_wins`, `pairs_games` |
+| Persistencia | `user_stats` gana `pairs_wins`, `pairs_games` (pendiente) |
 | Esfuerzo | **4 días** |
+| Estado | **✔ Implementado (18/11/2026)** salvo lo listado abajo |
+
+**Implementado:** tablero 4×4 con barajado en servidor, turnos, volteo autoritativo,
+bloqueo de 1 s tras fallar, reinicio a los 12 s, tablero DOM sobre la arena 3D,
+entrada validada por proximidad al portal y vuelta a la isla al salir. Suite
+`t-modos` con **11/11** (incluye una partida determinista y el flujo real
+isla → portal → partida → isla).
+
+**Pendiente de Pares:** espectadores y reconexión como espectador, estadísticas
+persistentes (`pairs_wins`/`pairs_games`), revancha votada, equipos 2v2 y tableros
+5×4/6×6.
 
 **Por qué primero:** ejercita el 100 % del contrato (turnos, estado privado, fin de
 partida, espectadores, revancha) sin física ni *netcode* difícil. Si el contrato falla,
 falla barato.
 
-**DoD:** dos navegadores completan una partida; el servidor rechaza voltear fuera de
-turno, índice inválido y tercer volteo; recarga de página a mitad vuelve como
-espectador; test `t-mode-pares.mjs` con 12 aserciones.
+**DoD (original):** dos navegadores completan una partida; el servidor rechaza voltear
+fuera de turno, índice inválido y tercer volteo; recarga de página a mitad vuelve como
+espectador; test `t-mode-pares.mjs` con 12 aserciones. La suite se integró como
+`t-modos.mjs` (11 aserciones); el resto del DoD queda para la siguiente tanda.
 
 ---
 
@@ -499,6 +531,7 @@ Se añaden, una por modo y una por contrato:
 | Suite | Qué prueba | Aserciones objetivo |
 |---|---|---|
 | `t-mode-core.mjs` | Contrato: join, leave, tick, snapshot, fin | 20 |
+| `t-modos.mjs` ✔ | Registro y portales, mapas `isla`/`pares`, obstáculos, partida determinista y flujo real isla → portal → partida → isla | 11 (implementadas) |
 | `t-mode-pares.mjs` | Barajado con semilla, turnos, parejas, empate | 15 |
 | `t-mode-coliseo.mjs` | Rondas, loadout melee, rechazo de armas de fuego | 18 |
 | `t-mode-escondite.mjs` | Roles, fases, etiquetado con LOS, tiempo | 16 |
@@ -506,8 +539,9 @@ Se añaden, una por modo y una por contrato:
 | `t-mode-karts.mjs` | Checkpoints en orden, vueltas, ranking | 16 |
 | `t-mode-ciudad.mjs` | Interés por celda, persistencia de objetos | 12 |
 
-Todas usan el patrón existente: servidor real en proceso con `PORT` y `DB_PATH`
-temporales, bots de `socket.io-client`, sin navegador.
+La suite `t-modos` ya está en `scripts\test-all.ps1`; las demás se irán añadiendo con
+cada ola. Todas usan el patrón existente: servidor real en proceso con `PORT` y
+`DB_PATH` temporales, bots de `socket.io-client`, sin navegador.
 
 ### 7.2 Manuales por ola
 
@@ -590,6 +624,7 @@ La expansión se considera terminada cuando:
 | **Karts** | *Spike* de 3 días con Colyseus 0.18 antes de comprometerse; si falla, predicción manual sobre Socket.IO. |
 | **Ciudad** | Empieza por distrito + coleccionables (C1–C2); casas y trabajos después. |
 | **Assets** | Mixto: procedural para arenas, glTF (Blender → gltf-transform) para karts, muebles y edificios. |
+| **Adelanto de la Ola 1** | **Aprobado (18/11/2026):** se implementaron la isla y Pares antes del 24/11 por petición del usuario, con la versión estable respaldada y las 9 suites en verde. Las demás olas mantienen el calendario. |
 
-Con esto no queda ninguna decisión bloqueante. El siguiente entregable es la **Ola 0**
-del 24/11.
+Con esto no queda ninguna decisión bloqueante. La Ola 1 (isla + Pares) ya está
+entregada; el siguiente entregable es la **Ola 2** (Coliseo melee).

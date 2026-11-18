@@ -204,6 +204,7 @@ export function setupMobileMenu(handlers) {
       closeMobileMenu();
       const act = it.dataset.act;
       if (act === "rooms") openRoomsSheet();
+      else if (act === "minigames" && handlers.onMinigames) handlers.onMinigames();
       else if (act === "online") openOnlineSheet();
       else if (act === "chat") {
         setSocialTab(null);

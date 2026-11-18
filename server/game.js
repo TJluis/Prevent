@@ -13,6 +13,9 @@ import {
 } from "../public/js/itemDefs.js";
 import { getMapBoundary, getRoomMaps, MAP_LOOT_COUNTS } from "../public/js/mapDefs.js";
 import { isInsideObstacle } from "../public/js/mapObstacles.js";
+import { HUB_CODE, HUB_MAP_ID, HUB_SPAWN, HUB_PORTALS, nearestPortal } from "../public/js/hubDefs.js";
+import { getMode, modeRoomCode } from "../public/js/modeDefs.js";
+import { createPairsGame } from "./modes/pairs.js";
 import {
   computeBlockedDamage,
   getBlockConfig,
@@ -30,6 +33,10 @@ const LOBBY_CHANNEL = "lobby";
 const MAX_ROOMS = 10;
 const MAX_ROOM_MEMBERS = 8;
 const MAX_LOBBY = 16;
+// La isla es una zona social persistente: no cuenta como sala privada y tiene
+// su propio aforo. Los modos viven en salas ocultas (una por modalidad).
+const MAX_HUB_MEMBERS = 24;
+const MODE_TICK_MS = 200;
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const ROOM_MAP_IDS = getRoomMaps().map((map) => map.id);
 const CRYSTAL_PICKUP_RANGE = 1.6;
@@ -79,6 +86,8 @@ const COLORS = [
 
 const players = new Map();
 const rooms = new Map();
+// Controladores de minijuegos activos, indexados por id de modo.
+const modeGames = new Map();
 
 let io;
 let throwSeq = 1;
@@ -200,7 +209,78 @@ function publicRoom(room) {
     ownerId: room.ownerId,
     ownerName: room.ownerName,
     players: room.members.size,
+    // Metadatos de zona: el cliente decide con ellos si hay combate, tienda o
+    // tablero de minijuego. Las salas privadas normales siguen siendo "room".
+    kind: room.kind || "room",
+    modeId: room.modeId || null,
+    status: room.status || "open",
+    combat: room.combat !== false,
+    maxPlayers: room.maxPlayers || MAX_ROOM_MEMBERS,
   };
+}
+
+function visibleRooms() {
+  return [...rooms.values()].filter((room) => !room.hidden);
+}
+
+// Crea (o devuelve) la isla persistente. No aparece en room:list y no cuenta
+// para el límite de salas privadas.
+function ensureHub() {
+  let hub = rooms.get(HUB_CODE);
+  if (hub) return hub;
+  hub = {
+    code: HUB_CODE,
+    name: "Isla de Minijuegos",
+    mapId: HUB_MAP_ID,
+    ownerId: null,
+    ownerName: "—",
+    members: new Set(),
+    chat: [],
+    kind: "hub",
+    status: "open",
+    combat: false,
+    maxPlayers: MAX_HUB_MEMBERS,
+    persistent: true,
+    hidden: true,
+    loot: [],
+    lootPending: [],
+    crystalSeq: 1,
+  };
+  rooms.set(HUB_CODE, hub);
+  return hub;
+}
+
+// Cada modalidad tiene una sala oculta persistente. Así el estado de la partida
+// sobrevive a que un jugador salga y el canal de Socket.IO es el mismo que el de
+// cualquier sala.
+function ensureModeRoom(modeId) {
+  const def = getMode(modeId);
+  if (!def) return null;
+  const code = modeRoomCode(modeId);
+  let room = rooms.get(code);
+  if (!room) {
+    room = {
+      code,
+      name: def.name,
+      mapId: def.mapId,
+      ownerId: null,
+      ownerName: "—",
+      members: new Set(),
+      chat: [],
+      kind: "mode",
+      modeId: def.id,
+      status: "waiting",
+      combat: false,
+      maxPlayers: def.maxPlayers || MAX_ROOM_MEMBERS,
+      persistent: true,
+      hidden: true,
+      loot: [],
+      lootPending: [],
+      crystalSeq: 1,
+    };
+    rooms.set(code, room);
+  }
+  return room;
 }
 
 function roomMembers(room) {
@@ -477,14 +557,7 @@ function damageTarget(shooter, target, damage, dirX, dirZ) {
 
 function broadcastRoomList() {
   io.emit("room:list", {
-    rooms: [...rooms.values()].map((room) => ({
-      code: room.code,
-      name: room.name,
-      mapId: room.mapId,
-      ownerId: room.ownerId,
-      ownerName: room.ownerName,
-      players: room.members.size,
-    })),
+    rooms: visibleRooms().map(publicRoom),
   });
 }
 
@@ -689,6 +762,14 @@ function crystalTick() {
   }
 }
 
+// Avanza los temporizadores de todos los minijuegos (turnos, reinicio de ronda).
+// Cada controlador decide si hubo cambios y emite su propio estado.
+function modeTick() {
+  for (const game of modeGames.values()) {
+    game.tick();
+  }
+}
+
 function transferOwnership(room) {
   const nextId = [...room.members][0];
   room.ownerId = nextId;
@@ -705,25 +786,35 @@ function transferOwnership(room) {
 function removeFromRoom(player) {
   const room = rooms.get(player.roomCode);
   if (!room) return;
+
+  // Los minijuegos necesitan saber que el jugador se fue (turnos, marcador).
+  if (room.kind === "mode") {
+    const game = modeGames.get(room.modeId);
+    if (game) game.leave(player.id);
+  }
+
   room.members.delete(player.id);
-  if (room.members.size === 0) {
+  if (room.members.size === 0 && !room.persistent) {
     rooms.delete(room.code);
   } else if (room.ownerId === player.id) {
     transferOwnership(room);
   }
 }
 
-function moveSocketToLobby(socket, player, { notifyOldRoom = true } = {}) {
+// Sale del canal de la zona actual sin entrar todavía en otra. Lo usan los
+// cambios de zona y la creación de salas desde la isla.
+function detachFromRoom(socket, player, { notify = true } = {}) {
   const oldCode = player.roomCode;
-  if (oldCode) {
-    const channel = roomChannel(oldCode);
-    socket.leave(channel);
-    if (notifyOldRoom) {
-      socket.to(channel).emit("player:left", { id: socket.id });
-    }
-    removeFromRoom(player);
-    player.roomCode = null;
-  }
+  if (!oldCode) return;
+  const channel = roomChannel(oldCode);
+  socket.leave(channel);
+  if (notify) socket.to(channel).emit("player:left", { id: socket.id });
+  removeFromRoom(player);
+  player.roomCode = null;
+}
+
+function moveSocketToLobby(socket, player, { notifyOldRoom = true } = {}) {
+  detachFromRoom(socket, player, { notify: notifyOldRoom });
   player.weaponId = null;
   resetBlock(player);
 
@@ -755,10 +846,7 @@ function moveSocketToRoom(socket, player, room) {
   if (player.roomCode === room.code) return;
 
   if (player.roomCode) {
-    const channel = roomChannel(player.roomCode);
-    socket.leave(channel);
-    socket.to(channel).emit("player:left", { id: socket.id });
-    removeFromRoom(player);
+    detachFromRoom(socket, player);
   } else {
     socket.leave(LOBBY_CHANNEL);
     socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });
@@ -796,8 +884,142 @@ function moveSocketToRoom(socket, player, room) {
   broadcastRoomList();
 }
 
+// Isla de Minijuegos: zona social persistente, sin combate, con un portal por
+// modalidad. Entrar desde el lobby no exige caminar al portal (también hay
+// botón en el menú), pero desde una sala privada hay que salir primero.
+function moveSocketToHub(socket, player) {
+  const hub = ensureHub();
+
+  if (player.roomCode === HUB_CODE) {
+    socket.emit("room:state", { room: publicRoom(hub), hosting: false });
+    return;
+  }
+
+  const current = player.roomCode ? rooms.get(player.roomCode) : null;
+  if (current && current.kind === "room") {
+    return roomError(socket, "Sal de la sala antes de ir a los minijuegos.");
+  }
+  if (!hub.members.has(socket.id) && hub.members.size >= MAX_HUB_MEMBERS) {
+    return roomError(socket, "La isla está llena. Inténtalo en un momento.");
+  }
+
+  detachFromRoom(socket, player);
+  player.roomCode = HUB_CODE;
+  player.weaponId = null;
+  resetBlock(player);
+  player.x = HUB_SPAWN.x;
+  player.z = HUB_SPAWN.z;
+  player.y = 0;
+  hub.members.add(socket.id);
+  socket.join(roomChannel(HUB_CODE));
+  ensureAliveForZone(player, socket, roomChannel(HUB_CODE));
+
+  socket.emit("welcome", { id: socket.id, players: roomMembers(hub).map(playerSnapshot) });
+  socket.emit("chat:history", hub.chat);
+  socket.to(roomChannel(HUB_CODE)).emit("player:joined", playerSnapshot(player));
+  socket.emit("room:state", { room: publicRoom(hub), hosting: false });
+  socket.emit("crystal:equip", { playerId: socket.id, weaponId: null });
+  socket.emit("combat:block", {
+    playerId: socket.id,
+    blocking: false,
+    stamina: BLOCK_STAMINA_MAX,
+  });
+  socket.emit("inventory:update", { playerId: socket.id, inventory: player.inventory });
+  socket.emit("crystal:state", { crystals: [] });
+  sendScoreState(player, socket);
+  sendScoreProfile(socket, player);
+  broadcastRoomList();
+}
+
+function moveSocketToMode(socket, player, room) {
+  if (player.roomCode === room.code) {
+    const game = modeGames.get(room.modeId);
+    if (game) socket.emit("mode:state", game.snapshot());
+    socket.emit("room:state", { room: publicRoom(room), hosting: false });
+    return;
+  }
+
+  if (player.roomCode) {
+    detachFromRoom(socket, player);
+  } else {
+    socket.leave(LOBBY_CHANNEL);
+    socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });
+  }
+
+  player.roomCode = room.code;
+  player.weaponId = null;
+  resetBlock(player);
+  room.members.add(socket.id);
+
+  const spawn = clearRoomSpawn(room.mapId);
+  player.x = spawn.x;
+  player.z = spawn.z;
+  player.y = 0;
+  socket.join(roomChannel(room.code));
+  ensureAliveForZone(player, socket, roomChannel(room.code));
+
+  socket.emit("welcome", { id: socket.id, players: roomMembers(room).map(playerSnapshot) });
+  socket.emit("chat:history", room.chat);
+  socket.to(roomChannel(room.code)).emit("player:joined", playerSnapshot(player));
+  socket.emit("room:state", { room: publicRoom(room), hosting: false });
+  socket.emit("crystal:equip", { playerId: socket.id, weaponId: null });
+  socket.emit("combat:block", {
+    playerId: socket.id,
+    blocking: false,
+    stamina: BLOCK_STAMINA_MAX,
+  });
+  socket.emit("inventory:update", { playerId: socket.id, inventory: player.inventory });
+  socket.emit("crystal:state", { crystals: [] });
+  sendScoreState(player, socket);
+  sendScoreProfile(socket, player);
+
+  const game = modeGames.get(room.modeId);
+  if (game) {
+    const result = game.join({ id: player.id, name: player.name });
+    if (!result.ok) {
+      roomError(socket, result.reason === "full" ? "La partida está llena." : "No se pudo entrar a la partida.");
+      moveSocketToHub(socket, player);
+      return;
+    }
+    room.status = game.status;
+  }
+  broadcastRoomList();
+}
+
+// Difunde el estado de un modo a su sala oculta. También sincroniza
+// room.status para que room:list (y el cliente) sepa si hay partida en curso.
+function emitModeState(modeId, snapshot, event) {
+  const room = rooms.get(modeRoomCode(modeId));
+  if (!room) return;
+  const statusChanged = room.status !== snapshot.status;
+  room.status = snapshot.status;
+  io.to(roomChannel(room.code)).emit("mode:state", snapshot);
+  if (event) io.to(roomChannel(room.code)).emit("mode:event", { modeId, ...event });
+  // El panel lateral muestra el estado de la partida; si cambia (empieza,
+  // termina o se reinicia) se reenvía room:state para no quedarse en
+  // "Esperando jugadores" con la partida ya en marcha.
+  if (statusChanged) {
+    io.to(roomChannel(room.code)).emit("room:state", {
+      room: publicRoom(room),
+      hosting: false,
+    });
+  }
+}
+
 export function setupGame(ioServer) {
   io = ioServer;
+
+  // La isla existe desde el arranque para que room:list y los portales tengan
+  // un destino estable aunque todavía no haya nadie dentro.
+  ensureHub();
+  modeGames.set(
+    "pares",
+    createPairsGame({
+      maxPlayers: getMode("pares").maxPlayers,
+      onChange: (snapshot, event) => emitModeState("pares", snapshot, event),
+    })
+  );
+
   io.on("connection", (socket) => {
     socket.on("player:join", (payload = {}) => {
       if (players.has(socket.id)) return;
@@ -1041,6 +1263,9 @@ export function setupGame(ioServer) {
         if (!player.roomCode) return;
         const room = rooms.get(player.roomCode);
         if (!room) return;
+        // La isla y los minijuegos no tienen combate: sus acciones van por
+        // mode:action, no por el canal de disparos.
+        if (room.combat === false) return;
         const weapon = player.weaponId ? getWeapon(player.weaponId) : null;
         if (!weapon) return;
         // Bloquear impide disparar armas de fuego; el escudo puede hacer bash.
@@ -1257,6 +1482,7 @@ export function setupGame(ioServer) {
         if (!player.roomCode) return toast("Entra a una sala para lanzar objetos");
         const room = rooms.get(player.roomCode);
         if (!room) return toast("Entra a una sala para lanzar objetos");
+        if (room.combat === false) return toast("Aquí no se pueden lanzar objetos");
         if (!player.alive) return toast("Estás eliminado: espera a reaparecer");
         if (throttle(socket, "throw", 20, 1000)) return;
 
@@ -1355,8 +1581,17 @@ export function setupGame(ioServer) {
         const roomOwner = players.get(socket.id);
         if (!roomOwner) return;
         if (throttle(socket, "room", 5, 1000)) return roomError(socket, "Demasiadas acciones. Espera un momento.");
-        if (roomOwner.roomCode) return roomError(socket, "Ya estás en una sala.");
-        if (rooms.size >= MAX_ROOMS) return roomError(socket, "Hay demasiadas salas abiertas.");
+        if (roomOwner.roomCode) {
+          const current = rooms.get(roomOwner.roomCode);
+          // Crear una sala desde la isla o un modo es válido: se abandona esa
+          // zona. Desde otra sala privada hay que salir primero.
+          if (!current || current.kind === "room") return roomError(socket, "Ya estás en una sala.");
+          detachFromRoom(socket, roomOwner);
+        } else {
+          socket.leave(LOBBY_CHANNEL);
+          socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });
+        }
+        if (visibleRooms().length >= MAX_ROOMS) return roomError(socket, "Hay demasiadas salas abiertas.");
 
         const code = randomRoomCode();
         const cleanedName = String(name || "").trim().slice(0, 20);
@@ -1371,14 +1606,16 @@ export function setupGame(ioServer) {
           ownerName: player.name,
           members: new Set([socket.id]),
           chat: [],
+          kind: "room",
+          status: "open",
+          combat: true,
+          maxPlayers: MAX_ROOM_MEMBERS,
         };
         rooms.set(code, room);
         roomOwner.roomCode = code;
         roomOwner.weaponId = null;
         spawnRoomCrystals(room, chosenMap);
 
-        socket.leave(LOBBY_CHANNEL);
-        socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });
         socket.join(roomChannel(code));
 
         socket.emit("welcome", { id: socket.id, players: roomMembers(room).map(playerSnapshot) });
@@ -1399,11 +1636,16 @@ export function setupGame(ioServer) {
         const joiner = players.get(socket.id);
         if (!joiner) return;
         if (throttle(socket, "room", 5, 1000)) return roomError(socket, "Demasiadas acciones. Espera un momento.");
-        if (joiner.roomCode) return roomError(socket, "Ya estás en una sala.");
+        if (joiner.roomCode) {
+          const current = rooms.get(joiner.roomCode);
+          if (!current || current.kind === "room") return roomError(socket, "Ya estás en una sala.");
+          // Desde la isla o un minijuego sí se puede entrar a una sala privada;
+          // moveSocketToRoom se encarga de abandonar la zona anterior.
+        }
 
         const roomCode = String(code || "").trim().toUpperCase();
         const room = rooms.get(roomCode);
-        if (!room) return roomError(socket, "No existe esa sala.");
+        if (!room || room.hidden) return roomError(socket, "No existe esa sala.");
         if (room.members.size >= MAX_ROOM_MEMBERS) return roomError(socket, "La sala está llena.");
 
         moveSocketToRoom(socket, joiner, room);
@@ -1414,6 +1656,86 @@ export function setupGame(ioServer) {
         const leaver = players.get(socket.id);
         if (!leaver || !leaver.roomCode) return;
         moveSocketToLobby(socket, leaver);
+      });
+
+      // Entrar a la isla de minijuegos. Se permite desde el lobby (portal o
+      // botón del menú) y desde otra zona social, nunca desde una sala privada.
+      socket.on("hub:enter", () => {
+        const visitor = players.get(socket.id);
+        if (!visitor) return;
+        if (throttle(socket, "room", 5, 1000)) return roomError(socket, "Demasiadas acciones. Espera un momento.");
+        moveSocketToHub(socket, visitor);
+      });
+
+      // Entrar a un minijuego: hay que estar en la isla y cerca del portal.
+      // El radio del servidor (6 m) es mayor que el del aviso (3,2 m) para
+      // tolerar el retardo de red sin abrir la puerta a teletransportes.
+      socket.on("mode:join", ({ modeId } = {}) => {
+        const visitor = players.get(socket.id);
+        if (!visitor) return;
+        if (throttle(socket, "mode", 6, 1000)) {
+          return socket.emit("mode:error", { error: "Demasiadas acciones. Espera un momento." });
+        }
+        const def = getMode(modeId);
+        if (!def) return socket.emit("mode:error", { error: "Ese minijuego no existe." });
+        if (def.status !== "live") {
+          return socket.emit("mode:error", { error: `${def.name} todavía no está disponible.` });
+        }
+        const current = visitor.roomCode ? rooms.get(visitor.roomCode) : null;
+        if (current && current.kind === "room") {
+          return socket.emit("mode:error", { error: "Sal de la sala para entrar a un minijuego." });
+        }
+        if (current && current.kind === "mode" && current.modeId === def.id) {
+          return moveSocketToMode(socket, visitor, current);
+        }
+        if (current && current.kind === "mode") {
+          return socket.emit("mode:error", { error: "Vuelve a la isla para entrar a otro minijuego." });
+        }
+        if (!current || current.kind !== "hub") {
+          return socket.emit("mode:error", { error: "Entra a la isla para elegir un minijuego." });
+        }
+        const portal = nearestPortal(visitor.x, visitor.z, HUB_PORTALS, 6);
+        if (!portal || portal.modeId !== def.id) {
+          return socket.emit("mode:error", { error: "Acércate al portal para entrar." });
+        }
+        const room = ensureModeRoom(def.id);
+        if (!room) return socket.emit("mode:error", { error: "Ese minijuego no está listo." });
+        if (!room.members.has(visitor.id) && room.members.size >= room.maxPlayers) {
+          return socket.emit("mode:error", { error: "La partida está llena." });
+        }
+        moveSocketToMode(socket, visitor, room);
+      });
+
+      // Volver a la isla desde un minijuego.
+      socket.on("mode:leave", () => {
+        const visitor = players.get(socket.id);
+        if (!visitor) return;
+        if (throttle(socket, "room", 5, 1000)) return;
+        moveSocketToHub(socket, visitor);
+      });
+
+      // Acciones del minijuego (por ahora, voltear una carta de Pares).
+      socket.on("mode:action", (payload = {}) => {
+        const visitor = players.get(socket.id);
+        if (!visitor || !visitor.roomCode) return;
+        const room = rooms.get(visitor.roomCode);
+        if (!room || room.kind !== "mode") return;
+        if (throttle(socket, "modeact", 12, 1000)) return;
+        const game = modeGames.get(room.modeId);
+        if (!game) return;
+
+        const result = game.action(visitor.id, payload);
+        if (!result.ok) {
+          const messages = {
+            "not-your-turn": "Espera tu turno.",
+            wait: "Espera a que se oculten las cartas.",
+            matched: "Esa pareja ya está encontrada.",
+            "already-flipped": "Esa carta ya está boca arriba.",
+            "bad-index": "Carta no válida.",
+          };
+          const message = messages[result.reason];
+          if (message) socket.emit("mode:error", { error: message });
+        }
       });
 
       socket.on("room:kick", ({ targetId } = {}) => {
@@ -1464,6 +1786,8 @@ export function setupGame(ioServer) {
 
         if (!buyer.alive) return deny("dead");
         if (!buyer.roomCode) return deny("no-room");
+        const shopRoom = rooms.get(buyer.roomCode);
+        if (!shopRoom || shopRoom.kind !== "room") return deny("no-room");
         if (throttle(socket, "shop", 6, 1000)) return deny("throttle");
         const id = typeof weaponId === "string" ? weaponId : "";
         if (!Object.prototype.hasOwnProperty.call(WEAPONS, id)) return deny("unknown");
@@ -1613,4 +1937,5 @@ export function setupGame(ioServer) {
 
   setInterval(tickHockey, HOCKEY_TICK_MS);
   setInterval(crystalTick, 1000);
+  setInterval(modeTick, MODE_TICK_MS);
 }

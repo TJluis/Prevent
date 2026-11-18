@@ -148,6 +148,7 @@
 
     <div id="mobile-menu" aria-hidden="true" inert>
       <button type="button" class="mm-item" data-act="rooms">🛖 Salas</button>
+      <button type="button" class="mm-item" data-act="minigames">🎮 Minijuegos</button>
       <button type="button" class="mm-item" data-act="online">👥 Jugadores</button>
       <button type="button" class="mm-item" data-act="chat">💬 Chat</button>
       <div class="mm-sep" role="separator"></div>
@@ -213,6 +214,24 @@
         </div>
         <p id="shop-note" class="shop-note"></p>
         <div id="shop-grid" class="shop-grid"></div>
+      </div>
+    </div>
+
+    <div id="portal-prompt" hidden>
+      <span id="portal-prompt-text"></span>
+      <button id="portal-prompt-btn" type="button">Entrar (E)</button>
+    </div>
+
+    <div id="pairs-overlay" hidden>
+      <div class="pairs-panel">
+        <div class="pairs-head">
+          <span class="pairs-title">🃏 Encuentra los pares</span>
+          <span id="pairs-turn" class="pairs-turn"></span>
+          <button id="pairs-close" type="button" class="btn-sm">← Isla</button>
+        </div>
+        <div id="pairs-players" class="pairs-players"></div>
+        <div id="pairs-board" class="pairs-board" role="grid" aria-label="Tablero de parejas"></div>
+        <p id="pairs-note" class="pairs-note"></p>
       </div>
     </div>
 

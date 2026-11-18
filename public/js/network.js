@@ -39,6 +39,9 @@ export function connectToGame({
   onScoreState,
   onScoreProfile,
   onShopResult,
+  onModeState,
+  onModeEvent,
+  onModeError,
   onGameFull,
   onDisconnect,
   onConnectError,
@@ -97,6 +100,9 @@ export function connectToGame({
   socket.on("score:state", (data) => onScoreState && onScoreState(data));
   socket.on("score:profile", (data) => onScoreProfile && onScoreProfile(data));
   socket.on("shop:result", (data) => onShopResult && onShopResult(data));
+  socket.on("mode:state", (data) => onModeState && onModeState(data));
+  socket.on("mode:event", (data) => onModeEvent && onModeEvent(data));
+  socket.on("mode:error", (data) => onModeError && onModeError(data));
 }
 
 export function sendMove(x, z, yaw, y = 0, sprint = false, slide = false) {
@@ -200,4 +206,22 @@ export function buyWeapon(weaponId) {
   if (socket) {
     socket.emit("shop:buy", { weaponId });
   }
+}
+
+// --- Minijuegos -------------------------------------------------------------
+
+export function enterHub() {
+  if (socket) socket.emit("hub:enter");
+}
+
+export function joinMode(modeId) {
+  if (socket) socket.emit("mode:join", { modeId });
+}
+
+export function leaveMode() {
+  if (socket) socket.emit("mode:leave");
+}
+
+export function sendModeAction(payload) {
+  if (socket) socket.emit("mode:action", payload || {});
 }
