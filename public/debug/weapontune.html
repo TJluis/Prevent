@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Tuner de estructura de armas (debug)</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #0b1016; color: #dbe6f2;
+    font: 13px/1.45 system-ui, sans-serif;
+  }
+  #stage { position: fixed; inset: 0 420px 0 0; }
+  #stage canvas { display: block; cursor: grab; }
+  #stage.dragging canvas { cursor: grabbing; }
+  #panel {
+    position: fixed; top: 0; right: 0; width: 420px; height: 100%;
+    overflow-y: auto; padding: 10px 12px 40px; background: #111823;
+    border-left: 1px solid #22304a;
+  }
+  h1 { font-size: 14px; margin: 4px 0 8px; letter-spacing: .3px; }
+  h2 { font-size: 12px; margin: 14px 0 6px; color: #8fb6e8; text-transform: uppercase; letter-spacing: .6px; }
+  label { display: block; margin: 6px 0 2px; color: #9fb4cc; }
+  select, input[type=number], input[type=color], button, textarea {
+    background: #0e1622; color: #dbe6f2; border: 1px solid #2a3b56; border-radius: 4px;
+    font: inherit; padding: 3px 6px; width: 100%;
+  }
+  button { cursor: pointer; margin: 3px 3px 0 0; width: auto; padding: 4px 8px; font-size: 12px; }
+  button:hover { background: #1b2940; }
+  button.mini { padding: 1px 6px; font-size: 11px; }
+  button.danger:hover { background: #3a1a1f; }
+  .row { display: grid; grid-template-columns: 58px 1fr 54px; gap: 6px; align-items: center; margin: 2px 0; }
+  .row > span { color: #9fb4cc; font-size: 11px; }
+  .row input[type=number] { padding: 1px 3px; font-size: 11px; }
+  input[type=range] { width: 100%; margin: 0; }
+  textarea { height: 210px; font: 11px/1.35 ui-monospace, Consolas, monospace; white-space: pre; }
+  .diag { font: 11px/1.5 ui-monospace, Consolas, monospace; background: #0c131d; border: 1px solid #1e2c42;
+          border-radius: 4px; padding: 6px 8px; white-space: pre-wrap; }
+  .hint { color: #7d93ad; font-size: 11px; margin: 4px 0 0; }
+  #status { font-size: 11px; margin-top: 6px; min-height: 14px; }
+  .part { border: 1px solid #1e2c42; border-radius: 5px; margin: 6px 0; background: #0d1521; }
+  .part > .head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; }
+  .part > .head b { font-weight: 600; font-size: 12px; color: #cfe0f2; }
+  .part > .head .tag { font-size: 10px; color: #7d93ad; }
+  .part > .body { padding: 4px 8px 8px; border-top: 1px solid #17253a; }
+  .part.hidden .body { display: none; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #2a3b56; flex: none; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+  .mats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .mats label { margin: 0; font-size: 10px; }
+  .chk { display: flex; align-items: center; gap: 5px; margin: 4px 0; font-size: 12px; color: #9fb4cc; }
+  .chk input { width: auto; }
+  .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: #1b2940; color: #8fb6e8; }
+  .badge.warn { background: #3a2a12; color: #ffb454; }
+  #topbar { position: fixed; left: 10px; top: 8px; z-index: 3; font-size: 11px; color: #7d93ad; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topbar">arrastra para girar · rueda para acercar</div>
+
+<div id="panel">
+  <h1>Tuner de estructura de armas</h1>
+  <p class="hint">
+    Cada arma es una <b>lista de piezas</b>. Añade, quita, reordena y mide piezas;
+    cambia colores y agarres. Al final pulsa <b>Exportar bloque</b> y pégame el
+    texto (o <b>Enviar</b> si tengo el lector levantado).
+  </p>
+
+  <label>Arma</label>
+  <select id="weapon"></select>
+
+  <div class="chk">
+    <input type="checkbox" id="showOriginal" />
+    <label for="showOriginal" style="margin:0">Ver el modelo ORIGINAL del juego (ignora mis cambios)</label>
+  </div>
+  <div class="chk">
+    <input type="checkbox" id="showGrips" checked />
+    <label for="showGrips" style="margin:0">Mostrar agarres y morro</label>
+  </div>
+  <div class="chk">
+    <input type="checkbox" id="autoRotate" checked />
+    <label for="autoRotate" style="margin:0">Girar solo</label>
+  </div>
+
+  <h2>Colores de materiales</h2>
+  <div class="mats" id="mats"></div>
+  <p class="hint">
+    <b>cuerpo</b> y <b>acento</b> parten del arma (weaponDefs). Cualquier color
+    que toques se guarda para esta arma y se incluye en el bloque exportado.
+  </p>
+
+  <h2>Piezas <span class="badge" id="partCount"></span></h2>
+  <div id="parts"></div>
+  <label>Añadir pieza de tipo</label>
+  <select id="newType"></select>
+  <button id="btnAdd" class="mini">+ Añadir al final</button>
+  <button id="btnAddMid" class="mini">+ Añadir al principio</button>
+
+  <h2>Agarres y morro</h2>
+  <div id="anchors"></div>
+
+  <h2>Diagnóstico</h2>
+  <div class="diag" id="diag">—</div>
+
+  <h2>Acciones</h2>
+  <button id="btnFit">Reencuadrar cámara</button>
+  <button id="btnReset">Reiniciar este arma</button>
+  <button id="btnCopy">Copiar bloque</button>
+  <button id="btnCopyAll">Copiar TODAS</button>
+  <button id="btnSend">Enviar</button>
+  <button id="btnClear" class="danger">Borrar todos los cambios</button>
+  <div id="status" class="hint"></div>
+
+  <h2>Valores para pegar en viewmodel.js (WEAPON_PARTS)</h2>
+  <textarea id="out" spellcheck="false" readonly></textarea>
+</div>
+
+<script type="module">
+import * as THREE from "/vendor/three/three.module.js";
+import { buildWeaponFromParts, buildWeaponGroup, getWeaponParts } from "/js/viewmodel.js";
+import { WEAPON_LIST } from "/js/weaponDefs.js";
+
+const STORE_KEY = "weapontune.v1";
+const REPORT_URL = "http://127.0.0.1:3099/__tuner";
+const AXES = ["x", "y", "z"];
+
+// Campos numéricos de cada tipo de pieza.
+const FIELDS = {
+  caja: [["w", "ancho", 0.001, 2], ["h", "alto", 0.001, 2], ["l", "largo", 0.001, 2]],
+  cilindro: [["r", "radio", 0.001, 1], ["r2", "radio2", 0.001, 1], ["l", "largo", 0.001, 2], ["seg", "segmentos", 3, 24, 1]],
+  esfera: [["r", "radio", 0.001, 1], ["seg", "segX", 3, 24, 1], ["seg2", "segY", 3, 24, 1],
+           ["phi", "phi", -7, 7], ["phiLen", "phiLong", 0, 7], ["theta", "theta", -7, 7], ["thetaLen", "thetaLong", 0, 7]],
+  cono: [["r", "radio", 0.001, 1], ["h", "alto", 0.001, 2], ["seg", "segmentos", 3, 24, 1]],
+  toro: [["r", "radio", 0.001, 1], ["tubo", "grosor", 0.001, 0.5], ["seg", "seg1", 3, 24, 1], ["seg2", "seg2", 3, 32, 1], ["arc", "arco", 0, 7]],
+  icosaedro: [["r", "radio", 0.001, 1], ["detalle", "detalle", 0, 2, 1]],
+  rotor: [["r", "radio", 0.001, 1], ["l", "largo", 0.001, 2], ["r2", "rad2", 0.001, 1], ["l2", "largo2", 0.001, 2],
+          ["radio", "radio aro", 0, 0.5], ["n", "caños", 2, 10, 1], ["eje", "eje z", -3, 3], ["eje2", "caños z", -3, 3]],
+  puntas: [["r", "radio", 0.001, 0.5], ["h", "alto", 0.001, 0.5], ["seg", "segmentos", 3, 12, 1], ["lerp", "hacia centro", 0, 1]],
+  arco: [["R", "radio", 0.05, 1.5], ["y0", "y punta", -1, 1], ["h1", "y alto", -1, 1.5], ["h2", "y bajo", -1, 1],
+         ["depth", "grosor", 0.001, 0.5], ["k", "curva", 0, 1.5]],
+};
+const TIPOS = Object.keys(FIELDS);
+const MATS = ["cuerpo", "acento", "metal", "oscuro", "madera", "maderaOscura", "laton", "cuero", "cuerda"];
+const DEFAULTS = {
+  metal: 0xb8c0cc, oscuro: 0x6b727e, madera: 0x7a5230,
+  maderaOscura: 0x4e3320, laton: 0xc9a227, cuero: 0xd8562e, cuerda: 0x8b909b,
+};
+
+// ---------------------------------------------------------------- escena
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.setSize(stage.clientWidth, stage.clientHeight);
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1016);
+scene.add(new THREE.AmbientLight(0xcfe8ff, 0.55));
+scene.add(new THREE.HemisphereLight(0xdff3ff, 0x7fa0c0, 0.8));
+const sun = new THREE.DirectionalLight(0xfff4df, 1.5);
+sun.position.set(18, 30, 14);
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0x88bbff, 0.6);
+rim.position.set(-14, 6, -10);
+scene.add(rim);
+
+const camera = new THREE.PerspectiveCamera(45, stage.clientWidth / stage.clientHeight, 0.01, 100);
+const pivot = new THREE.Group();
+scene.add(pivot);
+
+const helperMat = new THREE.MeshBasicMaterial({ color: 0x7ee081 });
+const flashMat = new THREE.MeshBasicMaterial({ color: 0xffd166, wireframe: true });
+
+// ---------------------------------------------------------------- estado
+window.__tunerErrors = window.__tunerErrors || [];
+const store = load();
+let currentId = "";
+let rig = null;
+let spin = 0;
+
+const partsEl = document.getElementById("parts");
+const matsEl = document.getElementById("mats");
+const anchorsEl = document.getElementById("anchors");
+const diagEl = document.getElementById("diag");
+const outEl = document.getElementById("out");
+const statusEl = document.getElementById("status");
+const weaponSel = document.getElementById("weapon");
+const newTypeSel = document.getElementById("newType");
+const showOriginal = document.getElementById("showOriginal");
+const showGrips = document.getElementById("showGrips");
+const autoRotate = document.getElementById("autoRotate");
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
+  catch { return {}; }
+}
+function save() {
+  // Guarda SOLO las armas que se diferencian del modelo del juego. Al abrir el
+  // tuner, defFor clona cada arma en memoria; si volcáramos todo, el navegador
+  // guardaría copias idénticas a la base y, si el juego cambia, esas copias
+  // taparían los valores nuevos.
+  const out = {};
+  for (const [id, def] of Object.entries(store)) {
+    if (!deepEqual(def, getWeaponParts(id))) out[id] = def;
+  }
+  localStorage.setItem(STORE_KEY, JSON.stringify(out));
+}
+const clone = (v) => JSON.parse(JSON.stringify(v));
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) &&
+      a.length === b.length && a.every((v, i) => deepEqual(v, b[i]));
+  }
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => kb.includes(k) && deepEqual(a[k], b[k]));
+  }
+  return false;
+}
+
+function weaponById(id) { return WEAPON_LIST.find((w) => w.id === id); }
+
+// Definición editable del arma (con los valores del juego como punto de partida).
+function defFor(id) {
+  if (!store[id]) {
+    const base = getWeaponParts(id);
+    store[id] = clone(base);
+  }
+  return store[id];
+}
+
+// Los colores con los que arranca el tuner.
+function matColor(def, weapon, name) {
+  if (def.colores && def.colores[name] !== undefined) return def.colores[name];
+  if (name === "cuerpo") return weapon.model.color;
+  if (name === "acento") return weapon.model.accent;
+  return DEFAULTS[name];
+}
+function setMatColor(def, name, value) {
+  if (!def.colores) def.colores = {};
+  def.colores[name] = value;
+}
+
+for (const w of WEAPON_LIST) {
+  const o = document.createElement("option");
+  o.value = w.id;
+  o.textContent = `${w.name} (${w.id})`;
+  weaponSel.appendChild(o);
+}
+for (const t of TIPOS) {
+  const o = document.createElement("option");
+  o.value = t;
+  o.textContent = t;
+  newTypeSel.appendChild(o);
+}
+currentId = weaponSel.value || WEAPON_LIST[0].id;
+weaponSel.value = currentId;
+
+// ---------------------------------------------------------------- preview
+function disposeTree(obj) {
+  obj.traverse((c) => {
+    if (c.isMesh) {
+      c.geometry.dispose();
+      if (Array.isArray(c.material)) c.material.forEach((m) => m.dispose());
+      else if (c.material) c.material.dispose();
+    }
+  });
+}
+
+function rebuild() {
+  const def = defFor(currentId);
+  if (rig) {
+    pivot.remove(rig);
+    disposeTree(rig);
+    rig = null;
+  }
+  // Colores del arma: se aplican sobre una copia de la definición para no
+  // escribir en la tabla real del juego.
+  const view = clone(def);
+  rig = showOriginal.checked
+    ? buildWeaponGroup(currentId)
+    : buildWeaponFromParts(currentId, view);
+
+  if (showGrips.checked) {
+    const grips = rig.userData.grips || {};
+    for (const side of ["right", "left"]) {
+      if (!grips[side]) continue;
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), helperMat);
+      s.position.fromArray(grips[side]);
+      rig.add(s);
+    }
+    const m = rig.userData.muzzle;
+    if (m) {
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), flashMat);
+      f.position.copy(m.position);
+      rig.add(f);
+    }
+  }
+  pivot.add(rig);
+  diag();
+}
+
+// La cámara solo se ajusta al cambiar de arma, reiniciar o pedirlo: si se
+// reencajara en cada edición, la caja (ya en coordenadas mundiales) arrastraría
+// el pivot y el zoom y el arma "respiraría" al mover un control.
+// Se mide con el pivot en el origen para que el cálculo sea estable.
+function fitCamera(zoom = true) {
+  if (!rig) return;
+  pivot.position.set(0, 0, 0);
+  pivot.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(rig);
+  if (box.isEmpty()) {
+    if (zoom) dist = 1.4;
+    return;
+  }
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  pivot.position.set(-center.x, -center.y, -center.z);
+  if (zoom) dist = Math.max(1.1, maxDim * 2.1);
+}
+
+// ---------------------------------------------------------------- editor
+function num(value, step) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return step === 1 ? Math.round(n) : +n.toFixed(4);
+}
+
+function sliderRow(parent, label, value, onChange, min, max, step = 0.005) {
+  const safe = value === undefined || value === null || value === "" ? 0 : value;
+  const row = document.createElement("div");
+  row.className = "row";
+  const lab = document.createElement("span");
+  lab.textContent = label;
+  const range = document.createElement("input");
+  range.type = "range";
+  range.min = min; range.max = max; range.step = step;
+  range.value = safe;
+  const number = document.createElement("input");
+  number.type = "number";
+  number.step = step;
+  number.min = min; number.max = max;
+  number.value = num(safe, step);
+  // Mantiene sincronizados deslizador y caja numérica: antes, al escribir un
+  // número, el deslizador seguía en el valor viejo y al tocarlo saltaba atrás.
+  const apply = (v) => {
+    if (!Number.isFinite(v)) return;
+    v = Math.min(max, Math.max(min, v));
+    range.value = v;
+    number.value = num(v, step);
+    onChange(v);
+  };
+  range.addEventListener("input", () => apply(parseFloat(range.value)));
+  number.addEventListener("change", () => {
+    const v = parseFloat(number.value);
+    if (!Number.isFinite(v)) { number.value = num(parseFloat(range.value), step); return; }
+    apply(v);
+  });
+  row.append(lab, range, number);
+  parent.appendChild(row);
+}
+
+function vec3Row(parent, label, target, onChange, min = -2, max = 2, keys = [0, 1, 2], labels = AXES) {
+  const head = document.createElement("div");
+  head.className = "hint";
+  head.textContent = label;
+  parent.appendChild(head);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    sliderRow(parent, labels[i] || AXES[i], target[key], (v) => { target[key] = num(v); onChange(); }, min, max);
+  }
+}
+
+function buildMaterials() {
+  const def = defFor(currentId);
+  const weapon = weaponById(currentId);
+  matsEl.innerHTML = "";
+  for (const name of MATS) {
+    const label = document.createElement("label");
+    label.textContent = name;
+    const input = document.createElement("input");
+    input.type = "color";
+    input.value = "#" + matColor(def, weapon, name).toString(16).padStart(6, "0");
+    input.addEventListener("input", () => {
+      setMatColor(def, name, parseInt(input.value.slice(1), 16));
+      save(); rebuild(); renderOut(); refreshSwatches();
+    });
+    label.appendChild(input);
+    matsEl.appendChild(label);
+  }
+}
+
+// Actualiza los cuadraditos de color de la lista de piezas sin reconstruir el
+// panel (así no se cierran las tarjetas ni se pierde el scroll).
+function refreshSwatches() {
+  const def = defFor(currentId);
+  const weapon = weaponById(currentId);
+  document.querySelectorAll("#parts .part").forEach((card, i) => {
+    const part = def.piezas[i];
+    const sw = card.querySelector(".swatch");
+    if (part && sw) sw.style.background = "#" + matColor(def, weapon, part.mat).toString(16).padStart(6, "0");
+  });
+}
+
+function newPart(tipo) {
+  if (!FIELDS[tipo]) {
+    statusEl.textContent = `Tipo de pieza desconocido: ${tipo}`;
+    return null;
+  }
+  const base = { tipo, mat: "cuerpo", x: 0, y: 0, z: 0 };
+  for (const [key] of FIELDS[tipo]) {
+    base[key] = defaultFor(tipo, key);
+  }
+  if (tipo === "caja") { base.w = 0.1; base.h = 0.1; base.l = 0.3; }
+  if (tipo === "cilindro") { base.r = 0.03; base.l = 0.3; base.seg = 10; }
+  if (tipo === "esfera") { base.r = 0.08; base.seg = 10; base.seg2 = 8; base.phiLen = Math.PI * 2; base.thetaLen = Math.PI; }
+  if (tipo === "cono") { base.r = 0.05; base.h = 0.15; base.seg = 6; }
+  if (tipo === "toro") { base.r = 0.08; base.tubo = 0.012; base.seg = 6; base.seg2 = 14; base.arc = Math.PI * 2; }
+  if (tipo === "icosaedro") { base.r = 0.12; base.detalle = 0; }
+  if (tipo === "rotor") { base.r = 0.05; base.l = 0.28; base.r2 = 0.017; base.l2 = 0.32; base.radio = 0.048; base.n = 5; base.z = -0.32; base.eje = 0; base.eje2 = -0.02; base.mat = "oscuro"; base.mat2 = "metal"; }
+  if (tipo === "puntas") { base.r = 0.022; base.h = 0.09; base.seg = 6; base.centro = [0, 0, 0]; base.lerp = 0.7; base.dirs = [[0, 0.16, 0]]; base.mat = "acento"; }
+  if (tipo === "arco") { base.R = 0.4; base.y0 = -0.02; base.h1 = 0.52; base.h2 = -0.12; base.depth = 0.03; base.k = 0.9; base.mat = "madera"; }
+  return base;
+}
+
+function buildParts() {
+  const def = defFor(currentId);
+  partsEl.innerHTML = "";
+  document.getElementById("partCount").textContent = `${def.piezas.length} piezas`;
+  def.piezas.forEach((part, index) => {
+    const card = document.createElement("div");
+    card.className = "part";
+
+    const head = document.createElement("div");
+    head.className = "head";
+    const sw = document.createElement("span");
+    sw.className = "swatch";
+    const title = document.createElement("b");
+    const sub = document.createElement("span");
+    sub.className = "tag";
+    const refresh = () => {
+      const w = weaponById(currentId);
+      title.textContent = `#${index + 1} ${part.tipo}`;
+      sub.textContent = `${part.mat}${part.visible === false ? " · oculta" : ""}`;
+      sw.style.background = "#" + matColor(def, w, part.mat).toString(16).padStart(6, "0");
+    };
+    refresh();
+    head.append(sw, title, sub);
+
+    const up = mini("↑", () => move(index, -1));
+    const down = mini("↓", () => move(index, 1));
+    const dup = mini("⧉", () => {
+      def.piezas.splice(index + 1, 0, clone(part));
+      save(); rebuild(); buildParts(); renderOut();
+    });
+    const del = mini("✕", () => {
+      def.piezas.splice(index, 1);
+      save(); rebuild(); buildParts(); renderOut();
+    });
+    del.classList.add("danger");
+    const hide = mini(part.visible === false ? "👁" : "🚫", () => {
+      part.visible = part.visible === false ? true : false;
+      if (part.visible === true) delete part.visible;
+      save(); rebuild(); buildParts(); renderOut();
+    });
+    head.append(up, down, dup, hide, del);
+    head.addEventListener("click", (e) => {
+      if (e.target.tagName === "BUTTON") return;
+      card.classList.toggle("hidden");
+    });
+    card.appendChild(head);
+
+    const body = document.createElement("div");
+    body.className = "body";
+    card.appendChild(body);
+    buildPartBody(body, part, index, refresh);
+    partsEl.appendChild(card);
+  });
+}
+
+function mini(text, fn) {
+  const b = document.createElement("button");
+  b.className = "mini";
+  b.textContent = text;
+  b.addEventListener("click", fn);
+  return b;
+}
+
+function move(index, delta) {
+  const def = defFor(currentId);
+  const to = index + delta;
+  if (to < 0 || to >= def.piezas.length) return;
+  const [p] = def.piezas.splice(index, 1);
+  def.piezas.splice(to, 0, p);
+  save(); rebuild(); buildParts(); renderOut();
+}
+
+function buildPartBody(body, part, index, refresh) {
+  const def = defFor(currentId);
+  const changed = () => { save(); rebuild(); renderOut(); refresh(); };
+
+  const rowType = document.createElement("div");
+  rowType.className = "grid2";
+  const selType = document.createElement("select");
+  for (const t of TIPOS) {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t;
+    selType.appendChild(o);
+  }
+  selType.value = part.tipo;
+  selType.addEventListener("change", () => {
+    const fresh = newPart(selType.value);
+    if (!fresh) return;
+    for (const k of ["x", "y", "z", "rx", "ry", "rz", "escala", "visible"]) {
+      if (part[k] !== undefined) fresh[k] = part[k];
+    }
+    fresh.mat = part.mat;
+    def.piezas[index] = fresh;
+    changed(); buildParts();
+  });
+  const selMat = document.createElement("select");
+  for (const m of MATS) {
+    const o = document.createElement("option");
+    o.value = m; o.textContent = m;
+    selMat.appendChild(o);
+  }
+  selMat.value = part.mat;
+  selMat.addEventListener("change", () => { part.mat = selMat.value; changed(); });
+  rowType.append(selType, selMat);
+  if (part.tipo === "rotor") {
+    const selMat2 = document.createElement("select");
+    for (const m of MATS) {
+      const o = document.createElement("option");
+      o.value = m; o.textContent = m;
+      selMat2.appendChild(o);
+    }
+    selMat2.value = part.mat2 || "metal";
+    selMat2.title = "Material de los caños";
+    selMat2.addEventListener("change", () => { part.mat2 = selMat2.value; changed(); });
+    rowType.append(selMat2);
+  }
+  body.appendChild(rowType);
+
+  // Medidas propias del tipo.
+  const grid = document.createElement("div");
+  grid.className = "grid2";
+  for (const [key, label, min, max, step] of FIELDS[part.tipo]) {
+    const value = fieldValue(part, key);
+    const wrap = document.createElement("div");
+    sliderRow(wrap, label, value, (v) => { part[key] = num(v, step); changed(); }, min, max, step || 0.005);
+    grid.appendChild(wrap);
+  }
+  body.appendChild(grid);
+
+  // Posición, rotación y escala se aplican a TODAS las piezas (también rotor y
+  // puntas, que antes no las usaban). En el rotor, z coloca el conjunto; «eje z»
+  // y «caños z» desplazan los caños dentro del rotor.
+  vec3Row(body, "Posición", part, changed, -2, 2, ["x", "y", "z"]);
+  vec3Row(body, "Rotación", part, changed, -7, 7, ["rx", "ry", "rz"]);
+
+  const esc = part.escala || [1, 1, 1];
+  vec3Row(body, "Escala", esc, () => { part.escala = esc; changed(); }, 0.01, 4);
+
+  if (part.tipo === "puntas" || part.tipo === "rotor") {
+    const note = document.createElement("div");
+    note.className = "hint";
+    note.textContent = part.tipo === "rotor"
+      ? "El rotor gira sobre su eje local Z. «eje z» y «caños z» desplazan los caños dentro del rotor; la posición/rotación/escala de arriba mueven el conjunto."
+      : "La posición/rotación/escala de arriba mueven toda la cabeza; «Centro» y las direcciones colocan cada punta.";
+    body.appendChild(note);
+  }
+
+  if (part.tipo === "puntas") {
+    if (!Array.isArray(part.centro)) part.centro = [0, 0, 0];
+    if (!Array.isArray(part.dirs)) part.dirs = [[0, 0.16, 0]];
+    const head = document.createElement("div");
+    head.className = "hint";
+    head.textContent = "Direcciones de las puntas (JSON):";
+    const ta = document.createElement("textarea");
+    ta.style.height = "70px";
+    ta.value = JSON.stringify(part.dirs);
+    ta.addEventListener("change", () => {
+      try {
+        const v = JSON.parse(ta.value);
+        if (Array.isArray(v)) { part.dirs = v; changed(); }
+      } catch { statusEl.textContent = "JSON inválido en las puntas."; }
+    });
+    body.append(head, ta);
+    vec3Row(body, "Centro de la cabeza", part.centro, changed, -2, 2);
+  }
+}
+
+// Valor EFECTIVO de un campo que la definición puede omitir. No se escribe en
+// la pieza: así abrir el tuner no altera el arma (antes rellenaba r2=0.05 y
+// convertía todos los cilindros rectos en cónicos).
+function fieldValue(part, key) {
+  if (part[key] !== undefined) return part[key];
+  if (key === "r2") return part.tipo === "cilindro" ? (part.r ?? 0.05) : 0.05;
+  if (key === "eje2") return part.z2 !== undefined ? part.z2 - (part.z || 0) : -0.02;
+  return defaultFor(part.tipo, key);
+}
+
+function defaultFor(tipo, key) {
+  const map = {
+    w: 0.1, h: 0.1, l: 0.3, r: 0.05, r2: 0.05, seg: 10, seg2: 8, phi: 0,
+    phiLen: Math.PI * 2, theta: 0, thetaLen: Math.PI, tubo: 0.012, arc: Math.PI * 2,
+    detalle: 0, n: 5, radio: 0.05, z: 0, z2: 0, eje: 0, eje2: -0.02, lerp: 0.7, R: 0.4, y0: 0, h1: 0.5,
+    h2: -0.1, depth: 0.03, k: 0.9, l2: 0.3,
+  };
+  // Los valores por defecto que usa viewmodel.js cuando el campo falta.
+  if (key === "seg" && (tipo === "cono" || tipo === "toro" || tipo === "puntas")) return 6;
+  if (key === "seg2" && tipo === "toro") return 14;
+  if (key === "r" && tipo === "puntas") return 0.022;
+  if (key === "h" && tipo === "puntas") return 0.09;
+  if (key === "h" && tipo === "cono") return 0.15;
+  if (key === "l" && tipo === "rotor") return 0.28;
+  return map[key] !== undefined ? map[key] : 0.1;
+}
+
+function buildAnchors() {
+  const def = defFor(currentId);
+  anchorsEl.innerHTML = "";
+  if (!def.agarres) {
+    def.agarres = { right: [0.05, -0.08, 0], left: [-0.05, -0.05, 0] };
+  }
+  const changed = () => { save(); rebuild(); renderOut(); };
+  vec3Row(anchorsEl, "Agarre derecha", def.agarres.right, changed, -1.5, 1.5);
+  vec3Row(anchorsEl, "Agarre izquierda", def.agarres.left, changed, -1.5, 1.5);
+  const weapon = weaponById(currentId);
+  if (weapon.kind === "melee") {
+    // Las armas cuerpo a cuerpo no tienen fogonazo: el morro no se aplica.
+    const note = document.createElement("div");
+    note.className = "hint";
+    note.textContent = "Esta arma es cuerpo a cuerpo: no usa morro/fogonazo.";
+    anchorsEl.appendChild(note);
+    if (def.morro) {
+      const btn = document.createElement("button");
+      btn.className = "mini danger";
+      btn.textContent = "✕ quitar morro (no se usa)";
+      btn.addEventListener("click", () => { delete def.morro; save(); rebuild(); buildAnchors(); renderOut(); });
+      anchorsEl.appendChild(btn);
+    }
+  } else if (!def.morro) {
+    const btn = document.createElement("button");
+    btn.className = "mini";
+    btn.textContent = "+ Añadir morro (fogonazo)";
+    btn.addEventListener("click", () => {
+      def.morro = [0, 0, -(weapon.model.barrel || 0.55) - 0.2];
+      save(); rebuild(); buildAnchors(); renderOut();
+    });
+    anchorsEl.appendChild(btn);
+  } else {
+    vec3Row(anchorsEl, "Morro (fogonazo)", def.morro, changed, -3, 3);
+    const btn = document.createElement("button");
+    btn.className = "mini danger";
+    btn.textContent = "✕ quitar morro";
+    btn.addEventListener("click", () => { delete def.morro; save(); rebuild(); buildAnchors(); renderOut(); });
+    anchorsEl.appendChild(btn);
+  }
+}
+
+// ---------------------------------------------------------------- diagnóstico
+function diag() {
+  if (!rig) { diagEl.textContent = "—"; return; }
+  const box = new THREE.Box3().setFromObject(rig);
+  const empty = box.isEmpty();
+  const size = empty ? new THREE.Vector3() : box.getSize(new THREE.Vector3());
+  let meshes = 0;
+  rig.traverse((o) => { if (o.isMesh) meshes++; });
+  const def = defFor(currentId);
+  const weapon = weaponById(currentId);
+  const f = (n) => n.toFixed(3);
+  diagEl.textContent =
+    `arma: ${weapon.name} (${weapon.kind})\n` +
+    `piezas: ${def.piezas.length}   mallas: ${meshes}\n` +
+    `tamaño: ${empty ? "—" : `${f(size.x)} x ${f(size.y)} x ${f(size.z)}`}\n` +
+    `morro: ${rig.userData.muzzle ? `(${f(rig.userData.muzzle.position.x)}, ${f(rig.userData.muzzle.position.y)}, ${f(rig.userData.muzzle.position.z)})` : "ninguno"}\n` +
+    `rotor: ${rig.userData.spin ? "sí" : "no"}`;
+}
+
+// Firma estable de la escena construida: sirve para comprobar que cada control
+// cambia de verdad la malla (geometría, transformación o color). Se anula el
+// giro del rotor mientras se mide para que la animación no altere la firma.
+function sceneSignature() {
+  if (!rig) return "";
+  const spin = rig.userData.spin;
+  const spinZ = spin ? spin.rotation.z : 0;
+  if (spin) spin.rotation.z = 0;
+  rig.updateMatrixWorld(true);
+  const rows = [];
+  rig.traverse((o) => {
+    if (!o.isMesh) return;
+    const e = o.matrixWorld.elements;
+    const geo = o.geometry;
+    let hash = 0;
+    const pos = geo && geo.attributes && geo.attributes.position;
+    if (pos) {
+      const stride = Math.max(1, Math.floor(pos.count / 16));
+      for (let i = 0; i < pos.count; i += stride) {
+        hash = (hash * 31 + Math.round(pos.getX(i) * 1e4) + Math.round(pos.getY(i) * 1e4) * 7 + Math.round(pos.getZ(i) * 1e4) * 13) | 0;
+      }
+    }
+    const color = o.material && o.material.color ? o.material.color.getHexString() : "";
+    rows.push([
+      geo ? geo.type : "",
+      pos ? pos.count : 0,
+      hash,
+      color,
+      ...Array.from(e).map((n) => (+n).toFixed(5)),
+    ].join(","));
+  });
+  if (spin) spin.rotation.z = spinZ;
+  return rows.join(";");
+}
+
+// ---------------------------------------------------------------- exportar
+function fmt(v) {
+  if (typeof v !== "number") return JSON.stringify(v);
+  const pi = Math.PI;
+  // Fracciones de π habituales en las definiciones. La tabla anterior estaba
+  // mal (2π se exportaba como «Math.PI / 2») y corrompía el bloque al pegarlo.
+  const fractions = [
+    [1, 1, "Math.PI"],
+    [3, 2, "Math.PI * 3 / 2"],
+    [2, 1, "Math.PI * 2"],
+    [1, 2, "Math.PI / 2"],
+    [1, 3, "Math.PI / 3"],
+    [1, 4, "Math.PI / 4"],
+    [1, 6, "Math.PI / 6"],
+    [2, 3, "Math.PI * 2 / 3"],
+    [3, 4, "Math.PI * 3 / 4"],
+    [5, 6, "Math.PI * 5 / 6"],
+  ];
+  for (const [num, den, name] of fractions) {
+    if (Math.abs(Math.abs(v) - pi * num / den) < 1e-6) {
+      return (v < 0 ? "-" : "") + name;
+    }
+  }
+  return String(+v.toFixed(4));
+}
+function fmtValue(v) {
+  if (Array.isArray(v)) return "[" + v.map(fmtValue).join(", ") + "]";
+  if (typeof v === "number") return fmt(v);
+  if (typeof v === "string") return JSON.stringify(v);
+  if (typeof v === "boolean") return v ? "true" : "false";
+  return JSON.stringify(v);
+}
+function partLine(part) {
+  const keys = Object.keys(part);
+  return "{ " + keys.map((k) => `${k}: ${fmtValue(part[k])}`).join(", ") + " }";
+}
+function block(id, indent = "  ") {
+  const def = defFor(id);
+  const out = [`${indent}${id}: {`];
+  if (def.colores && Object.keys(def.colores).length) {
+    out.push(`${indent}  colores: { ${Object.entries(def.colores).map(([k, v]) => `${k}: ${fmtValue(v)}`).join(", ")} },`);
+  }
+  out.push(`${indent}  piezas: [`);
+  for (const part of def.piezas) {
+    out.push(`${indent}    ${partLine(part)},`);
+  }
+  out.push(`${indent}  ],`);
+  if (def.agarres) {
+    out.push(`${indent}  agarres: { right: ${fmtValue(def.agarres.right)}, left: ${fmtValue(def.agarres.left)} },`);
+  }
+  if (def.morro) out.push(`${indent}  morro: ${fmtValue(def.morro)},`);
+  out.push(`${indent}},`);
+  return out.join("\n");
+}
+function renderOut() { outEl.value = block(currentId); }
+
+function payload() {
+  const parts = {};
+  for (const w of WEAPON_LIST) parts[w.id] = defFor(w.id);
+  return { kind: "armas", generated: new Date().toISOString(), errors: window.__tunerErrors || [], parts };
+}
+
+// ---------------------------------------------------------------- acciones
+document.getElementById("btnAdd").addEventListener("click", () => {
+  const def = defFor(currentId);
+  const part = newPart(newTypeSel.value);
+  if (!part) return;
+  def.piezas.push(part);
+  save(); rebuild(); buildParts(); renderOut();
+  statusEl.textContent = `Pieza ${part.tipo} añadida.`;
+});
+document.getElementById("btnAddMid").addEventListener("click", () => {
+  const def = defFor(currentId);
+  const part = newPart(newTypeSel.value);
+  if (!part) return;
+  def.piezas.unshift(part);
+  save(); rebuild(); buildParts(); renderOut();
+  statusEl.textContent = `Pieza ${part.tipo} añadida al principio.`;
+});
+document.getElementById("btnReset").addEventListener("click", () => {
+  delete store[currentId];
+  save(); buildAll();
+});
+document.getElementById("btnClear").addEventListener("click", () => {
+  if (!confirm("¿Borrar TODOS los cambios de armas y volver a los del juego?")) return;
+  localStorage.removeItem(STORE_KEY);
+  location.reload();
+});
+document.getElementById("btnCopy").addEventListener("click", () => copy(outEl.value));
+document.getElementById("btnCopyAll").addEventListener("click", () => {
+  const txt = "const WEAPON_PARTS = {\n" + WEAPON_LIST.map((w) => block(w.id)).join("\n") + "\n};";
+  outEl.value = txt;
+  copy(txt);
+});
+document.getElementById("btnSend").addEventListener("click", () => postPayload());
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); statusEl.textContent = "Copiado."; }
+  catch { statusEl.textContent = "Selecciona y copia con Ctrl+C."; }
+}
+
+async function postPayload() {
+  statusEl.textContent = "Enviando...";
+  try {
+    const res = await fetch(REPORT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload()),
+    });
+    statusEl.textContent = res.ok ? "Enviado. Ya lo tengo." : "El lector respondió " + res.status;
+  } catch {
+    statusEl.textContent = "No hay lector levantado (usa Copiar y pégame el texto).";
+  }
+}
+
+window.__tunerErrors = window.__tunerErrors || [];
+window.addEventListener("error", (e) => {
+  window.__tunerErrors.push(String(e.message || e.error));
+  autoPost();
+});
+window.addEventListener("unhandledrejection", (e) => {
+  window.__tunerErrors.push("promesa: " + String(e.reason && e.reason.message || e.reason));
+  autoPost();
+});
+
+// ?auto=1 deja la página publicando sola: útil para que yo pueda leer el estado
+// final sin que tengas que pulsar nada.
+const AUTO = new URLSearchParams(location.search).has("auto");
+let autoTimer = 0;
+function autoPost() {
+  if (!AUTO) return;
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => { postPayload(); }, 400);
+}
+
+weaponSel.addEventListener("change", () => { currentId = weaponSel.value; buildAll(); });
+showOriginal.addEventListener("change", () => { rebuild(); fitCamera(true); });
+showGrips.addEventListener("change", () => { rebuild(); fitCamera(true); });
+document.getElementById("btnFit").addEventListener("click", () => fitCamera(true));
+
+function buildAll() {
+  buildMaterials();
+  buildParts();
+  buildAnchors();
+  rebuild();
+  fitCamera(true);
+  renderOut();
+}
+
+// ---------------------------------------------------------------- cámara
+let yaw = 0.6, pitch = -0.25, dist = 1.4;
+let dragging = false, lastX = 0, lastY = 0, idleFrames = 0;
+stage.addEventListener("pointerdown", (e) => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  stage.classList.add("dragging");
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  yaw -= (e.clientX - lastX) * 0.01;
+  pitch = Math.max(-1.4, Math.min(1.4, pitch - (e.clientY - lastY) * 0.01));
+  lastX = e.clientX; lastY = e.clientY;
+  idleFrames = 0;
+});
+const stopDrag = () => { dragging = false; stage.classList.remove("dragging"); };
+stage.addEventListener("pointerup", stopDrag);
+stage.addEventListener("pointercancel", stopDrag);
+stage.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  dist = Math.max(0.4, Math.min(12, dist * (1 + Math.sign(e.deltaY) * 0.12)));
+  idleFrames = 0;
+}, { passive: false });
+
+// ---------------------------------------------------------------- loop
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  idleFrames++;
+  if (autoRotate.checked && !dragging && idleFrames > 30) yaw += dt * 0.5;
+  const r = dist;
+  camera.position.set(
+    Math.sin(yaw) * Math.cos(pitch) * r,
+    Math.sin(pitch) * r,
+    Math.cos(yaw) * Math.cos(pitch) * r
+  );
+  camera.lookAt(0, 0, 0);
+  if (rig && rig.userData.spin) rig.userData.spin.rotation.z += dt * 6;
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("resize", () => {
+  camera.aspect = stage.clientWidth / stage.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(stage.clientWidth, stage.clientHeight);
+});
+
+window.__tuner = {
+  get: () => payload(),
+  state: () => ({
+    dist,
+    pivot: pivot.position.toArray(),
+    id: currentId,
+    def: clone(defFor(currentId)),
+    signature: sceneSignature(),
+  }),
+  rig: () => rig,
+  scene: () => scene,
+  camera: () => camera,
+  renderer: () => renderer,
+  store: () => store,
+};
+buildAll();
+requestAnimationFrame(loop);
+document.title = "Tuner de estructura de armas (debug)";
+if (AUTO) setTimeout(autoPost, 1200);
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:," />
+  <title>Club PingÃ¼i Â· Plataforma 3D Social & Combate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<script>
+window.__errors = [];
+const REPORT = "http://127.0.0.1:3098/__report";
+function post(t){ try{ fetch(REPORT,{method:"POST",body:t}); }catch(e){} }
+window.addEventListener("error",(e)=>{ window.__errors.push("ERROR "+(e.message||"")+" @"+String(e.filename||"").split("/").pop()+":"+(e.lineno||"")); post("JS_ERROR "+window.__errors.join(" || ")); });
+window.addEventListener("unhandledrejection",(e)=>{ window.__errors.push("REJECT "+((e.reason&&e.reason.message)||e.reason)); post("REJECT "+window.__errors.join(" || ")); });
+const _ce = console.error;
+console.error = function(...a){ window.__errors.push("CONSOLE "+a.map(String).join(" ").slice(0,300)); _ce.apply(console,a); };
+window.__draws = 0;
+try { for (const P of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
+  if (!P || !P.drawElements) continue; const orig = P.drawElements;
+  P.drawElements = function(...a){ window.__draws++; return orig.apply(this,a); };
+} } catch(e) { post("DRAW_PATCH_FAIL " + e.message); }
+function click(id){ const el = document.getElementById(id); if (el) el.click(); return !!el; }
+post("BOOT page-loaded");
+// 1) entrar como invitado
+setTimeout(()=>{ const n = document.getElementById("name-input"); if (n) n.value = "BootProbe";
+  const f = document.getElementById("join-form"); if (f) f.requestSubmit(); post("BOOT submitted"); }, 1200);
+// 2) confirmar vestidor -> entra al mundo 3D
+setTimeout(()=>{ post("BOOT dressHidden=" + document.getElementById("dress-screen").hidden + " clicked=" + click("dress-play-btn")); }, 4000);
+// 3) medir 6 s de render del mundo
+setTimeout(()=>{ window.__draws = 0; window.__frames = 0; window.__t0 = performance.now();
+  (function loop(){ window.__frames++; if (performance.now() - window.__t0 < 6000) requestAnimationFrame(loop); })(); }, 11000);
+setTimeout(()=>{
+  const cv = document.querySelector("canvas.penguin-canvas");
+  const secs = (performance.now() - (window.__t0||performance.now()))/1000;
+  post("BOOT_RESULT canvas=" + (cv ? cv.width+"x"+cv.height : "none") +
+    " drawsPerFrame=" + (window.__draws/Math.max(1,window.__frames)).toFixed(1) +
+    " frames=" + window.__frames + " secs=" + secs.toFixed(1) +
+    " fps=" + (window.__frames/Math.max(0.001,secs)).toFixed(2) +
+    " errors=" + (window.__errors.length ? window.__errors.join(" || ") : "0"));
+}, 18500);
+</script>
+  <div id="join-screen">
+    <div id="join-card">
+      <div class="brand-badge">
+        <span class="penguin-logo">ðŸ§</span>
+        <span class="brand-sparkle">âœ¨</span>
+      </div>
+      <h1>Club PingÃ¼i</h1>
+      <p class="subtitle">Plataforma social en 3D Â· Avatares, chat y combate multijugador</p>
+      <p class="hint">Inicia sesiÃ³n con tu cuenta o entra al instante como invitado.</p>
+      <form id="join-form" autocomplete="off">
+        <div class="field">
+          <input id="name-input" type="text" maxlength="20" placeholder="Nombre de usuarioâ€¦" autocomplete="username" />
+        </div>
+        <div class="field">
+          <input id="password-input" type="password" maxlength="64" placeholder="ContraseÃ±a (opcional para invitados)" autocomplete="current-password" />
+        </div>
+        <div class="field-row">
+          <button id="join-btn" type="submit" class="btn-primary">ðŸŽ® Jugar</button>
+          <button id="register-btn" type="button" class="btn-secondary">âœ¨ Crear cuenta</button>
+        </div>
+      </form>
+      <p id="join-error"></p>
+    </div>
+  </div>
+
+  <div id="dress-screen" hidden>
+    <div id="dress-card">
+      <div id="dress-left-col">
+        <h2 id="dress-name">Personaliza tu PingÃ¼ino</h2>
+        <div id="dress-preview"></div>
+      </div>
+      <div id="dress-right-col">
+        <div id="dress-tabs">
+          <button class="dress-tab active" data-tab="all">ðŸŽ¨ Todo</button>
+          <button class="dress-tab" data-tab="body">Cuerpo</button>
+          <button class="dress-tab" data-tab="belly">Panza</button>
+          <button class="dress-tab" data-tab="beak">Pico</button>
+          <button class="dress-tab" data-tab="hat">Sombrero</button>
+          <button class="dress-tab" data-tab="scarf">Bufanda</button>
+          <button class="dress-tab" data-tab="glasses">Lentes</button>
+          <button class="dress-tab" data-tab="skin">Skin</button>
+        </div>
+        <div id="dress-controls">
+          <div id="dress-body-row" class="dress-row" data-category="body">
+            <div class="dress-row-title">Color del cuerpo</div>
+            <div id="dress-body" class="dress-options"></div>
+          </div>
+          <div id="dress-belly-row" class="dress-row" data-category="belly">
+            <div class="dress-row-title">Color de la panza</div>
+            <div id="dress-belly" class="dress-options"></div>
+          </div>
+          <div id="dress-beak-row" class="dress-row" data-category="beak">
+            <div class="dress-row-title">Color del pico</div>
+            <div id="dress-beak" class="dress-options"></div>
+          </div>
+          <div id="dress-hat-row" class="dress-row" data-category="hat">
+            <div class="dress-row-title">Sombrero / Accesorio</div>
+            <div id="dress-hat" class="dress-options"></div>
+          </div>
+          <div id="dress-scarf-row" class="dress-row" data-category="scarf">
+            <div class="dress-row-title">Bufanda</div>
+            <div id="dress-scarf" class="dress-options"></div>
+          </div>
+          <div id="dress-glasses-row" class="dress-row" data-category="glasses">
+            <div class="dress-row-title">Lentes</div>
+            <div id="dress-glasses" class="dress-options"></div>
+          </div>
+          <div id="dress-skin-row" class="dress-row" data-category="skin">
+            <div class="dress-row-title">Trajes & Skins</div>
+            <div id="dress-skin" class="dress-options"></div>
+          </div>
+          <div id="dress-jersey-row" class="dress-row" data-category="skin" hidden>
+            <div class="dress-row-title">NÃºmero de la playera</div>
+            <div class="dress-options">
+              <input id="dress-jersey" class="dress-input" type="number" min="0" max="99" inputmode="numeric" title="Elige el nÃºmero de la playera" />
+            </div>
+          </div>
+          <div id="dress-jerseyname-row" class="dress-row" data-category="skin" hidden>
+            <div class="dress-row-title">Nombre en la espalda</div>
+            <div class="dress-options">
+              <input id="dress-jerseyname" class="dress-input dress-input-wide" type="text" maxlength="12" placeholder="VacÃ­o = tu nombre de usuario" title="Nombre que se ve en la espalda de la playera" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div id="dress-actions">
+          <button id="dress-back-btn" type="button" class="btn-ghost">â† Volver</button>
+          <button id="dress-random-btn" type="button" class="btn-secondary">ðŸŽ² Aleatorio</button>
+          <button id="dress-play-btn" type="button" class="btn-primary">Â¡A jugar!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game" hidden>
+    <div id="game-error" hidden></div>
+    <div id="game-header">
+      <div class="header-brand">
+        <span class="brand-logo">ðŸ§</span>
+        <span class="brand-title">Club PingÃ¼i</span>
+        <span id="header-place" class="header-tag">Â· Lobby</span>
+      </div>
+      <div class="header-actions">
+        <button id="wardrobe-btn" type="button" class="hdr-btn">ðŸ‘• Vestidor</button>
+        <button id="fp-toggle" type="button" class="hdr-btn" hidden>ðŸŽ¯ Primera persona (V)</button>
+      </div>
+    </div>
+    
+    <div id="instructions">MuÃ©vete con <b>WASD</b> o flechas Â· <b>Enter</b> abre el chat, <b>Esc</b> lo cierra Â· <b>Clic Izquierdo</b> dispara/ataca Â· <b>R</b> recarga Â· <b>Clic Derecho / RatÃ³n</b> gira cÃ¡mara Â· <b>V</b> cambia vista</div>
+    
+    <div id="fp-crosshair" hidden>
+      <div class="crosshair-dot"></div>
+      <div class="crosshair-line top"></div>
+      <div class="crosshair-line bottom"></div>
+      <div class="crosshair-line left"></div>
+      <div class="crosshair-line right"></div>
+    </div>
+    <div id="fp-hint" hidden>ðŸŽ¯ Clic en la pantalla para fijar ratÃ³n (ESC para liberar)</div>
+    
+    <div id="minimap-wrap" title="Minimapa">
+      <canvas id="minimap" width="160" height="160"></canvas>
+    </div>
+
+    <div id="rooms-panel" class="hud-card">
+      <div id="rooms-title" class="card-title">Salas privadas</div>
+      <form id="room-create-form" autocomplete="off">
+        <input id="room-name-input" type="text" maxlength="20" placeholder="Nombre de la salaâ€¦" />
+        <select id="room-map-select">
+          <option value="">Mapa aleatorio</option>
+        </select>
+        <button type="submit" class="btn-sm">Crear</button>
+      </form>
+      <form id="room-join-form" autocomplete="off">
+        <input id="room-code-input" type="text" maxlength="4" placeholder="CÃ³digo (ej. ABCD)â€¦" />
+        <button type="submit" class="btn-sm">Unirse</button>
+      </form>
+      <div id="room-place" hidden>
+        <div id="room-current"></div>
+        <div id="room-owner-info"></div>
+        <div id="room-buttons">
+          <button id="room-leave-btn" type="button" class="btn-sm btn-danger">Salir de la sala</button>
+          <button id="room-close-btn" type="button" class="btn-sm btn-danger" hidden>Cerrar sala</button>
+        </div>
+      </div>
+      <div id="room-list"></div>
+      <p id="room-error"></p>
+    </div>
+
+    <div id="online-panel" class="hud-card">
+      <div id="online-title" class="card-title">
+        <span>En lÃ­nea</span>
+        <button id="logout-btn" type="button" class="btn-xs">Salir</button>
+      </div>
+      <div id="voice-row">
+        <button id="voice-btn" type="button" class="btn-sm">Activar voz</button>
+        <span id="voice-status"></span>
+      </div>
+      <ul id="online-list"></ul>
+    </div>
+
+    <div id="chat" class="hud-card">
+      <div id="chat-header">
+        <span>ðŸ’¬ Chat</span>
+        <button id="chat-toggle" type="button" title="Mostrar / ocultar chat">â–¾</button>
+      </div>
+      <div id="chat-body">
+        <div id="chat-log"></div>
+        <form id="chat-form">
+          <input id="chat-input" type="text" maxlength="200" placeholder="Escribe un mensajeâ€¦ (Enter)" autocomplete="off" />
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

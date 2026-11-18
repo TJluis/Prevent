@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>WORLDCHECK pending</title>
+<style>html,body{margin:0;background:#111;color:#8f8;font:12px Consolas,monospace}pre{white-space:pre-wrap}</style>
+</head>
+<body>
+<pre id="out">running…</pre>
+<script>
+  // Ping clásico (no-módulo): confirma que la página carga aunque el módulo falle.
+  try {
+    fetch("/__report", { method: "POST", body: "START page-loaded" });
+  } catch (e) {}
+  window.addEventListener("error", (e) => {
+    fetch("/__report", { method: "POST", body: "JS_ERROR " + (e.message || "") + " @ " + (e.filename || "") + ":" + (e.lineno || "") });
+  });
+</script>
+<script type="module">
+  import * as THREE from "/vendor/three/three.module.js";
+  import { createWorld, MAPS } from "/js/world.js";
+
+  const out = document.getElementById("out");
+
+  function report(text) {
+    out.textContent = text;
+    document.title = "WORLDCHECK " + text.replace(/\n/g, " | ");
+    try {
+      fetch("/__report", { method: "POST", body: text });
+    } catch (err) {
+      document.title = "WORLDCHECK report failed: " + err.message;
+    }
+  }
+
+  window.addEventListener("error", (e) => report("JS_ERROR " + (e.message || "") + " @ " + (e.filename || "") + ":" + (e.lineno || "")));
+  window.addEventListener("unhandledrejection", (e) => report("REJECTION " + ((e.reason && e.reason.message) || e.reason)));
+
+  const lines = [];
+  let failures = 0;
+
+  for (const map of MAPS) {
+    let line = `${map.id}: `;
+    try {
+      const world = createWorld(map.id);
+      const { scene, renderer, camera } = world;
+      camera.position.set(0, 6, 26);
+      camera.lookAt(0, 1.5, 0);
+      renderer.render(scene, camera);
+
+      let meshes = 0;
+      let instanced = 0;
+      let instances = 0;
+      let instKinds = [];
+      let coverInstances = 0;
+      scene.traverse((o) => {
+        if (o.isInstancedMesh) {
+          instanced++;
+          instances += o.count;
+          instKinds.push(`${o.count}@${o.geometry.type}`);
+        } else if (o.isMesh) {
+          meshes++;
+        }
+      });
+
+      // La cobertura vegetal son InstancedMesh con DoubleSide y counts altos
+      const cover = [];
+      scene.traverse((o) => {
+        if (o.isInstancedMesh && o.material && o.material.side === THREE.DoubleSide) cover.push(o.count);
+      });
+      coverInstances = cover.reduce((a, b) => a + b, 0);
+
+      const info = renderer.info;
+      line +=
+        `ok drawCalls=${info.render.calls} tris=${info.render.triangles} ` +
+        `meshes=${meshes} instancedMeshes=${instanced} totalInstances=${instances} ` +
+        `cover=${coverInstances} ` +
+        `geoms=${info.memory.geometries} textures=${info.memory.textures}`;
+
+      //，没人障碍应完全落在地面 (y >= -0.01) 且实例包围盒有限
+      let badY = 0;
+      let nonFinite = 0;
+      scene.traverse((o) => {
+        const p = o.position;
+        if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) nonFinite++;
+      });
+
+      // 自采样：网格包围盒不得出现 NaN
+      let nanBox = 0;
+      scene.traverse((o) => {
+        if (o.isInstancedMesh && o.boundingSphere && !Number.isFinite(o.boundingSphere.radius)) nanBox++;
+      });
+
+      if (nonFinite || nanBox) {
+        line += ` FAIL nonFinite=${nonFinite} nanBox=${nanBox}`;
+        failures++;
+      }
+      line += ` inst=[${instKinds.join(",")}]`;
+      renderer.dispose();
+    } catch (err) {
+      line += `ERROR ${err && err.message}`;
+      failures++;
+    }
+    lines.push(line);
+  }
+
+  lines.push(failures === 0 ? "RESULT PASS" : `RESULT FAIL failures=${failures}`);
+  report(lines.join("\n"));
+</script>
+</body>
+</html>

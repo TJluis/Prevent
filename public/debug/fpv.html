@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Debug FPV - Club Pingui</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #223; overflow: hidden; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; top: 8px; left: 10px; color: #8ff; font: 11px/1.45 Consolas, monospace;
+    background: rgba(0,0,0,.6); padding: 6px 10px; border-radius: 6px; pointer-events: none;
+    max-width: 560px; white-space: pre;
+  }
+  #hud b { color: #fff; }
+</style>
+</head>
+<body>
+<div id="hud">cargando…</div>
+<script type="module">
+  import * as THREE from "/vendor/three/three.module.js";
+  import { buildViewmodel } from "/js/viewmodel.js";
+  import { WEAPON_LIST } from "/js/weaponDefs.js";
+
+  const q = new URLSearchParams(location.search);
+  const weaponId = q.get("weapon") || "pistola";
+  const skin = q.get("skin") || "";
+  const body = q.get("body") || "#222b3f";
+  const cameraY = parseFloat(q.get("y") || "0");
+
+  const view = document.getElementById("hud");
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x223344);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.1));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+  dir.position.set(2, 3, -2);
+  scene.add(dir);
+
+  const grid = new THREE.GridHelper(4, 10, 0x3a6, 0x2a4a35);
+  grid.position.y = -1;
+  scene.add(grid);
+  for (let i = -2; i <= 2; i++) {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(0.02, 0.02, 0.02),
+      new THREE.MeshBasicMaterial({ color: i === 0 ? 0x7f7 : 0x889988 })
+    );
+    m.position.set(i * 0.2, -0.95, -0.6);
+    scene.add(m);
+  }
+  scene.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(2.2, 0.2, -0.7), 0.3, 0xff6666));
+  scene.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(-2.8, 0.2, 1.5), 0.45, 0x66ff66));
+
+  const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 30);
+  camera.rotation.order = "YXZ";
+  camera.rotation.set(cameraY, 0, 0);
+  scene.add(camera);
+
+  const ch = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  ch.position.set(0, 0, -0.62);
+  scene.add(ch);
+
+  const appearance = skin ? { skin } : { body };
+  const rig = buildViewmodel(weaponId, appearance);
+  camera.add(rig.group);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const v3 = new THREE.Vector3();
+  function screenOf(obj) {
+    const p = v3.setFromMatrixPosition(obj.matrixWorld).clone().project(camera);
+    return { px: (p.x + 1) / 2 * innerWidth, py: (1 - p.y) / 2 * innerHeight, ndcX: p.x, ndcY: p.y, z: p.z };
+  }
+  function bodyCenter(obj) {
+    const box = new THREE.Box3().setFromObject(obj);
+    return box.getCenter(v3).clone().project(camera);
+  }
+
+  let tel = "";
+  function telemetry() {
+    const g = rig.group;
+    const grips = g.userData.grips || { right: [0.05, -0.08, 0], left: [-0.05, -0.05, 0] };
+    const rightH = g.userData.rightHand;
+    const leftH = g.userData.leftHand;
+    const mz = g.userData.muzzle;
+    const or = screenOf(g);
+    const r = screenOf(rightH);
+    const l = screenOf(leftH);
+    const rt = screenOf(rightH ? rightH.children[1] : null);
+    const lt = screenOf(leftH ? leftH.children[1] : null);
+    tel =
+      `weapon=${weaponId} skin=${skin || "none"} body=${body}\n` +
+      `W=${innerWidth} H=${innerHeight}\n` +
+      `rig  origin px=(${or.px.toFixed(0)}, ${or.py.toFixed(0)}) ndc=(${or.ndcX.toFixed(2)}, ${or.ndcY.toFixed(2)}) z=${or.z.toFixed(2)}\n` +
+      `grip R=(${grips.right})  L=(${grips.left})\n` +
+      (mz ? `muzz px=(${screenOf(mz).px.toFixed(0)}, ${screenOf(mz).py.toFixed(0)}) z=${screenOf(mz).z.toFixed(2)}\n` : `muzz=null (melee)\n`) +
+      `handR px=(${r.px.toFixed(0)}, ${r.py.toFixed(0)}) ndcX=${r.ndcX.toFixed(2)} sqrt dist=${Math.sqrt(r.px * r.px + r.py * r.py).toFixed(0)}px global(${rightH && rightH.matrixWorld.elements[12].toFixed(2)}, ${rightH && rightH.matrixWorld.elements[14].toFixed(2)})\n` +
+      `handL px=(${l.px.toFixed(0)}, ${l.py.toFixed(0)}) ndcX=${l.ndcX.toFixed(2)} sqrt dist=${Math.sqrt(l.px * l.px + l.py * l.py).toFixed(0)}px global(${leftH && leftH.matrixWorld.elements[12].toFixed(2)}, ${leftH && leftH.matrixWorld.elements[14].toFixed(2)})\n` +
+      `tipR px=(${rt.px.toFixed(0)}, ${rt.py.toFixed(0)}) tipL px=(${lt.px.toFixed(0)}, ${lt.py.toFixed(0)})\n` +
+      `CHECK: left<right=${l.px < r.px}  gap=${(r.px - l.px).toFixed(0)}px  center=${(or.px).toFixed(0)}px`;
+    view.innerHTML = tel.replace(/\n/g, "<br>").replace(/([a-zA-Z0-9])/g, "$1");
+    document.title = "TEL " + tel.replace(/\n/g, " | ");
+  }
+
+  let last = 0;
+  function tick(now) {
+    rig.update(now, 0.016, false);
+    renderer.render(scene, camera);
+    if (now - last > 200) {
+      last = now;
+      telemetry();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

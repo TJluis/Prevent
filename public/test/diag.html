@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diag mapas</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  #game{position:fixed;inset:0}
+  #hud{position:fixed;top:6px;left:6px;z-index:5;color:#0f0;font:12px monospace;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:4px;white-space:pre}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud">…</div>
+<script type="module">
+import { createWorld } from "/js/world.js";
+
+const params = new URLSearchParams(location.search);
+const map = params.get("map") || "selva";
+const mode = params.get("view") || "top";
+
+const world = createWorld(map);
+const { scene, camera, renderer } = world;
+
+function applyView() {
+  if (mode === "top") {
+    camera.position.set(0, 70, 0.01);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(0, 0, 0);
+  } else if (mode === "towards") {
+    camera.position.set(35, 3, 35);
+    camera.lookAt(0, 1, 0);
+  } else if (mode === "fpv") {
+    camera.position.set(0, 1.35, 18);
+    camera.rotation.order = "YXZ";
+    camera.lookAt(0, 1.2, 0);
+  } else if (mode === "third") {
+    camera.position.set(20, 14, 20);
+    camera.lookAt(0, 0, 0);
+  }
+}
+applyView();
+window.__diag = { map, mode };
+
+document.getElementById("hud").textContent =
+  "map=" + map + " view=" + mode + "\n" +
+  "webgl2=" + (!!window.WebGL2RenderingContext) + "\n" +
+  "cam=" + camera.position.toArray().map((v) => v.toFixed(1)).join(",") + "\n" +
+  "obstaculos=" + (scene.children.length || 0);
+
+function loop() {
+  world.update(0.016);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

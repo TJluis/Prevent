@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#000">
+<canvas id="c" width="640" height="360"></canvas>
+<script>
+const c = document.getElementById('c');
+const gl = c.getContext('webgl2');
+if (!gl) { document.title = 'NO_WEBGL2'; document.body.innerHTML='<pre id="o">NO_WEBGL2</pre>'; } else {
+  const r = new WebGLRendererLike(gl);
+  gl.clearColor(0.1,0.7,0.2,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  document.title = 'WEBGL2_OK';
+  document.body.innerHTML='<pre id="o">WEBGL2_OK renderer='+gl.getParameter(gl.RENDERER)+'</pre>';
+}
+function WebGLRendererLike(){}
+</script>
+</body></html>

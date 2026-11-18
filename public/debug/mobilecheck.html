@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Visor móvil · Club Pingüi</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0b1020; color: #e8f4ff; }
+    header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #1e2a44; }
+    header strong { color: #00f0ff; margin-right: 8px; }
+    button { padding: 6px 12px; border-radius: 8px; border: 1px solid #2b3a5c; background: #131a2e; color: #e8f4ff; cursor: pointer; font-size: 0.85rem; }
+    button.active { border-color: #00f0ff; color: #00f0ff; }
+    #meta { margin-left: auto; font: 12px ui-monospace, monospace; color: #8aa0c4; }
+    main { display: flex; justify-content: center; padding: 18px; }
+    #stage { position: relative; background: #000; border: 1px solid #2b3a5c; border-radius: 10px; overflow: hidden; }
+    iframe { display: block; border: 0; background: #000; }
+    #hint { padding: 0 14px 10px; font-size: 12px; color: #8aa0c4; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Visor móvil</strong>
+    <button data-size="844x390" class="active">Horizontal 844×390</button>
+    <button data-size="390x844">Vertical 390×844</button>
+    <button data-size="768x1024">Tablet 768×1024</button>
+    <button data-size="360x640">Chico 360×640</button>
+    <button id="reload">Recargar</button>
+    <span id="meta">—</span>
+  </header>
+  <p id="hint">Fuerza <code>window.__forceTouch = true</code> dentro del iframe para revisar el layout táctil en cualquier tamaño.</p>
+  <main><div id="stage"><iframe id="frame"></iframe></div></main>
+  <script>
+    const frame = document.getElementById("frame");
+    const stage = document.getElementById("stage");
+    const meta = document.getElementById("meta");
+    let size = "844x390";
+
+    function applySize() {
+      const [w, h] = size.split("x").map(Number);
+      frame.style.width = w + "px";
+      frame.style.height = h + "px";
+      stage.style.width = w + "px";
+      stage.style.height = h + "px";
+      meta.textContent = size + " · dpr " + (window.devicePixelRatio || 1);
+      document.querySelectorAll("header button[data-size]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.size === size);
+      });
+    }
+
+    async function load() {
+      applySize();
+      const html = await (await fetch("/?" + Date.now())).text();
+      const inject = '<base href="http://localhost:3000/">' +
+        '<script>window.__forceTouch = true;<\/script>';
+      const socketFix = '<script src="/socket.io/socket.io.js"><\/script>' +
+        '<script>(function(){var raw=window.io;window.io=function(){' +
+        'var a=[].slice.call(arguments);if(!a.length||typeof a[0]==="object")a.unshift("http://localhost:3000");' +
+        'return raw.apply(null,a);};})();<\/script>';
+      frame.srcdoc = html
+        .replace("<head>", "<head>" + inject)
+        .replace('<script src="/socket.io/socket.io.js"><\/script>', socketFix);
+    }
+
+    document.querySelectorAll("header button[data-size]").forEach((b) => {
+      b.addEventListener("click", () => { size = b.dataset.size; load(); });
+    });
+    document.getElementById("reload").addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>

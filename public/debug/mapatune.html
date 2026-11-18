@@ -1,0 +1,1269 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Tuner de mapas (debug)</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #0b1016; color: #dbe6f2;
+    font: 13px/1.45 system-ui, sans-serif;
+  }
+  #stage { position: fixed; inset: 0 430px 0 0; background: #05080d; }
+  #stage canvas { position: absolute; inset: 0; display: block; width: 100% !important; height: 100% !important; cursor: crosshair; }
+  #stage.orbit canvas { cursor: grabbing; }
+  #panel {
+    position: fixed; top: 0; right: 0; width: 430px; height: 100%;
+    overflow-y: auto; padding: 10px 12px 50px; background: #111823;
+    border-left: 1px solid #22304a; box-sizing: border-box;
+  }
+  h1 { font-size: 14px; margin: 4px 0 6px; }
+  h2 { font-size: 12px; margin: 16px 0 6px; color: #8fb6e8; text-transform: uppercase; letter-spacing: .6px; }
+  label { display: block; margin: 6px 0 2px; color: #9fb4cc; font-size: 12px; }
+  select, input[type=number], input[type=text], button, textarea {
+    background: #0e1622; color: #dbe6f2; border: 1px solid #2a3b56; border-radius: 4px;
+    font: inherit; padding: 3px 6px; width: 100%; box-sizing: border-box;
+  }
+  input[type=color] { background: #0e1622; border: 1px solid #2a3b56; border-radius: 4px; padding: 1px; width: 100%; height: 22px; }
+  button { cursor: pointer; width: auto; margin: 3px 3px 0 0; padding: 4px 8px; font-size: 12px; }
+  button:hover { background: #1b2940; }
+  button.mini { padding: 1px 6px; font-size: 11px; margin: 0 2px 0 0; }
+  button.danger:hover { background: #3a1a1f; }
+  button.on { background: #1d4b6b; border-color: #4b90c9; }
+  textarea { height: 230px; font: 11px/1.35 ui-monospace, Consolas, monospace; white-space: pre; }
+  .row { display: grid; grid-template-columns: 74px 1fr 62px; gap: 6px; align-items: center; margin: 2px 0; }
+  .row > span { color: #9fb4cc; font-size: 11px; }
+  .row input[type=number] { padding: 1px 3px; font-size: 11px; }
+  .row input[type=range] { width: 100%; margin: 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px 6px; }
+  .hint { color: #7d93ad; font-size: 11px; margin: 4px 0; }
+  .diag { font: 11px/1.5 ui-monospace, Consolas, monospace; background: #0c131d; border: 1px solid #1e2c42;
+          border-radius: 4px; padding: 6px 8px; white-space: pre-wrap; }
+  #status { font-size: 11px; margin-top: 6px; min-height: 14px; color: #7ee081; }
+  #topbar {
+    position: fixed; left: 10px; top: 8px; z-index: 3; font-size: 11px; color: #cfe0f2;
+    background: rgba(8,12,18,.72); padding: 5px 8px; border-radius: 5px; pointer-events: none;
+    max-width: 60%;
+  }
+  .prop { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border: 1px solid #1e2c42;
+          border-radius: 4px; margin: 3px 0; background: #0d1521; cursor: pointer; font-size: 11px; }
+  .prop:hover { background: #16223a; }
+  .prop.sel { border-color: #4b90c9; background: #16304a; }
+  .prop b { font-weight: 600; color: #cfe0f2; min-width: 74px; }
+  .prop .co { color: #7d93ad; font-family: ui-monospace, Consolas, monospace; flex: 1; }
+  .tools { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #2a3b56; flex: none; }
+  .pal { border: 1px solid #1e2c42; border-radius: 5px; background: #0d1521; padding: 5px 7px; margin: 5px 0; }
+  .pal h3 { margin: 0 0 4px; font-size: 11px; color: #8fb6e8; text-transform: uppercase; letter-spacing: .5px; }
+  .carr { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .carr input { width: 34px; height: 22px; padding: 0; }
+  .newbox { border: 1px solid #2a3b56; border-radius: 5px; padding: 6px 8px; background: #0d1521; margin-top: 6px; }
+  .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: #1b2940; color: #8fb6e8; }
+  .sect { max-height: 260px; overflow-y: auto; border-top: 1px dashed #1e2c42; padding-top: 4px; }
+  .sw { display: flex; align-items: center; gap: 6px; margin: 5px 0; font-size: 12px; color: #9fb4cc; }
+  .sw input { width: auto; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="topbar">
+  clic en el suelo = colocar · clic en un objeto = seleccionar · arrastrar objeto = mover ·
+  arrastrar suelo = girar · rueda = acercar · 1/2/3 cambia de herramienta
+</div>
+
+<div id="panel">
+  <h1>Tuner de mapas</h1>
+  <p class="hint">
+    Arregla los 8 mapas del juego o crea uno nuevo. Al final copia los bloques y
+    pégame el texto (o pulsa <b>Enviar</b> si tengo el lector levantado).
+  </p>
+
+  <h2>Mapa</h2>
+  <div class="tools">
+    <select id="mapSel" style="flex:1"></select>
+    <button id="btnNew" class="mini">＋ Nuevo</button>
+  </div>
+  <div id="newBox" class="newbox" hidden>
+    <label>id (sin espacios, en minúsculas)</label>
+    <input type="text" id="newId" value="mi-mapa" />
+    <label>nombre visible</label>
+    <input type="text" id="newName" value="Mi Mapa" />
+    <div class="grid2">
+      <div><label>tamaño</label><input type="number" id="newSize" value="80" min="40" step="20" /></div>
+      <div><label>relieve</label><select id="newTerrain"><option value="0">plano</option><option value="1">relieve (montañas)</option></select></div>
+    </div>
+    <label>empezar desde</label>
+    <select id="newBase"></select>
+    <div class="tools" style="margin-top:6px">
+      <button id="btnCreate">Crear mapa</button>
+      <button id="btnNewCancel" class="mini">cancelar</button>
+    </div>
+  </div>
+
+  <div id="identity"></div>
+
+  <h2>Herramienta</h2>
+  <div class="tools">
+    <button id="tool-place" class="mini on">1 · Colocar</button>
+    <button id="tool-sel" class="mini">2 · Seleccionar</button>
+    <button id="tool-del" class="mini">3 · Borrar</button>
+  </div>
+  <label>Tipo de objeto a colocar</label>
+  <select id="kindSel"></select>
+
+  <h2>Objeto seleccionado</h2>
+  <div id="selected">Ninguno</div>
+
+  <h2>Objetos <span class="badge" id="propCount"></span></h2>
+  <div id="propList" class="sect"></div>
+
+  <h2>Paleta de colores</h2>
+  <div id="palette" class="sect"></div>
+
+  <h2>Ambiente (cielo, niebla, suelo, luz)</h2>
+  <div id="theme" class="sect"></div>
+
+  <h2>Suelo decorativo</h2>
+  <div id="cover" class="sect"></div>
+
+  <h2>Diagnóstico</h2>
+  <div class="diag" id="diag">—</div>
+
+  <h2>Acciones</h2>
+  <button id="btnReset">Reiniciar este mapa</button>
+  <button id="btnCopy">Copiar bloques</button>
+  <button id="btnSend">Enviar</button>
+  <button id="btnClear" class="danger">Borrar todos mis cambios</button>
+  <div id="status"></div>
+
+  <h2>Para pegar en mapDefs.js y world.js</h2>
+  <textarea id="out" spellcheck="false" readonly></textarea>
+</div>
+
+<script type="module">
+import * as THREE from "/vendor/three/three.module.js";
+import { createWorld, MAP_DEFS, THEMES, GROUND_COVER, isTerrainMap } from "/js/world.js";
+import { MAPS } from "/js/mapDefs.js";
+
+const STORE_KEY = "mapatune.v1";
+const REPORT_URL = "http://127.0.0.1:3099/__tuner";
+const AUTO = new URLSearchParams(location.search).has("auto");
+
+const KINDS = {
+  pine: { type: "circle", label: "Pino", r: 1.0 },
+  leaf: { type: "circle", label: "Árbol de hojas", r: 1.0 },
+  cactus: { type: "circle", label: "Cactus", r: 0.6 },
+  rock: { type: "circle", label: "Roca", r: 1.3 },
+  pillar: { type: "circle", label: "Pilar", r: 0.85, h: 4.0 },
+  stalagmite: { type: "circle", label: "Estalagmita", r: 0.75 },
+  shroom: { type: "circle", label: "Seta", r: 0.7 },
+  crate: { type: "box", label: "Caja", w: 2, d: 2 },
+  igl: { type: "box", label: "Iglú", w: 8, d: 7 },
+  ruin: { type: "box", label: "Ruina", w: 7, d: 6 },
+  building: { type: "box", label: "Edificio", w: 7, d: 6, h: 4.5 },
+};
+
+const PALETTE_SCHEMA = {
+  pine: { fields: [["trunk", "tronco"], ["leaf", "hojas"], ["highlight", "nieve"]] },
+  leaf: { fields: [["trunk", "tronco"], ["shades", "tonos"]] },
+  cactus: { fields: [["body", "cuerpo"]] },
+  rock: { plain: true, label: "roca" },
+  crate: { fields: [["box", "caja"], ["bands", "bandas"]] },
+  ruin: { fields: [["body", "muro"], ["pillar", "pilar"]] },
+  pillar: { fields: [["body", "cuerpo"], ["glow", "brillo"]] },
+  stalagmite: { fields: [["rock", "roca"], ["glow", "brillo"]] },
+  shroom: { fields: [["stem", "tallo"], ["cap", "sombrero"], ["glow", "brillo"]] },
+  building: { fields: [["body", "edificio"]] },
+  igl: { fields: [] },
+};
+
+const PALETTE_DEFAULT = {
+  pine: { trunk: 0x6a4526, leaf: 0x2e6b45, highlight: 0xf4fafe },
+  leaf: { trunk: 0x5a3420, shades: [0x1f6f3f, 0x2e8b57, 0x3aa868] },
+  cactus: { body: 0x3f8f4e },
+  rock: 0x8d99a6,
+  crate: { box: 0xe9eef3, bands: [0x3f8f6c, 0x4688c9, 0xe07a3a] },
+  ruin: { body: 0xd8b57a, pillar: 0xc8985a },
+  pillar: { body: 0x3a3a44, glow: 0x69e6ff },
+  stalagmite: { rock: 0x46506b, glow: 0x7cffd4 },
+  shroom: { stem: 0xc8bfa8, cap: 0x9a5bb8, glow: 0xd98aff },
+  building: { body: 0x232a45 },
+  igl: {},
+};
+
+const COLOR_KEYS = new Set([
+  "top", "mid", "horizon", "color", "wall", "wallTop", "hemisphere", "body",
+  "glow", "trunk", "leaf", "highlight", "shades", "bands", "rock", "box",
+  "cap", "stem", "pillar", "tuftColor", "pebbleColor",
+]);
+
+const clone = (v) => JSON.parse(JSON.stringify(v));
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+const hex = (n) => "#" + (Number(n) >>> 0).toString(16).padStart(6, "0").slice(-6);
+const fromHex = (s) => parseInt(String(s).replace("#", ""), 16);
+
+// ---------------------------------------------------------------- estado
+let state = load();
+let currentId = null;
+let tool = "place";
+let selected = null;
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { maps: {} }; }
+  catch { return { maps: {} }; }
+}
+function save() {
+  state.currentId = currentId;
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+function seedFromTables(id) {
+  const meta = MAPS.find((m) => m.id === id) || { id, name: id, room: true, size: 80 };
+  return {
+    meta: { id, name: meta.name, room: !!meta.room, size: meta.size, terrain: isTerrainMap(id) },
+    def: clone(MAP_DEFS[id] || { obstacles: [], palette: {} }),
+    theme: clone(THEMES[id] || THEMES.pradera),
+    cover: clone(GROUND_COVER[id] || {
+      seed: 4101, keepOut: [], tufts: 120, pebbles: 60, flowers: 60,
+      tuftColor: [0x62b03f, 0x74c451], pebbleColor: 0x9aa5a0,
+    }),
+  };
+}
+
+function map() {
+  if (!state.maps[currentId]) state.maps[currentId] = seedFromTables(currentId);
+  return state.maps[currentId];
+}
+
+// ---------------------------------------------------------------- escena
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+stage.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 1600);
+const markers = new THREE.Group();
+let world = null;
+let surfaces = [];
+let yaw = 0.6, pitch = 0.55, dist = 70;
+let buildMs = 0;
+
+function applyViewport() {
+  const w = stage.clientWidth || 1, h = stage.clientHeight || 1;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+let myResize = null;
+function fixResize() {
+  if (myResize) removeEventListener("resize", myResize);
+  myResize = () => applyViewport();
+  addEventListener("resize", myResize);
+}
+
+function disposeScene(scene) {
+  scene.traverse((o) => {
+    if (o.isMesh || o.isPoints || o.isLine) {
+      if (o.geometry) o.geometry.dispose();
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        if (!m) continue;
+        for (const k in m) {
+          const v = m[k];
+          if (v && v.isTexture) v.dispose();
+        }
+        m.dispose();
+      }
+    }
+  });
+}
+
+function buildPreview() {
+  const m = map();
+  const t0 = performance.now();
+  if (world) {
+    try { disposeScene(world.scene); } catch {}
+  }
+  try {
+    world = createWorld(currentId, renderer, {
+      def: m.def,
+      theme: m.theme,
+      cover: m.cover,
+      size: m.meta.size,
+      name: m.meta.name,
+      room: m.meta.room,
+      terrain: m.meta.terrain,
+    });
+  } catch (err) {
+    world = null;
+    document.getElementById("diag").textContent = "ERROR al construir: " + (err && err.message);
+    window.__tunerErrors.push(String(err && err.message));
+    return;
+  }
+  buildMs = performance.now() - t0;
+
+  surfaces = [];
+  world.scene.traverse((o) => {
+    if (o.name === "map-ground" || o.name === "map-terrain") surfaces.push(o);
+  });
+
+  markers.clear();
+  ghost = null;
+  world.scene.add(markers);
+  drawSelectionMarker();
+
+  dist = Math.max(45, m.meta.size * 1.1);
+  applyViewport();
+  fixResize();
+  diag();
+}
+
+let rebuildTimer = 0;
+function queueRebuild() {
+  clearTimeout(rebuildTimer);
+  rebuildTimer = setTimeout(() => { buildPreview(); renderOut(); }, 180);
+}
+function rebuildNow() {
+  clearTimeout(rebuildTimer);
+  buildPreview();
+  renderOut();
+}
+
+// ---------------------------------------------------------------- raycast
+const raycaster = new THREE.Raycaster();
+function ndcOf(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  return new THREE.Vector2(
+    ((ev.clientX - r.left) / r.width) * 2 - 1,
+    -((ev.clientY - r.top) / r.height) * 2 + 1
+  );
+}
+function pickSurface(ev) {
+  raycaster.setFromCamera(ndcOf(ev), camera);
+  const hits = raycaster.intersectObjects(surfaces, false);
+  return hits.length ? hits[0].point : null;
+}
+function pickObstacle(ev) {
+  raycaster.setFromCamera(ndcOf(ev), camera);
+  const hits = raycaster.intersectObjects(markers.parent.children, true);
+  for (const h of hits) {
+    const o = h.object;
+    if (!o || o === markers) continue;
+    if (o.userData && o.userData.obstacle) return o.userData.obstacle;
+    if (o.isInstancedMesh && o.userData.obstacles && h.instanceId != null) {
+      const list = o.userData.obstacles;
+      if (list && list[h.instanceId]) return list[h.instanceId];
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- interacción
+let drag = null;
+const start = { x: 0, y: 0 };
+
+renderer.domElement.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0) return;
+  start.x = ev.clientX; start.y = ev.clientY;
+  const hit = pickObstacle(ev);
+  drag = {
+    kind: hit && tool !== "del" ? "move" : "orbit",
+    prop: hit || null,
+    surface: pickSurface(ev),
+  };
+  if (drag.kind === "orbit") stage.classList.add("orbit");
+  renderer.domElement.setPointerCapture(ev.pointerId);
+});
+
+renderer.domElement.addEventListener("pointermove", (ev) => {
+  if (!drag) {
+    if (tool === "place") {
+      const p = pickSurface(ev);
+      if (p) showGhost(p);
+      else clearGhost();
+    }
+    return;
+  }
+  const moved = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
+  if (drag.kind === "orbit") {
+    yaw -= ev.movementX * 0.008;
+    pitch = Math.max(0.05, Math.min(1.45, pitch - ev.movementY * 0.008));
+    return;
+  }
+  if (drag.kind === "move" && drag.prop && moved > 3) {
+    const p = pickSurface(ev);
+    if (p) {
+      const b = map().meta.size / 2 - 1.5;
+      drag.prop.x = Math.max(-b, Math.min(b, Math.round(p.x * 2) / 2));
+      drag.prop.z = Math.max(-b, Math.min(b, Math.round(p.z * 2) / 2));
+      drawSelectionMarker();
+      queueRebuild();
+    }
+  }
+});
+
+renderer.domElement.addEventListener("pointerup", (ev) => {
+  if (!drag) return;
+  const moved = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
+  const d = drag;
+  drag = null;
+  stage.classList.remove("orbit");
+  if (moved < 5) {
+    if (d.prop) {
+      if (tool === "del") deleteProp(d.prop);
+      else selectProp(d.prop);
+    } else if (tool === "place") {
+      const p = d.surface || pickSurface(ev);
+      if (p) addProp(p);
+    }
+    return;
+  }
+  if (d.kind === "move") rebuildNow();
+});
+
+renderer.domElement.addEventListener("pointerleave", clearGhost);
+renderer.domElement.addEventListener("wheel", (ev) => {
+  ev.preventDefault();
+  dist = Math.max(12, Math.min(400, dist * (1 + Math.sign(ev.deltaY) * 0.12)));
+}, { passive: false });
+
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+  if (e.key === "1") setTool("place");
+  if (e.key === "2") setTool("sel");
+  if (e.key === "3") setTool("del");
+  if ((e.key === "Delete" || e.key === "Backspace") && selected) deleteProp(selected);
+});
+
+// ---------------------------------------------------------------- marcadores
+let ghost = null;
+function showGhost(p) {
+  if (!ghost) {
+    ghost = new THREE.Mesh(
+      new THREE.RingGeometry(0.85, 1, 32),
+      new THREE.MeshBasicMaterial({ color: 0x7ee081, side: THREE.DoubleSide, depthTest: false })
+    );
+    ghost.rotation.x = -Math.PI / 2;
+    markers.add(ghost);
+  }
+  ghost.position.set(p.x, (p.y || 0) + 0.06, p.z);
+  const k = KINDS[currentKind()];
+  const s = k.type === "circle" ? (k.r || 1) : Math.max(k.w || 2, k.d || 2) / 2;
+  ghost.scale.setScalar(Math.max(0.6, s * 1.2));
+  ghost.visible = true;
+}
+function clearGhost() { if (ghost) ghost.visible = false; }
+
+function obstacleSize(o) {
+  const k = KINDS[o.kind] || {};
+  if (k.type === "box") return Math.max(o.w || 2, o.d || 2) / 2;
+  return Math.max(o.r || 1, 0.6);
+}
+
+function drawSelectionMarker() {
+  if (!world) return;
+  for (const c of [...markers.children]) {
+    if (c !== ghost) markers.remove(c);
+  }
+  if (!selected) return;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.9, 1.05, 40),
+    new THREE.MeshBasicMaterial({ color: 0x69e6ff, side: THREE.DoubleSide, depthTest: false })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  const b = map().meta.size / 2 - 1;
+  ring.position.set(
+    Math.max(-b, Math.min(b, selected.x)),
+    0.08,
+    Math.max(-b, Math.min(b, selected.z))
+  );
+  if (isTerrainMap(currentId)) ring.position.y = 0.08;
+  ring.scale.setScalar(Math.max(1, obstacleSize(selected) * 1.2));
+  ring.renderOrder = 999;
+  markers.add(ring);
+}
+
+// ---------------------------------------------------------------- acciones props
+function currentKind() { return document.getElementById("kindSel").value; }
+
+function addProp(p) {
+  const k = KINDS[currentKind()] || KINDS.rock;
+  const b = map().meta.size / 2 - 1.5;
+  const o = {
+    kind: currentKind(),
+    type: k.type,
+    x: Math.max(-b, Math.min(b, Math.round(p.x * 2) / 2)),
+    z: Math.max(-b, Math.min(b, Math.round(p.z * 2) / 2)),
+  };
+  if (k.type === "circle") o.r = k.r;
+  else { o.w = k.w; o.d = k.d; }
+  if (k.h) o.h = k.h;
+  map().def.obstacles.push(o);
+  ensurePalette(o.kind);
+  selected = o;
+  save();
+  renderSelected();
+  renderList();
+  renderPalette();
+  rebuildNow();
+}
+
+function deleteProp(o) {
+  const list = map().def.obstacles;
+  const i = list.indexOf(o);
+  if (i >= 0) list.splice(i, 1);
+  if (selected === o) selected = null;
+  save();
+  renderSelected();
+  renderList();
+  rebuildNow();
+}
+
+function selectProp(o) {
+  selected = o;
+  renderSelected();
+  renderList();
+  drawSelectionMarker();
+}
+
+function ensurePalette(kind) {
+  const schema = PALETTE_SCHEMA[kind];
+  if (!schema) return;
+  const pal = map().def.palette;
+  if (pal[kind] !== undefined) return;
+  pal[kind] = clone(PALETTE_DEFAULT[kind] ?? {});
+}
+
+// ---------------------------------------------------------------- paneles
+function slider(parent, label, value, opts) {
+  const { min, max, step = 1, onInput, onCommit } = opts;
+  const row = el("div", "row");
+  row.append(el("span", null, label));
+  const range = document.createElement("input");
+  range.type = "range"; range.min = min; range.max = max; range.step = step;
+  range.value = value;
+  const num = document.createElement("input");
+  num.type = "number"; num.step = step; num.value = +Number(value).toFixed(3);
+  range.addEventListener("input", () => {
+    num.value = range.value;
+    onInput(parseFloat(range.value));
+  });
+  num.addEventListener("change", () => {
+    range.value = num.value;
+    onInput(parseFloat(num.value));
+    if (onCommit) onCommit();
+  });
+  row.append(range, num);
+  parent.appendChild(row);
+  return row;
+}
+
+function colorRow(parent, label, get, set) {
+  const row = el("div", "row");
+  row.append(el("span", null, label));
+  const inp = document.createElement("input");
+  inp.type = "color";
+  inp.value = hex(typeof get === "function" ? get() : get);
+  inp.addEventListener("input", () => {
+    if (typeof set === "function") set(fromHex(inp.value));
+    else set[inp.dataset.k] = fromHex(inp.value);
+    queueRebuild();
+  });
+  const sw = el("span", "swatch");
+  sw.style.background = inp.value;
+  inp.addEventListener("input", () => { sw.style.background = inp.value; });
+  row.append(inp, sw);
+  parent.appendChild(row);
+}
+
+function textRow(parent, label, obj, key) {
+  const row = el("div", "row");
+  row.append(el("span", null, label));
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.value = obj[key];
+  inp.addEventListener("change", () => { obj[key] = inp.value; queueRebuild(); });
+  const sw = el("span", "swatch");
+  sw.style.background = obj[key];
+  inp.addEventListener("input", () => { sw.style.background = inp.value; });
+  row.append(inp, sw);
+  parent.appendChild(row);
+}
+
+function renderIdentity() {
+  const box = document.getElementById("identity");
+  box.innerHTML = "";
+  const m = map();
+  const wrap = el("div", "grid2");
+
+  const f1 = el("div");
+  const l1 = el("label", null, "nombre visible");
+  const i1 = document.createElement("input");
+  i1.type = "text"; i1.value = m.meta.name;
+  i1.addEventListener("change", () => { m.meta.name = i1.value; save(); renderOut(); });
+  f1.append(l1, i1);
+
+  const f2 = el("div");
+  const l2 = el("label", null, "tamaño (lado)");
+  const i2 = document.createElement("input");
+  i2.type = "number"; i2.min = 40; i2.step = 20; i2.value = m.meta.size;
+  i2.addEventListener("change", () => {
+    m.meta.size = Math.max(40, parseInt(i2.value) || 80);
+    save(); renderSelected(); rebuildNow();
+  });
+  f2.append(l2, i2);
+  wrap.append(f1, f2);
+  box.appendChild(wrap);
+
+  const sw = el("div", "sw");
+  const cb = document.createElement("input");
+  cb.type = "checkbox"; cb.checked = m.meta.room;
+  cb.addEventListener("change", () => { m.meta.room = cb.checked; save(); renderOut(); });
+  const lb = el("label", null, "mapa de sala (aparece en salas)");
+  lb.style.margin = "0";
+  sw.append(cb, lb);
+  box.appendChild(sw);
+
+  const tr = el("div", "sw");
+  const tb = document.createElement("input");
+  tb.type = "checkbox"; tb.checked = m.meta.terrain;
+  tb.addEventListener("change", () => {
+    m.meta.terrain = tb.checked;
+    save(); rebuildNow(); renderOut();
+  });
+  const tl = el("label", null, "terreno con relieve (tipo cordillera)");
+  tl.style.margin = "0";
+  tr.append(tb, tl);
+  box.appendChild(tr);
+  if (m.meta.id === "cordillera") {
+    box.appendChild(el("div", "hint", "La cordillera dibuja su escena procedural aparte; tus objetos se suman a ella."));
+  }
+}
+
+function renderTool() {
+  for (const [id, t] of [["tool-place", "place"], ["tool-sel", "sel"], ["tool-del", "del"]]) {
+    document.getElementById(id).classList.toggle("on", tool === t);
+  }
+}
+function setTool(t) {
+  tool = t;
+  renderTool();
+  if (t !== "place") clearGhost();
+}
+
+function renderSelected() {
+  const box = document.getElementById("selected");
+  box.innerHTML = "";
+  const b = map().meta.size / 2;
+  if (!selected || map().def.obstacles.indexOf(selected) < 0) {
+    selected = null;
+    box.textContent = "Ninguno (haz clic en un objeto)";
+    drawSelectionMarker();
+    return;
+  }
+  const o = selected;
+  const k = KINDS[o.kind] || {};
+  const head = el("div", "tools");
+  head.append(el("b", null, (KINDS[o.kind] || {}).label || o.kind));
+  head.append(el("span", "badge", o.type));
+  const bd = el("button", "mini", "Duplicar");
+  bd.addEventListener("click", () => {
+    const copy = clone(o);
+    copy.x = Math.max(-b + 1, Math.min(b - 1, copy.x + 2));
+    copy.z = Math.max(-b + 1, Math.min(b - 1, copy.z + 2));
+    map().def.obstacles.push(copy);
+    selected = copy;
+    save(); renderSelected(); renderList(); rebuildNow();
+  });
+  const bx = el("button", "mini danger", "✕ Borrar");
+  bx.addEventListener("click", () => deleteProp(o));
+  head.append(bd, bx);
+  box.appendChild(head);
+
+  slider(box, "X", o.x, { min: -b, max: b, step: 0.5, onInput: (v) => { o.x = v; drawSelectionMarker(); queueRebuild(); }, onCommit: rebuildNow });
+  slider(box, "Z", o.z, { min: -b, max: b, step: 0.5, onInput: (v) => { o.z = v; drawSelectionMarker(); queueRebuild(); }, onCommit: rebuildNow });
+
+  if (k.type === "circle") {
+    slider(box, "radio", o.r ?? 1, {
+      min: 0.1, max: 8, step: 0.05,
+      onInput: (v) => { o.r = +v.toFixed(3); queueRebuild(); },
+      onCommit: rebuildNow,
+    });
+  } else {
+    slider(box, "ancho", o.w ?? 2, { min: 0.5, max: 30, step: 0.5, onInput: (v) => { o.w = v; queueRebuild(); }, onCommit: rebuildNow });
+    slider(box, "fondo", o.d ?? o.w ?? 2, { min: 0.5, max: 30, step: 0.5, onInput: (v) => { o.d = v; queueRebuild(); }, onCommit: rebuildNow });
+  }
+  if (k.h) {
+    slider(box, "alto", o.h ?? 4, { min: 0.5, max: 14, step: 0.1, onInput: (v) => { o.h = +v.toFixed(2); queueRebuild(); }, onCommit: rebuildNow });
+  }
+  drawSelectionMarker();
+}
+
+function renderList() {
+  const box = document.getElementById("propList");
+  box.innerHTML = "";
+  const list = map().def.obstacles;
+  document.getElementById("propCount").textContent = `${list.length}`;
+  list.forEach((o, i) => {
+    const row = el("div", "prop" + (o === selected ? " sel" : ""));
+    const kind = KINDS[o.kind] || {};
+    row.append(el("b", null, `${i + 1}. ${kind.label || o.kind}`));
+    row.append(el("span", "co", o.type === "box"
+      ? `(${o.x}, ${o.z}) ${o.w}×${o.d}`
+      : `(${o.x}, ${o.z}) r${o.r}`));
+    const bd = el("button", "mini", "⧉");
+    bd.title = "duplicar";
+    bd.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const copy = clone(o);
+      copy.x = Math.max(-39, Math.min(39, copy.x + 2));
+      map().def.obstacles.push(copy);
+      selected = copy;
+      save(); renderList(); renderSelected(); rebuildNow();
+    });
+    const bx = el("button", "mini danger", "✕");
+    bx.addEventListener("click", (e) => { e.stopPropagation(); deleteProp(o); });
+    row.append(bd, bx);
+    row.addEventListener("click", () => selectProp(o));
+    box.appendChild(row);
+  });
+}
+
+function renderPalette() {
+  const box = document.getElementById("palette");
+  box.innerHTML = "";
+  const pal = map().def.palette;
+  const used = new Set(map().def.obstacles.map((o) => o.kind));
+  for (const k of used) ensurePalette(k);
+
+  const kinds = [...new Set([...Object.keys(pal), ...used])];
+  if (!kinds.length) {
+    box.appendChild(el("div", "hint", "Sin colores todavía: coloca un objeto y aparecerá su paleta."));
+    return;
+  }
+  for (const kind of kinds) {
+    const schema = PALETTE_SCHEMA[kind];
+    if (!schema) continue;
+    const card = el("div", "pal");
+    card.appendChild(el("h3", null, (KINDS[kind] || {}).label || kind));
+    if (schema.plain) {
+      colorRow(card, schema.label, () => pal[kind], (v) => { pal[kind] = v; });
+    } else {
+      for (const [key, label] of schema.fields) {
+        const val = pal[kind] && pal[kind][key];
+        if (Array.isArray(val)) {
+          const row = el("div", "row");
+          row.append(el("span", null, label));
+          const carr = el("div", "carr");
+          carr.style.gridColumn = "span 2";
+          val.forEach((c, i) => {
+            const inp = document.createElement("input");
+            inp.type = "color";
+            inp.value = hex(c);
+            inp.addEventListener("input", () => { val[i] = fromHex(inp.value); queueRebuild(); });
+            carr.appendChild(inp);
+          });
+          const add = el("button", "mini", "+");
+          add.addEventListener("click", () => { val.push(val[val.length - 1] ?? 0xffffff); renderPalette(); queueRebuild(); });
+          const rm = el("button", "mini danger", "−");
+          rm.addEventListener("click", () => {
+            if (val.length > 1) { val.pop(); renderPalette(); queueRebuild(); }
+          });
+          carr.append(add, rm);
+          row.appendChild(carr);
+          card.appendChild(row);
+        } else if (val !== undefined) {
+          colorRow(card, label, () => pal[kind][key], (v) => { pal[kind][key] = v; });
+        }
+      }
+    }
+    box.appendChild(card);
+  }
+}
+
+function renderTheme() {
+  const box = document.getElementById("theme");
+  box.innerHTML = "";
+  const t = map().theme;
+
+  const g0 = el("div", "pal");
+  g0.appendChild(el("h3", null, "Cielo"));
+  colorRow(g0, "arriba", () => t.sky.top, (v) => { t.sky.top = v; });
+  colorRow(g0, "medio", () => t.sky.mid, (v) => { t.sky.mid = v; });
+  colorRow(g0, "horizonte", () => t.sky.horizon, (v) => { t.sky.horizon = v; });
+  box.appendChild(g0);
+
+  const g1 = el("div", "pal");
+  g1.appendChild(el("h3", null, "Niebla"));
+  colorRow(g1, "color", () => t.fog.color, (v) => { t.fog.color = v; });
+  slider(g1, "desde", t.fog.near, { min: 5, max: 300, step: 5, onInput: (v) => { t.fog.near = v; }, onCommit: rebuildNow });
+  slider(g1, "hasta", t.fog.far, { min: 40, max: 800, step: 10, onInput: (v) => { t.fog.far = v; }, onCommit: rebuildNow });
+  box.appendChild(g1);
+
+  const g2 = el("div", "pal");
+  g2.appendChild(el("h3", null, "Suelo"));
+  textRow(g2, "base", t.ground, "base");
+  textRow(g2, "luz", t.ground, "light");
+  textRow(g2, "sombra", t.ground, "dark");
+  slider(g2, "repetir", t.ground.repeat ?? 5, { min: 1, max: 20, step: 1, onInput: (v) => { t.ground.repeat = v; }, onCommit: rebuildNow });
+  slider(g2, "mota", t.ground.speckles ?? 0, { min: 0, max: 6000, step: 100, onInput: (v) => { t.ground.speckles = v; }, onCommit: rebuildNow });
+  slider(g2, "rugo", t.ground.roughness ?? 0.95, { min: 0, max: 1, step: 0.05, onInput: (v) => { t.ground.roughness = v; }, onCommit: rebuildNow });
+  const gridRow = el("div", "sw");
+  const gridCb = document.createElement("input");
+  gridCb.type = "checkbox"; gridCb.checked = !!t.ground.grid;
+  gridCb.addEventListener("change", () => { t.ground.grid = gridCb.checked; rebuildNow(); });
+  const gridLb = el("label", null, "rejilla (estilo ciudad)");
+  gridLb.style.margin = "0";
+  gridRow.append(gridCb, gridLb);
+  g2.appendChild(gridRow);
+  box.appendChild(g2);
+
+  const g3 = el("div", "pal");
+  g3.appendChild(el("h3", null, "Muros y luz"));
+  colorRow(g3, "muro", () => t.wall, (v) => { t.wall = v; });
+  colorRow(g3, "remate", () => t.wallTop, (v) => { t.wallTop = v; });
+  colorRow(g3, "hemisferio", () => t.hemisphere, (v) => { t.hemisphere = v; });
+  const ambRow = el("div", "sw");
+  const ambCb = document.createElement("input");
+  ambCb.type = "checkbox"; ambCb.checked = !!t.ambient;
+  ambCb.addEventListener("change", () => {
+    t.ambient = ambCb.checked ? { color: 0xcfe8ff, intensity: 0.55 } : undefined;
+    if (!ambCb.checked) delete t.ambient;
+    renderTheme(); rebuildNow();
+  });
+  const ambLb = el("label", null, "luz ambiental propia");
+  ambLb.style.margin = "0";
+  ambRow.append(ambCb, ambLb);
+  g3.appendChild(ambRow);
+  if (t.ambient) {
+    colorRow(g3, "ambiente", () => t.ambient.color, (v) => { t.ambient.color = v; });
+    slider(g3, "fuerza amb.", t.ambient.intensity, { min: 0, max: 2, step: 0.05, onInput: (v) => { t.ambient.intensity = v; }, onCommit: rebuildNow });
+  }
+  const sunRow = el("div", "sw");
+  const sunCb = document.createElement("input");
+  sunCb.type = "checkbox"; sunCb.checked = !!t.sun;
+  sunCb.addEventListener("change", () => {
+    t.sun = sunCb.checked ? { color: 0xfff4df, intensity: 1.5 } : undefined;
+    if (!sunCb.checked) delete t.sun;
+    renderTheme(); rebuildNow();
+  });
+  const sunLb = el("label", null, "sol propio");
+  sunLb.style.margin = "0";
+  sunRow.append(sunCb, sunLb);
+  g3.appendChild(sunRow);
+  if (t.sun) {
+    colorRow(g3, "sol", () => t.sun.color, (v) => { t.sun.color = v; });
+    slider(g3, "fuerza sol", t.sun.intensity, { min: 0, max: 3, step: 0.05, onInput: (v) => { t.sun.intensity = v; }, onCommit: rebuildNow });
+  }
+  box.appendChild(g3);
+
+  const g4 = el("div", "pal");
+  g4.appendChild(el("h3", null, "Partículas (nieve, pétalos, chispas…)"));
+  const pr = el("div", "sw");
+  const pcb = document.createElement("input");
+  pcb.type = "checkbox"; pcb.checked = !!t.particles;
+  pcb.addEventListener("change", () => {
+    if (pcb.checked && !t.particles) {
+      t.particles = { color: 0xffffff, count: 200, size: 0.14, opacity: 0.7 };
+    } else if (!pcb.checked) t.particles = null;
+    renderTheme(); rebuildNow();
+  });
+  const plb = el("label", null, "con partículas");
+  plb.style.margin = "0";
+  pr.append(pcb, plb);
+  g4.appendChild(pr);
+  if (t.particles) {
+    const p = t.particles;
+    colorRow(g4, "color", () => p.color, (v) => { p.color = v; });
+    slider(g4, "cantidad", p.count, { min: 0, max: 1200, step: 20, onInput: (v) => { p.count = v; }, onCommit: rebuildNow });
+    slider(g4, "tamaño", p.size, { min: 0.02, max: 0.6, step: 0.02, onInput: (v) => { p.size = v; }, onCommit: rebuildNow });
+    slider(g4, "opacidad", p.opacity ?? 0.7, { min: 0.05, max: 1, step: 0.05, onInput: (v) => { p.opacity = v; }, onCommit: rebuildNow });
+    if (p.rise !== undefined) {
+      slider(g4, "velocidad", p.speed ?? 0.5, { min: 0.1, max: 3, step: 0.1, onInput: (v) => { p.speed = v; }, onCommit: rebuildNow });
+    }
+  }
+  box.appendChild(g4);
+}
+
+function renderCover() {
+  const box = document.getElementById("cover");
+  box.innerHTML = "";
+  const c = map().cover;
+  const g = el("div", "pal");
+  slider(g, "semilla", c.seed, { min: 1, max: 9999, step: 1, onInput: (v) => { c.seed = v; }, onCommit: rebuildNow });
+  slider(g, "matas", c.tufts ?? 0, { min: 0, max: 1500, step: 10, onInput: (v) => { c.tufts = v; }, onCommit: rebuildNow });
+  slider(g, "piedras", c.pebbles ?? 0, { min: 0, max: 800, step: 10, onInput: (v) => { c.pebbles = v; }, onCommit: rebuildNow });
+  slider(g, "flores", c.flowers ?? 0, { min: 0, max: 500, step: 10, onInput: (v) => { c.flowers = v; }, onCommit: rebuildNow });
+  box.appendChild(g);
+
+  const carr = el("div", "row");
+  carr.append(el("span", null, "matas"));
+  const wrap = el("div", "carr");
+  wrap.style.gridColumn = "span 2";
+  (c.tuftColor || []).forEach((col, i) => {
+    const inp = document.createElement("input");
+    inp.type = "color"; inp.value = hex(col);
+    inp.addEventListener("input", () => { c.tuftColor[i] = fromHex(inp.value); queueRebuild(); });
+    wrap.appendChild(inp);
+  });
+  const add = el("button", "mini", "+");
+  add.addEventListener("click", () => { c.tuftColor = (c.tuftColor || []).concat(0x62b03f); renderCover(); queueRebuild(); });
+  const rm = el("button", "mini danger", "−");
+  rm.addEventListener("click", () => { if (c.tuftColor.length > 1) { c.tuftColor.pop(); renderCover(); queueRebuild(); } });
+  wrap.append(add, rm);
+  carr.appendChild(wrap);
+  box.appendChild(carr);
+
+  colorRow(box, "piedras", () => c.pebbleColor, (v) => { c.pebbleColor = v; });
+
+  const ko = el("div", "pal");
+  ko.appendChild(el("h3", null, "Zonas sin decoración (keepOut)"));
+  const ta = document.createElement("textarea");
+  ta.style.height = "58px";
+  ta.value = JSON.stringify(c.keepOut || []);
+  ta.addEventListener("change", () => {
+    try {
+      const v = JSON.parse(ta.value);
+      if (Array.isArray(v)) { c.keepOut = v; rebuildNow(); }
+      else throw new Error("no es una lista");
+    } catch (e) {
+      document.getElementById("status").textContent = "keepOut inválido: " + e.message;
+    }
+  });
+  ko.appendChild(ta);
+  ko.appendChild(el("div", "hint", 'Ejemplo: [{"x":0,"z":0,"r":18}]'));
+  box.appendChild(ko);
+}
+
+function diag() {
+  const m = map();
+  const r = renderer.info.render;
+  document.getElementById("diag").textContent =
+    `mapa: ${m.meta.id} (${m.meta.name})  tamaño=${m.meta.size}  relieve=${m.meta.terrain ? "sí" : "no"}\n` +
+    `objetos: ${m.def.obstacles.length}   construcción: ${buildMs.toFixed(0)} ms\n` +
+    `drawCalls: ${r.calls}  tris: ${r.triangles}\n` +
+    `pantalla: ${stage.clientWidth}x${stage.clientHeight}`;
+}
+
+// ---------------------------------------------------------------- exportar
+function fmtValue(v, key) {
+  if (Array.isArray(v)) return "[" + v.map((x) => fmtValue(x, key)).join(", ") + "]";
+  if (typeof v === "number") {
+    if (COLOR_KEYS.has(key) && Number.isInteger(v)) return "0x" + v.toString(16).padStart(6, "0");
+    return String(+v.toFixed(4));
+  }
+  if (typeof v === "string") return JSON.stringify(v);
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (v === null) return "null";
+  return fmtObj(v, 0);
+}
+
+function fmtObj(obj, indent) {
+  const pad = " ".repeat(indent);
+  const pad2 = " ".repeat(indent + 2);
+  const entries = Object.entries(obj);
+  if (!entries.length) return "{ }";
+  const lines = entries.map(([k, v]) => `${pad2}${k}: ${fmtValue(v, k)},`);
+  return `{\n${lines.join("\n")}\n${pad}}`;
+}
+
+function blocks(id, m) {
+  const out = [];
+  out.push("// ---------- mapDefs.js  ·  MAPS ----------");
+  out.push(`{ id: ${JSON.stringify(id)}, name: ${JSON.stringify(m.meta.name)}, room: ${m.meta.room}, size: ${m.meta.size} },`);
+  out.push("");
+  out.push("// ---------- world.js  ·  MAP_DEFS ----------");
+  out.push(`${id}: ${fmtObj(m.def, 2)},`);
+  out.push("");
+  out.push("// ---------- world.js  ·  THEMES ----------");
+  out.push(`${id}: ${fmtObj(m.theme, 2)},`);
+  out.push("");
+  out.push("// ---------- world.js  ·  GROUND_COVER ----------");
+  out.push(`${id}: ${fmtObj(m.cover, 2)},`);
+  out.push("");
+  if (m.meta.terrain && id !== "cordillera") {
+    out.push("// (este mapa usa relieve: al cargarlo, el id se registra como mapa de terreno;");
+    out.push("//  si el juego aún no lo conoce, avísame y lo dejamos fijo en TERRAIN_IDS)");
+    out.push("");
+  }
+  return out.join("\n");
+}
+
+function renderOut() {
+  document.getElementById("out").value = blocks(currentId, map());
+}
+
+function payload() {
+  const m = map();
+  const r = renderer.info.render;
+  return {
+    kind: "mapas",
+    generated: new Date().toISOString(),
+    errors: window.__tunerErrors || [],
+    maps: clone(state.maps),
+    stats: {
+      mapa: currentId,
+      objetos: m.def.obstacles.length,
+      relieve: m.meta.terrain,
+      buildMs: +buildMs.toFixed(1),
+      drawCalls: r.calls,
+      triangles: r.triangles,
+      // comprobación de que las tablas del juego quedaron intactas tras el preview
+      mapasEnJuego: MAPS.length,
+      nevadoConRelieve: isTerrainMap("nevado"),
+    },
+  };
+}
+
+// ---------------------------------------------------------------- acciones
+document.getElementById("tool-place").addEventListener("click", () => setTool("place"));
+document.getElementById("tool-sel").addEventListener("click", () => setTool("sel"));
+document.getElementById("tool-del").addEventListener("click", () => setTool("del"));
+
+document.getElementById("btnNew").addEventListener("click", () => {
+  const box = document.getElementById("newBox");
+  box.hidden = !box.hidden;
+});
+document.getElementById("btnNewCancel").addEventListener("click", () => {
+  document.getElementById("newBox").hidden = true;
+});
+
+function fillNewBase() {
+  const sel = document.getElementById("newBase");
+  sel.innerHTML = "";
+  const opt = document.createElement("option");
+  opt.value = ""; opt.textContent = "vacío (tema por defecto)";
+  sel.appendChild(opt);
+  for (const m of MAPS) {
+    const o = document.createElement("option");
+    o.value = m.id; o.textContent = m.name;
+    sel.appendChild(o);
+  }
+}
+fillNewBase();
+
+document.getElementById("btnCreate").addEventListener("click", () => {
+  const id = (document.getElementById("newId").value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  if (!id) { document.getElementById("status").textContent = "El id no es válido."; return; }
+  if (MAPS.some((m) => m.id === id) || state.maps[id]) {
+    document.getElementById("status").textContent = "Ya existe un mapa con ese id.";
+    return;
+  }
+  const base = document.getElementById("newBase").value;
+  const seed = base ? seedFromTables(base) : emptyMap();
+  const terrain = document.getElementById("newTerrain").value === "1";
+  state.maps[id] = {
+    meta: {
+      id,
+      name: document.getElementById("newName").value || id,
+      room: seed.meta.room,
+      size: parseInt(document.getElementById("newSize").value) || 80,
+      terrain,
+    },
+    def: seed.def,
+    theme: seed.theme,
+    cover: seed.cover,
+  };
+  document.getElementById("newBox").hidden = true;
+  save();
+  fillMapSel();
+  selectMap(id);
+  document.getElementById("status").textContent = `Mapa "${id}" creado. Coloca objetos.`;
+});
+
+function emptyMap() {
+  return {
+    meta: { id: "", name: "", room: true, size: 80, terrain: false },
+    def: { obstacles: [], palette: {} },
+    theme: clone(THEMES.pradera),
+    cover: { seed: 4101, keepOut: [], tufts: 140, pebbles: 70, flowers: 80, tuftColor: [0x62b03f, 0x74c451], pebbleColor: 0x9aa5a0 },
+  };
+}
+
+document.getElementById("btnReset").addEventListener("click", () => {
+  delete state.maps[currentId];
+  save();
+  selectMap(currentId);
+  document.getElementById("status").textContent = "Mapa restaurado al original del juego.";
+});
+document.getElementById("btnClear").addEventListener("click", () => {
+  if (!confirm("¿Borrar TODOS tus mapas y cambios?")) return;
+  localStorage.removeItem(STORE_KEY);
+  location.reload();
+});
+document.getElementById("btnCopy").addEventListener("click", async () => {
+  const txt = document.getElementById("out").value;
+  try { await navigator.clipboard.writeText(txt); document.getElementById("status").textContent = "Copiado."; }
+  catch { document.getElementById("status").textContent = "Selecciona y copia con Ctrl+C."; }
+});
+document.getElementById("btnSend").addEventListener("click", postPayload);
+
+async function postPayload() {
+  const st = document.getElementById("status");
+  st.textContent = "Enviando...";
+  try {
+    const res = await fetch(REPORT_URL + "?__tuner", { method: "POST", body: JSON.stringify(payload()) });
+    st.textContent = res.ok ? "Enviado. Ya lo tengo." : "El lector respondió " + res.status;
+  } catch {
+    st.textContent = "No hay lector levantado (usa Copiar y pégame el texto).";
+  }
+}
+
+// ---------------------------------------------------------------- selector
+function fillMapSel() {
+  const sel = document.getElementById("mapSel");
+  sel.innerHTML = "";
+  for (const m of MAPS) {
+    const o = document.createElement("option");
+    o.value = m.id; o.textContent = m.name;
+    sel.appendChild(o);
+  }
+  for (const id of Object.keys(state.maps)) {
+    if (MAPS.some((m) => m.id === id)) continue;
+    const o = document.createElement("option");
+    o.value = id; o.textContent = (state.maps[id].meta.name || id) + " (mío)";
+    sel.appendChild(o);
+  }
+}
+fillMapSel();
+
+function fillKindSel() {
+  const sel = document.getElementById("kindSel");
+  sel.innerHTML = "";
+  for (const [k, v] of Object.entries(KINDS)) {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = v.label;
+    sel.appendChild(o);
+  }
+}
+fillKindSel();
+
+function selectMap(id) {
+  currentId = id;
+  selected = null;
+  document.getElementById("mapSel").value = id;
+  save();
+  renderIdentity();
+  renderSelected();
+  renderList();
+  renderPalette();
+  renderTheme();
+  renderCover();
+  buildPreview();
+  renderOut();
+  diag();
+}
+
+document.getElementById("mapSel").addEventListener("change", (e) => selectMap(e.target.value));
+
+// ---------------------------------------------------------------- loop
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (drag && drag.kind !== "orbit") yaw += 0;
+  else if (!drag) yaw += dt * 0.03;
+
+  camera.position.set(
+    Math.sin(yaw) * Math.cos(pitch) * dist,
+    Math.sin(pitch) * dist,
+    Math.cos(yaw) * Math.cos(pitch) * dist
+  );
+  camera.lookAt(0, 0, 0);
+
+  if (world) {
+    try { world.update(dt); } catch {}
+    renderer.render(world.scene, camera);
+  }
+  requestAnimationFrame(loop);
+}
+
+window.__tunerErrors = [];
+window.addEventListener("error", (e) => {
+  window.__tunerErrors.push(String(e.message || e.error));
+  autoPost();
+});
+
+let autoTimer = 0;
+function autoPost() {
+  if (!AUTO) return;
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => { postPayload(); }, 500);
+}
+
+selectMap(MAPS.some((m) => m.id === state.currentId) ? state.currentId : MAPS[0].id);
+requestAnimationFrame(loop);
+if (AUTO) setTimeout(autoPost, 2500);
+window.__tuner = { get: () => payload() };
+
+// ?sim=1: prueba automática (añade un objeto, toca paleta/ambiente/suelo y
+// vuelve a enviar) para que yo pueda verificar el tuner sin tocar el ratón.
+const SIM = new URLSearchParams(location.search).has("sim");
+if (AUTO && SIM) {
+  setTimeout(() => {
+    try {
+      addProp({ x: 10, y: 0, z: -6 });
+      const obs = map().def.obstacles;
+      const last = obs[obs.length - 1];
+      last.r = (last.r || 1) + 1.2;
+      ensurePalette("rock");
+      map().def.palette.rock = 0xff00ff;
+      map().theme.fog.color = 0x00ffcc;
+      map().cover.tufts = (map().cover.tufts || 0) + 50;
+      renderSelected();
+      renderList();
+      renderPalette();
+      renderTheme();
+      renderCover();
+      rebuildNow();
+      setTool("sel");
+      selectProp(last);
+
+      // Fase B: mapa nuevo con relieve (prueba el camino que no existe en el juego)
+      const id = "tuntest";
+      state.maps[id] = {
+        meta: { id, name: "Mapa de prueba", room: true, size: 80, terrain: true },
+        def: { obstacles: [], palette: {} },
+        theme: clone(THEMES.pradera),
+        cover: { seed: 4321, keepOut: [], tufts: 90, pebbles: 40, flowers: 30, tuftColor: [0x62b03f], pebbleColor: 0x9aa5a0 },
+      };
+      save();
+      fillMapSel();
+      selectMap(id);
+      addProp({ x: -8, y: 0, z: 4 });
+      addProp({ x: 12, y: 0, z: -10 });
+      map().def.obstacles[0].r = 2;
+      ensurePalette("rock");
+      map().def.palette.rock = 0x33ff99;
+      renderPalette();
+      rebuildNow();
+
+      // Fase C: crear un mapa con el formulario (desde cero, sin plantilla)
+      document.getElementById("newId").value = "tunform";
+      document.getElementById("newName").value = "Creado con formulario";
+      document.getElementById("newSize").value = "120";
+      document.getElementById("newTerrain").value = "0";
+      document.getElementById("newBase").value = "";
+      document.getElementById("btnCreate").click();
+      addProp({ x: 0, y: 0, z: 12 });
+
+      setTimeout(() => { postPayload(); }, 800);
+    } catch (err) {
+      window.__tunerErrors.push("SIM " + (err && err.message));
+      postPayload();
+    }
+  }, 900);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Práctica — Investigación aplicada para organizar las fases del proyecto</title>
+<style>
+  @page { size: letter; margin: 2cm 1.8cm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1b2733; margin: 0; font-size: 11px; line-height: 1.45; }
+  h2 { font-size: 15px; margin: 18px 0 8px; color: #0e4d92; border-bottom: 2px solid #0e4d92; padding-bottom: 3px; }
+  h3 { font-size: 12.5px; margin: 12px 0 6px; color: #123; }
+  p { margin: 5px 0; text-align: justify; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9px; }
+  th, td { border: 1px solid #8aa3bf; padding: 4px 5px; vertical-align: top; text-align: left; }
+  th { background: #e8f0fa; }
+  tr:nth-child(even) td { background: #f7fafd; }
+  .portada { text-align: center; padding-top: 30mm; }
+  .portada .logo { font-size: 26px; font-weight: bold; color: #0e4d92; letter-spacing: 2px; }
+  .portada .uni { font-size: 18px; font-weight: bold; margin-top: 2px; }
+  .portada .practica { font-size: 16px; font-weight: 600; margin: 60px 0 6px; color: #123; }
+  .portada .nombre { font-size: 14px; margin: 4px 0; }
+  .portada .datos { margin-top: 80px; font-size: 12px; }
+  .portada .datos div { margin: 4px 0; }
+  .small { font-size: 9px; color: #4a5a68; }
+  .nota { background: #fdf6e3; border-left: 4px solid #d8a01a; padding: 6px 8px; margin: 8px 0; font-size: 9.5px; }
+  ul { margin: 4px 0 4px 18px; padding: 0; }
+  li { margin: 2px 0; text-align: justify; }
+  .pagebreak { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<!-- ============ PORTADA ============ -->
+<div class="portada">
+  <div class="logo">CLUB PINGÜI</div>
+  <div class="uni">UTNC · Formulación de Proyectos de Tecnología</div>
+
+  <div class="practica">Práctica: Investigación aplicada para<br>organizar las fases del proyecto</div>
+  <div class="nombre"><b>Luis Javier Tovar Segura</b></div>
+
+  <div class="datos">
+    <div><b>Proyecto:</b> Club Pingüi — Plataforma web 3D de interacción social</div>
+    <div><b>Cuatrimestre:</b> Septiembre – Diciembre 2026</div>
+    <div><b>Fecha de elaboración:</b> 08 de septiembre de 2026</div>
+    <div><b>Avance que se presenta en este parcial:</b> Diseño del proyecto</div>
+  </div>
+</div>
+
+<!-- ============ PUNTO 1. LISTA DE ACTIVIDADES ============ -->
+<div class="pagebreak"></div>
+<h2>Punto 1. Lista de actividades del proyecto</h2>
+<p>El proyecto <b>Club Pingüi</b> consiste en una plataforma web de interacción social en entornos 3D, con avatares de pingüinos, salas privadas, chat y elementos de juego. A continuación se presenta la lista de actividades identificadas para su desarrollo:</p>
+<ol>
+  <li><b>Definir el alcance, los objetivos y los requisitos iniciales</b> del proyecto.</li>
+  <li><b>Investigación de tecnologías y alternativas</b> (entorno 3D, comunicaciones en tiempo real, base de datos, despliegue).</li>
+  <li><b>Definir la arquitectura del sistema</b> cliente-servidor (motor 3D, servidor de sockets, bases de datos).</li>
+  <li><b>Diseño preliminar</b>: bocetos de la interfaz, personaje y escenarios (avance requerido para el parcial).</li>
+  <li><b>Modelado 3D</b> del personaje (pingüino), accesorios y escenarios del mapa.</li>
+  <li><b>Diseño de la base de datos</b> y del sistema de cuentas de usuario.</li>
+  <li><b>Desarrollo del servidor</b> y de la comunicación en tiempo real (salas privadas, chat, eventos).</li>
+  <li><b>Desarrollo del cliente 3D</b>: mundo, avatares, movimiento, cámara en primera y tercera persona.</li>
+  <li><b>Implementar la interactividad</b>: chat, salas, personalización del pingüino y elementos de juego.</li>
+  <li><b>Integración</b> de módulos y <b>pruebas de funcionalidad</b>.</li>
+  <li><b>Pruebas de concurrencia y carga</b> con varios usuarios conectados.</li>
+  <li><b>Despliegue y publicación</b> del proyecto en un servidor accesible por internet.</li>
+  <li><b>Documentación</b> del proyecto (técnica y manual de usuario).</li>
+  <li><b>Entrega del avance del parcial</b> (diseño del proyecto).</li>
+  <li><b>Presentación final</b> del proyecto.</li>
+</ol>
+
+<!-- ============ PUNTO 2. FASES ============ -->
+<h2>Punto 2. Identificación y organización de las fases del proyecto</h2>
+<p>Las actividades anteriores se agrupan en cuatro fases, que organizan el trabajo del proyecto de principio a fin:</p>
+
+<h3>Fase 1 · Inicio y Análisis (definición del qué y el cómo)</h3>
+<table>
+  <tr><th style="width:4%">ID</th><th style="width:52%">Actividad</th><th style="width:24%">Entregable</th><th style="width:20%">Producto de la fase</th></tr>
+  <tr><td>A1</td><td>Definir alcance, objetivos y requisitos</td><td>Alcance y requisitos</td><td rowspan="4">Documento de diseño del proyecto (base para el avance del parcial)</td></tr>
+  <tr><td>A2</td><td>Investigación de tecnologías y alternativas</td><td>Informe técnico de la investigación</td></tr>
+  <tr><td>A3</td><td>Definir la arquitectura del sistema</td><td>Arquitectura y diagramas</td></tr>
+  <tr><td>A4</td><td>Diseño preliminar (interfaz, personaje, escenarios)</td><td>Bocetos y prototipos del diseño</td></tr>
+</table>
+
+<h3>Fase 2 · Desarrollo (construcción del producto)</h3>
+<table>
+  <tr><th style="width:4%">ID</th><th style="width:52%">Actividad</th><th style="width:24%">Entregable</th><th style="width:20%">Producto de la fase</th></tr>
+  <tr><td>A5</td><td>Modelado 3D de personaje y escenarios</td><td>Modelos y escenas 3D</td><td rowspan="5">Versión funcional del prototipo</td></tr>
+  <tr><td>A6</td><td>Diseño de la base de datos y cuentas de usuario</td><td>Base de datos y registro/login</td></tr>
+  <tr><td>A7</td><td>Servidor y comunicación en tiempo real</td><td>Servidor con salas y chat (socket.io)</td></tr>
+  <tr><td>A8</td><td>Cliente 3D: mundo, avatares, movimiento y cámara</td><td>Escena jugable del cliente</td></tr>
+  <tr><td>A9</td><td>Interactividad: chat, salas, personalización y juego</td><td>Funcionalidades completas</td></tr>
+</table>
+
+<h3>Fase 3 · Pruebas (aseguramiento de la calidad)</h3>
+<table>
+  <tr><th style="width:4%">ID</th><th style="width:52%">Actividad</th><th style="width:24%">Entregable</th><th style="width:20%">Producto de la fase</th></tr>
+  <tr><td>A10</td><td>Integración y pruebas de funcionalidad</td><td>Reporte de pruebas funcionales</td><td rowspan="2">Versión estable y corregida</td></tr>
+  <tr><td>A11</td><td>Pruebas de concurrencia y carga</td><td>Reporte de pruebas de carga</td></tr>
+</table>
+
+<h3>Fase 4 · Cierre y Entrega (publicación y presentación)</h3>
+<table>
+  <tr><th style="width:4%">ID</th><th style="width:52%">Actividad</th><th style="width:24%">Entregable</th><th style="width:20%">Producto de la fase</th></tr>
+  <tr><td>A12</td><td>Despliegue y publicación en internet</td><td>Plataforma publicada</td><td rowspan="4">Producto final entregable</td></tr>
+  <tr><td>A13</td><td>Documentación técnica y manual de usuario</td><td>Documentación y manual</td></tr>
+  <tr><td>A14</td><td>Entrega del avance del parcial (diseño)</td><td>Avance entregado</td></tr>
+  <tr><td>A15</td><td>Presentación final del proyecto</td><td>Proyecto presentado</td></tr>
+</table>
+
+<!-- ============ PUNTO 3. PROGRAMACIÓN DE TIEMPOS ============ -->
+<div class="pagebreak"></div>
+<h2>Punto 3. Programación de los tiempos (cuatrimestre sep–dic 2026)</h2>
+<p>La programación se estableció sobre una <b>línea base</b> (baseline) aprobada el <b>15/09/2026</b>, que fija las <b>fechas programadas</b>. El seguimiento semanal registra las <b>fechas reales</b> de lo ya ejecutado y recalcula las <b>fechas estimadas</b> (forecast) de lo pendiente, permitiendo detectar desviaciones a tiempo. El <b>avance del parcial</b> (semana del 26 al 30 de octubre) corresponde al <b>diseño del proyecto</b>, compuesto por las actividades A1 a A4 (ver Fase 1).</p>
+
+<table>
+  <tr>
+    <th style="width:3%">ID</th>
+    <th style="width:31%">Actividad</th>
+    <th style="width:14%">Programada (línea base)</th>
+    <th style="width:13%">Real (inicio–fin)</th>
+    <th style="width:15%">Estimada (inicio–fin)</th>
+    <th style="width:8%">Estado</th>
+    <th style="width:16%">Observaciones</th>
+  </tr>
+  <tr><td>A1</td><td>Definir alcance, objetivos y requisitos</td><td>07–11 sep</td><td>07–08 sep</td><td>07–08 sep</td><td>Terminada</td><td>Doc. de requisitos</td></tr>
+  <tr><td>A2</td><td>Investigación de tecnologías</td><td>09–15 sep</td><td>09–15 sep (en curso)</td><td>09–15 sep</td><td>En curso</td><td>Marca la línea base 15/09</td></tr>
+  <tr><td>A3</td><td>Arquitectura del sistema</td><td>14–21 sep</td><td>—</td><td>16–28 sep</td><td>Pendiente</td><td>Retraso estimado leve</td></tr>
+  <tr><td>A4</td><td>Diseño preliminar (UI, personaje, escenarios)</td><td>21 sep – 01 oct</td><td>—</td><td>28 sep – 16 oct</td><td>Pendiente</td><td><b>Avance clave del parcial</b></td></tr>
+  <tr><td>A5</td><td>Modelado 3D de personaje y escenarios</td><td>01 – 16 oct</td><td>—</td><td>16 oct – 06 nov</td><td>Pendiente</td><td>Incluye accesorios</td></tr>
+  <tr><td>A6</td><td>Base de datos y cuentas de usuario</td><td>05 – 16 oct</td><td>—</td><td>26 oct – 09 nov</td><td>Pendiente</td><td>Registro/login</td></tr>
+  <tr><td>A7</td><td>Servidor y comunicación en tiempo real</td><td>12 – 30 oct</td><td>—</td><td>09 – 20 nov</td><td>Pendiente</td><td>Salas y chat (socket.io)</td></tr>
+  <tr><td>A8</td><td>Cliente 3D: mundo, avatares, cámara</td><td>19 oct – 06 nov</td><td>—</td><td>04 – 13 nov</td><td>Pendiente</td><td>Movimiento y 1ª/3ª persona</td></tr>
+  <tr><td>A9</td><td>Interactividad: chat, salas, juego</td><td>02 – 13 nov</td><td>—</td><td>09 – 16 nov</td><td>Pendiente</td><td>Personalización del pingüino</td></tr>
+  <tr><td>A10</td><td>Integración y pruebas funcionales</td><td>09 – 20 nov</td><td>—</td><td>16 – 20 nov</td><td>Pendiente</td><td>Correcciones incluidas</td></tr>
+  <tr><td>A11</td><td>Pruebas de concurrencia y carga</td><td>16 – 23 nov</td><td>—</td><td>18 – 23 nov</td><td>Pendiente</td><td>Varios usuarios conectados</td></tr>
+  <tr><td>A12</td><td>Despliegue y publicación</td><td>20 – 27 nov</td><td>—</td><td>23 – 27 nov</td><td>Pendiente</td><td>Servidor accesible por internet</td></tr>
+  <tr><td>A13</td><td>Documentación y manual de usuario</td><td>18 – 27 nov</td><td>—</td><td>23 – 27 nov</td><td>Pendiente</td><td>Redacción continua</td></tr>
+  <tr><td>A14</td><td>Entrega del avance del parcial (diseño)</td><td>26 – 30 oct</td><td>—</td><td>26 – 30 oct</td><td>Programado</td><td>Muestra el diseño del proyecto</td></tr>
+  <tr><td>A15</td><td>Presentación final del proyecto</td><td>30 nov – 02 dic</td><td>—</td><td>30 nov – 02 dic</td><td>Programado</td><td>Entrega final del cuatrimestre</td></tr>
+</table>
+
+<div class="nota">
+<b>Lectura del cronograma:</b> la columna <i>Programada (línea base)</i> contiene las fechas comprometidas aprobadas; <i>Real</i> registra el avance ejecutado (a la fecha de corte 08/09/2026 solo A1 está terminada y A2 en curso); <i>Estimada</i> es el pronóstico recalculado con el avance real para no perder la fecha de entrega del parcial ni el cierre del cuatrimestre. Las fechas se expresan en formato <b>dd/mm (2026)</b>.
+</div>
+
+<h3>Hitos principales</h3>
+<table>
+  <tr><th style="width:22%">Hito</th><th style="width:14%">Fecha programada</th><th style="width:14%">Fecha real</th><th style="width:14%">Línea base</th><th style="width:36%">Descripción</th></tr>
+  <tr><td>Línea base del cronograma</td><td>15/09/2026</td><td>15/09/2026</td><td>v1.0</td><td>Aprobación del plan de actividades y fechas programadas</td></tr>
+  <tr><td>Avance del parcial (diseño)</td><td>26–30/10/2026</td><td>—</td><td>v1.0</td><td>Entrega donde se aprecia el diseño del proyecto (Fase 1 y bocetos)</td></tr>
+  <tr><td>Prototipo funcional</td><td>06/11/2026</td><td>—</td><td>v1.0</td><td>Versión que integra servidor y cliente 3D básico</td></tr>
+  <tr><td>Versión estable</td><td>23/11/2026</td><td>—</td><td>v1.0</td><td>Pruebas de carga concluidas y correcciones aplicadas</td></tr>
+  <tr><td>Entrega final</td><td>02/12/2026</td><td>—</td><td>v1.0</td><td>Presentación final del proyecto completo</td></tr>
+</table>
+
+<!-- ============ PUNTO 4. CONCLUSIÓN ============ -->
+<div class="pagebreak"></div>
+<h2>Punto 4. Conclusión: la importancia de programar los tiempos de un proyecto</h2>
+<p>Programar los tiempos de un proyecto es una de las prácticas más importantes, porque convierte una idea en un compromiso medible. Sin un cronograma, el proyecto crece sin control: las tareas se alargan, los entregables se retrasan y no se sabe si se está avanzando o simplemente se está ocupado. Al programar se definen fechas claras de inicio y fin para cada actividad, lo que permite coordinar esfuerzos, asignar responsables y comunicar expectativas con precisión.</p>
+<p>El uso de una <b>línea base</b> con <b>fechas programadas</b>, junto con el registro de <b>fechas reales</b> y <b>fechas estimadas</b>, aporta un control objetivo: al comparar lo real contra lo programado se detectan desviaciones tempranas y se puede reaccionar a tiempo, replanificando sin perder el objetivo final. En el caso de Club Pingüi, la programación del cuatrimestre permitió reservar una fecha de corte (el parcial de octubre) para asegurar que el <b>diseño del proyecto</b> estuviera concluido antes de invertir en su desarrollo, priorizando así las actividades que más valor aportan y evitando empezar a construir sin una base definida.</p>
+<p>Finalmente, programar el tiempo también reduce la incertidumbre y la presión final: distribuye el trabajo a lo largo del cuatrimestre, facilita la medición del avance frente a los hitos y aumenta la probabilidad de entregar un proyecto completo, de calidad y dentro del plazo. Se concluye, por tanto, que la gestión del tiempo no es un trámite administrativo, sino una herramienta esencial para que el proyecto Club Pingüi alcance sus objetivos de forma ordenada y exitosa.</p>
+
+</body>
+</html>

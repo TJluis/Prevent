@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#0e1626"/>
+    </linearGradient>
+    <radialGradient id="glowCyan" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#00f0ff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#00f0ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowPurple" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gradCyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00f0ff"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="gradGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#00f0ff"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="220" cy="180" r="260" fill="url(#glowCyan)"/>
+  <circle cx="1380" cy="760" r="300" fill="url(#glowPurple)"/>
+
+  <!-- Título -->
+  <text x="800" y="80" text-anchor="middle" fill="#f8fafc" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="46" font-weight="800">Arquitectura del sistema — Club Pingüi</text>
+  <text x="800" y="122" text-anchor="middle" fill="#94a3b8" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="20">Cliente web (Three.js) · Tiempo real (Socket.IO + WebRTC) · Servidor Node.js/Express · Datos (SQLite)</text>
+  <rect x="740" y="140" width="120" height="4" rx="2" fill="url(#gradCyan)"/>
+
+  <!-- ================= Cliente ================= -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="200" width="420" height="520" rx="18" fill="#0f172a" fill-opacity="0.92" stroke="#00f0ff" stroke-opacity="0.35" stroke-width="1.6"/>
+    <rect x="80" y="200" width="420" height="56" rx="18" fill="#00f0ff" fill-opacity="0.12"/>
+    <rect x="80" y="240" width="420" height="16" fill="#00f0ff" fill-opacity="0.12"/>
+  </g>
+  <circle cx="120" cy="228" r="18" fill="#00f0ff" fill-opacity="0.15" stroke="#00f0ff" stroke-width="1.4"/>
+  <text x="120" y="234" text-anchor="middle" font-size="19">🌐</text>
+  <text x="152" y="226" fill="#00f0ff" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="21" font-weight="700">Navegador del jugador (cliente)</text>
+  <text x="152" y="247" fill="#94a3b8" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13">JavaScript · ES Modules · sin instalación</text>
+
+  <g font-family="Outfit, Segoe UI, system-ui, sans-serif">
+    <circle cx="118" cy="312" r="17" fill="#00f0ff" fill-opacity="0.12" stroke="#00f0ff" stroke-width="1.2"/>
+    <text x="118" y="318" text-anchor="middle" font-size="16">🧊</text>
+    <text x="148" y="306" fill="#f8fafc" font-size="17" font-weight="700">Three.js (WebGL2)</text>
+    <text x="148" y="324" fill="#94a3b8" font-size="13.5">Render 3D procedural: escena, avatar cartoon, FPV, shaders</text>
+
+    <circle cx="118" cy="400" r="17" fill="#00f0ff" fill-opacity="0.12" stroke="#00f0ff" stroke-width="1.2"/>
+    <text x="118" y="406" text-anchor="middle" font-size="16">📡</text>
+    <text x="148" y="394" fill="#f8fafc" font-size="17" font-weight="700">Socket.IO Client</text>
+    <text x="148" y="412" fill="#94a3b8" font-size="13.5">Posiciones, chat, salas, combate (eventos en tiempo real)</text>
+
+    <circle cx="118" cy="488" r="17" fill="#00f0ff" fill-opacity="0.12" stroke="#00f0ff" stroke-width="1.2"/>
+    <text x="118" y="494" text-anchor="middle" font-size="16">🎙️</text>
+    <text x="148" y="482" fill="#f8fafc" font-size="17" font-weight="700">WebRTC</text>
+    <text x="148" y="500" fill="#94a3b8" font-size="13.5">Audio y voz de proximidad (peer to peer)</text>
+
+    <circle cx="118" cy="576" r="17" fill="#00f0ff" fill-opacity="0.12" stroke="#00f0ff" stroke-width="1.2"/>
+    <text x="118" y="582" text-anchor="middle" font-size="16">🖥️</text>
+    <text x="148" y="570" fill="#f8fafc" font-size="17" font-weight="700">UI + HUD + Vestidor</text>
+    <text x="148" y="588" fill="#94a3b8" font-size="13.5">Glassmorphism, minimapa, inventario, personalización 3D</text>
+
+    <circle cx="118" cy="664" r="17" fill="#00f0ff" fill-opacity="0.12" stroke="#00f0ff" stroke-width="1.2"/>
+    <text x="118" y="670" text-anchor="middle" font-size="16">⚙️</text>
+    <text x="148" y="658" fill="#f8fafc" font-size="17" font-weight="700">Input · Sesión · Apariencia</text>
+    <text x="148" y="676" fill="#94a3b8" font-size="13.5">WASD/ratón, estado local, colores y skins</text>
+  </g>
+
+  <!-- ================= Servidor ================= -->
+  <g filter="url(#shadow)">
+    <rect x="590" y="200" width="460" height="520" rx="18" fill="#0f172a" fill-opacity="0.92" stroke="#3b82f6" stroke-opacity="0.4" stroke-width="1.6"/>
+    <rect x="590" y="200" width="460" height="56" rx="18" fill="#3b82f6" fill-opacity="0.12"/>
+    <rect x="590" y="240" width="460" height="16" fill="#3b82f6" fill-opacity="0.12"/>
+  </g>
+  <circle cx="630" cy="228" r="18" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="630" y="234" text-anchor="middle" font-size="19">🖥️</text>
+  <text x="662" y="226" fill="#3b82f6" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="21" font-weight="700">Servidor — Node.js + Express 5</text>
+  <text x="662" y="247" fill="#94a3b8" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13">Lógica autoritativa · WebSocket · API REST</text>
+
+  <g font-family="Outfit, Segoe UI, system-ui, sans-serif">
+    <circle cx="628" cy="312" r="17" fill="#3b82f6" fill-opacity="0.12" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="628" y="318" text-anchor="middle" font-size="16">🔌</text>
+    <text x="658" y="306" fill="#f8fafc" font-size="17" font-weight="700">Socket.IO — game.js</text>
+    <text x="658" y="324" fill="#94a3b8" font-size="13.5">Salas, sincronización de jugadores, combate autoritativo, chat</text>
+
+    <circle cx="628" cy="400" r="17" fill="#3b82f6" fill-opacity="0.12" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="628" y="406" text-anchor="middle" font-size="16">🌐</text>
+    <text x="658" y="394" fill="#f8fafc" font-size="17" font-weight="700">Express — API REST</text>
+    <text x="658" y="412" fill="#94a3b8" font-size="13.5">/api/auth (login, registro) · /api/me/appearance · /healthz</text>
+
+    <circle cx="628" cy="488" r="17" fill="#3b82f6" fill-opacity="0.12" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="628" y="494" text-anchor="middle" font-size="16">🔐</text>
+    <text x="658" y="482" fill="#f8fafc" font-size="17" font-weight="700">Autenticación y sesiones</text>
+    <text x="658" y="500" fill="#94a3b8" font-size="13.5">scrypt + salt · tokens de 30 días · middleware de auth</text>
+
+    <circle cx="628" cy="576" r="17" fill="#3b82f6" fill-opacity="0.12" stroke="#3b82f6" stroke-width="1.2"/>
+    <text x="628" y="582" text-anchor="middle" font-size="16">🛡️</text>
+    <text x="658" y="570" fill="#f8fafc" font-size="17" font-weight="700">Seguridad y límites</text>
+    <text x="658" y="588" fill="#94a3b8" font-size="13.5">Rate limit por IP (20/15 min) · throttle por socket por segundo</text>
+  </g>
+
+  <!-- ================= Datos ================= -->
+  <g filter="url(#shadow)">
+    <rect x="1140" y="200" width="380" height="520" rx="18" fill="#0f172a" fill-opacity="0.92" stroke="#10b981" stroke-opacity="0.4" stroke-width="1.6"/>
+    <rect x="1140" y="200" width="380" height="56" rx="18" fill="#10b981" fill-opacity="0.12"/>
+    <rect x="1140" y="240" width="380" height="16" fill="#10b981" fill-opacity="0.12"/>
+  </g>
+  <circle cx="1180" cy="228" r="18" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-width="1.4"/>
+  <text x="1180" y="234" text-anchor="middle" font-size="19">🗄️</text>
+  <text x="1212" y="226" fill="#10b981" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="21" font-weight="700">Persistencia de datos</text>
+  <text x="1212" y="247" fill="#94a3b8" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13">Archivo SQLite persistente</text>
+
+  <g font-family="Outfit, Segoe UI, system-ui, sans-serif">
+    <circle cx="1178" cy="312" r="17" fill="#10b981" fill-opacity="0.12" stroke="#10b981" stroke-width="1.2"/>
+    <text x="1178" y="318" text-anchor="middle" font-size="16">👥</text>
+    <text x="1208" y="306" fill="#f8fafc" font-size="17" font-weight="700">Cuentas de usuario</text>
+    <text x="1208" y="324" fill="#94a3b8" font-size="13.5">Email/apodo, hash scrypt, apariencia</text>
+
+    <circle cx="1178" cy="400" r="17" fill="#10b981" fill-opacity="0.12" stroke="#10b981" stroke-width="1.2"/>
+    <text x="1178" y="406" text-anchor="middle" font-size="16">🔑</text>
+    <text x="1208" y="394" fill="#f8fafc" font-size="17" font-weight="700">Sesiones</text>
+    <text x="1208" y="412" fill="#94a3b8" font-size="13.5">Tokens con expiración de 30 días · limpieza periódica</text>
+
+    <circle cx="1178" cy="488" r="17" fill="#10b981" fill-opacity="0.12" stroke="#10b981" stroke-width="1.2"/>
+    <text x="1178" y="494" text-anchor="middle" font-size="16">📜</text>
+    <text x="1208" y="482" fill="#f8fafc" font-size="17" font-weight="700">Historial</text>
+    <text x="1208" y="500" fill="#94a3b8" font-size="13.5">Registro de actividad y mensajes</text>
+
+    <rect x="1168" y="560" width="324" height="120" rx="14" fill="#10b981" fill-opacity="0.06" stroke="#10b981" stroke-opacity="0.25" stroke-width="1.2"/>
+    <text x="1186" y="590" fill="#10b981" font-size="15" font-weight="700">Despliegue: Railway</text>
+    <text x="1186" y="612" fill="#94a3b8" font-size="13.5">Variable DB_PATH → volumen persistente</text>
+    <text x="1186" y="632" fill="#94a3b8" font-size="13.5">Los datos sobreviven a cada redeploy</text>
+    <text x="1186" y="660" fill="#64748b" font-size="12">better-sqlite3 · migrable a MariaDB/MySQL</text>
+  </g>
+
+  <!-- ================= Flechas ================= -->
+  <!-- Cliente ⇄ Servidor: WebSocket -->
+  <line x1="502" y1="360" x2="588" y2="360" stroke="#00f0ff" stroke-width="3" marker-start="url(#arrowCyan)" marker-end="url(#arrowCyan)"/>
+  <rect x="502" y="332" width="86" height="26" rx="13" fill="#00f0ff" fill-opacity="0.12" stroke="#00f0ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="545" y="349" text-anchor="middle" fill="#00f0ff" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13" font-weight="700">WebSocket</text>
+  <text x="545" y="380" text-anchor="middle" fill="#64748b" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="12">posiciones · chat · salas · combate</text>
+
+  <!-- Cliente ⇄ Servidor: HTTPS REST -->
+  <line x1="502" y1="470" x2="588" y2="470" stroke="#3b82f6" stroke-width="3" marker-start="url(#arrowBlue)" marker-end="url(#arrowBlue)"/>
+  <rect x="500" y="441" width="90" height="26" rx="13" fill="#3b82f6" fill-opacity="0.12" stroke="#3b82f6" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="545" y="458" text-anchor="middle" fill="#3b82f6" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13" font-weight="700">HTTPS REST</text>
+  <text x="545" y="494" text-anchor="middle" fill="#64748b" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="12">login · registro · apariencia</text>
+
+  <!-- Servidor ⇄ Datos -->
+  <line x1="1052" y1="340" x2="1138" y2="340" stroke="#10b981" stroke-width="3" marker-start="url(#arrowGreen)" marker-end="url(#arrowGreen)"/>
+  <text x="1095" y="326" text-anchor="middle" fill="#10b981" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13" font-weight="700">SQLite</text>
+  <text x="1095" y="356" text-anchor="middle" fill="#64748b" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="12">escritura + lectura</text>
+
+  <!-- Voz P2P entre jugadores -->
+  <path d="M 290 718 C 290 830, 800 850, 1250 760" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowPurple)"/>
+  <rect x="600" y="806" width="300" height="34" rx="17" fill="#8b5cf6" fill-opacity="0.12" stroke="#8b5cf6" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="750" y="828" text-anchor="middle" fill="#c4b5fd" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="14" font-weight="700">Voz P2P · WebRTC entre jugadores</text>
+  <text x="290" y="746" fill="#94a3b8" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="12">señalización vía Socket.IO</text>
+
+  <!-- Pie -->
+  <text x="800" y="886" text-anchor="middle" fill="#64748b" font-family="Outfit, Segoe UI, system-ui, sans-serif" font-size="13">Club Pingüi · proyecto escolar · Three.js r185 · Node 20 · Socket.IO v4 · WebRTC · SQLite — sin instalación en el cliente</text>
+</svg>

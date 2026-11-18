@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Tarjeta de presentación · Club Pingüí · 27/10/2026</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#0b1b2b; --muted:#4a6076; --dim:#7b8fa3;
+    --cy:#0e7490; --cy2:#0891b2; --am:#b45309; --line:#d5e1ec; --tint:#f2f7fb;
+  }
+  html,body{background:#e8eef4;color:var(--ink);
+    font-family:"Segoe UI",-apple-system,Arial,sans-serif;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sheet{
+    width:210mm;min-height:297mm;background:#fff;margin:12px auto;padding:9mm 9mm 7mm;
+    display:flex;flex-direction:column;gap:3.2mm;
+    box-shadow:0 6px 24px rgba(11,27,43,.18)
+  }
+
+  /* ---------- cabecera ---------- */
+  .top{display:flex;align-items:flex-end;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:2.2mm}
+  .brand{font-size:7pt;letter-spacing:2.2px;text-transform:uppercase;color:var(--cy);font-weight:800}
+  .top h1{font-size:16.5pt;line-height:1.05;letter-spacing:-.4px;margin-top:1mm}
+  .top .who{font-size:8pt;color:var(--muted);margin-top:1.2mm}
+  .top .who b{color:var(--ink)}
+  .stamp{text-align:right;font-size:7.4pt;color:var(--muted);line-height:1.45}
+  .stamp b{display:block;font-size:9.4pt;color:var(--am);letter-spacing:.2px}
+
+  /* ---------- tira de cifras ---------- */
+  .strip{display:grid;grid-template-columns:repeat(5,1fr);gap:2.2mm}
+  .num{border:1px solid var(--line);border-left:2.4px solid var(--cy);border-radius:1.6mm;
+    padding:1.6mm 2mm;background:var(--tint)}
+  .num .l{font-size:5.9pt;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);font-weight:700}
+  .num .v{font-size:12pt;font-weight:800;letter-spacing:-.4px;line-height:1.15;margin-top:.4mm}
+  .num .n{font-size:6.2pt;color:var(--muted);line-height:1.25;margin-top:.3mm}
+  .num.am{border-left-color:var(--am)} .num.am .v{color:var(--am)}
+
+  /* ---------- cuerpo a dos columnas ---------- */
+  .cols{display:grid;grid-template-columns:1.06fr .94fr;gap:5mm;flex:1}
+  h2{font-size:6.6pt;letter-spacing:1.5px;text-transform:uppercase;color:var(--cy);
+    font-weight:800;border-bottom:1px solid var(--line);padding-bottom:1.1mm;margin-bottom:1.6mm}
+  h2.am{color:var(--am)}
+
+  /* recorrido */
+  .run{display:flex;flex-direction:column;gap:0}
+  .row{display:grid;grid-template-columns:5.2mm 1fr;gap:1.6mm;
+    padding:1.05mm 0;border-bottom:1px dotted #dde7f0;break-inside:avoid}
+  .row:last-child{border-bottom:none}
+  .row .k{font-size:8.4pt;font-weight:800;color:var(--cy);text-align:right;line-height:1.25;
+    font-variant-numeric:tabular-nums}
+  .row .t{font-size:7.55pt;line-height:1.28;color:var(--ink)}
+  .row .t b{font-weight:700}
+  .row .t span{color:var(--muted)}
+  .row .t em{font-style:normal;color:var(--am);font-weight:700}
+  .row.hot .k{color:var(--am)}
+  .row.hot{background:#fffaf0}
+
+  /* columna derecha */
+  .side{display:flex;flex-direction:column;gap:3.4mm}
+  .box{border:1px solid var(--line);border-radius:1.8mm;padding:2.2mm 2.4mm;background:#fff}
+  .box.tint{background:var(--tint)}
+  .box h3{font-size:6.5pt;letter-spacing:1.3px;text-transform:uppercase;color:var(--cy);
+    font-weight:800;margin-bottom:1.5mm}
+  .box.warm h3{color:var(--am)}
+  .quote{font-size:7.6pt;line-height:1.34;color:var(--ink);padding-left:2.2mm;
+    border-left:1.6px solid var(--cy);margin-bottom:1.7mm}
+  .quote:last-child{margin-bottom:0}
+  .quote b{font-weight:700}
+
+  dl{display:grid;grid-template-columns:1fr;gap:0}
+  .qa{padding:1.15mm 0;border-bottom:1px dotted #dde7f0}
+  .qa:last-child{border-bottom:none}
+  .qa dt{font-size:7.25pt;font-weight:700;color:var(--ink);line-height:1.25}
+  .qa dt::before{content:"▸ ";color:var(--am);font-weight:800}
+  .qa dd{font-size:7.05pt;color:var(--muted);line-height:1.28;margin-top:.25mm}
+
+  ul.check{list-style:none;display:flex;flex-direction:column;gap:1.05mm}
+  ul.check li{font-size:7.15pt;color:var(--muted);line-height:1.25;padding-left:4.6mm;position:relative}
+  ul.check li::before{content:"";position:absolute;left:0;top:.55mm;width:2.4mm;height:2.4mm;
+    border:1px solid #9db3c6;border-radius:.5mm}
+  .plan{font-size:7.15pt;line-height:1.3;color:var(--muted)}
+  .plan b{color:var(--ink)}
+
+  .blank{margin-top:auto;background:#0b1b2b;color:#e8f4fb;border-radius:1.8mm;
+    padding:2mm 2.6mm;font-size:7.3pt;line-height:1.32}
+  .blank b{color:#67e8f9}
+
+  /* ---------- pie ---------- */
+  .foot{display:flex;justify-content:space-between;align-items:center;
+    border-top:1px solid var(--line);padding-top:1.4mm;font-size:6.3pt;color:var(--dim)}
+  .foot b{color:var(--muted)}
+
+  @page{size:A4 portrait;margin:0}
+  @media print{
+    html,body{background:#fff}
+    .sheet{margin:0;box-shadow:none;width:210mm;min-height:297mm}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="top">
+    <div>
+      <div class="brand">Club Pingüí · Tarjeta de presentación</div>
+      <h1>Guion de bolsillo · 18 diapositivas</h1>
+      <div class="who"><b>Luis Javier Tovar Segura</b> · Avance parcial · 14–16 min + preguntas</div>
+    </div>
+    <div class="stamp"><b>27 · OCT · 2026</b>Corte técnico verificado<br>EVM al 06/10/2026</div>
+  </header>
+
+  <section class="strip">
+    <div class="num"><div class="l">Ruta crítica</div><div class="v">85.17 d</div><div class="n">17.03 semanas · 15 actividades</div></div>
+    <div class="num"><div class="l">Probabilidad</div><div class="v">88 %</div><div class="n">terminar en ≤ 90 días (σ 4.02)</div></div>
+    <div class="num"><div class="l">SPI</div><div class="v">1.13</div><div class="n">adelantado · SV +17.2 h</div></div>
+    <div class="num am"><div class="l">CPI</div><div class="v">1.04</div><div class="n">dentro de costo · CV +5.2 h</div></div>
+    <div class="num"><div class="l">Contenido</div><div class="v">17/17 · 8/8</div><div class="n">armas · mapas · 3/3 tuners</div></div>
+  </section>
+
+  <div class="cols">
+
+    <!-- ============ IZQUIERDA: RECORRIDO ============ -->
+    <section>
+      <h2>Recorrido · una frase por diapositiva</h2>
+      <div class="run">
+
+        <div class="row"><div class="k">1</div><div class="t"><b>Portada.</b> “Juego 3D multijugador que corre en el navegador.” <span>17 armas · 8 mapas · 3 tuners.</span></div></div>
+
+        <div class="row hot"><div class="k">2</div><div class="t"><b>Ruta.</b> “Cada cifra tiene un corte y una prueba.” <em>EVM 06/10 · técnico 27/10.</em></div></div>
+
+        <div class="row"><div class="k">3</div><div class="t"><b>Fases.</b> Agrupadas por producto, no por orden. <span>4 fases · 15 actividades · base 15/09.</span></div></div>
+
+        <div class="row"><div class="k">4</div><div class="t"><b>Objetivos.</b> O2, O3 y O5 cerrados; O4 con reserva; O1 95 %; O6 en proceso.</div></div>
+
+        <div class="row"><div class="k">5</div><div class="t"><b>OKR + EVM.</b> “Se mide en resultados, no en horas.” <span>EV 145.2 · AC 140 · PV 128.</span></div></div>
+
+        <div class="row hot"><div class="k">6</div><div class="t"><b>PERT.</b> “La duración es una distribución.” <em>ΣTE 111.85 · ruta 85.17 · σ 4.02.</em> A8 = riesgo.</div></div>
+
+        <div class="row"><div class="k">7</div><div class="t"><b>Recursos.</b> “$3,025 es lo que se gasta; $21,025 es lo que vale.” <span>160 h base.</span></div></div>
+
+        <div class="row"><div class="k">8</div><div class="t"><b>Técnicas.</b> 8 técnicas, 8 artefactos. “Sirve cuando cambia una decisión.”</div></div>
+
+        <div class="row"><div class="k">9</div><div class="t"><b>Estado 27/10.</b> 3 cerrados · 1 validado · 1 con reserva · 1 en proceso.</div></div>
+
+        <div class="row"><div class="k">10</div><div class="t"><b>Gates.</b> “Sin evidencia no se abre.” <span>01 diseño · 02 3D · 03 con condición · 04 cierre.</span></div></div>
+
+        <div class="row hot"><div class="k">11</div><div class="t"><b>Demo núcleo.</b> “Entra, aparece y sincroniza.” <em>healthz sessions 2 · 0 errores.</em></div></div>
+
+        <div class="row"><div class="k">12</div><div class="t"><b>Demo mundo.</b> Misma partida, 3.ª y 1.ª persona. <span>8/8 mapas · colisiones.</span></div></div>
+
+        <div class="row"><div class="k">13</div><div class="t"><b>Demo inventario.</b> Abre y cierra sin salir. <span>Recarga 16 → 14 → 16 · móvil 844×390.</span></div></div>
+
+        <div class="row"><div class="k">14</div><div class="t"><b>Tuner.</b> 17 armas sin tocar código. <span>9/9 piezas · WEAPON_PARTS válido.</span> <em>Herramienta, no arte.</em></div></div>
+
+        <div class="row"><div class="k">15</div><div class="t"><b>Gantt.</b> 15 actividades · 18 semanas. <span>Rojo crítica, azul holgura.</span></div></div>
+
+        <div class="row"><div class="k">16</div><div class="t"><b>PERT.</b> A1→A2→A3→A4→A5→A8→A9→A10→A11→A12→A15. <span>A8 = 15.33 d.</span></div></div>
+
+        <div class="row"><div class="k">17</div><div class="t"><b>Cierre.</b> Real · medible · incompleto. <span>Riesgo: A8, 4.83 d de margen.</span></div></div>
+
+        <div class="row"><div class="k">18</div><div class="t"><b>Anexo.</b> Solo si preguntan: 6 respuestas y fuentes.</div></div>
+
+      </div>
+    </section>
+
+    <!-- ============ DERECHA: APOYO ============ -->
+    <aside class="side">
+
+      <div class="box">
+        <h3>Frases ancla · dilas tal cual</h3>
+        <div class="quote">“No declaro cumplido lo que su indicador no respalda.”</div>
+        <div class="quote">“El valor ganado es del <b>06/10</b>; el estado técnico, del <b>27/10</b>.”</div>
+        <div class="quote">“Un gate que no detiene nada no es un gate.”</div>
+        <div class="quote">“La captura es la evidencia; la demo es una cortesía.”</div>
+      </div>
+
+      <div class="box warm">
+        <h3>Si preguntan · respuesta en una línea</h3>
+        <dl>
+          <div class="qa"><dt>¿Por qué O1 al 95 %?</dt><dd>Falta el acta con 2+ clientes; no es un pendiente técnico.</dd></div>
+          <div class="qa"><dt>¿Por qué EVM del 06/10?</dt><dd>Es el único corte con PV, EV y AC completos; mover una sola variable sería inventar.</dd></div>
+          <div class="qa"><dt>¿Por qué 18 semanas?</dt><dd>85.17 ÷ 5 = 17.03; 18 × 5 = 90 d = compromiso del 88 %. Calendario escolar = hitos.</dd></div>
+          <div class="qa"><dt>¿A14 con 57.5 d de holgura?</dt><dd>No tiene sucesora: su fin tardío se toma del fin del proyecto.</dd></div>
+          <div class="qa"><dt>¿El tuner es el juego?</dt><dd>Es herramienta de producción; escenario oscuro a propósito.</dd></div>
+          <div class="qa"><dt>¿Y si A8 se retrasa?</dt><dd>Es crítica y de mayor varianza: se traslada a la fecha; margen 4.83 d a 90.</dd></div>
+        </dl>
+      </div>
+
+      <div class="box tint">
+        <h3>10 minutos antes</h3>
+        <ul class="check">
+          <li>Servidor Node arriba y <b>/healthz</b> respondiendo.</li>
+          <li>Navegador en la sala, sesión iniciada, inventario probado.</li>
+          <li>Notificaciones apagadas; pestañas extra cerradas.</li>
+          <li>HTML en <b>#1</b>; PDF de respaldo abierto.</li>
+          <li>Plan B: capturas de 11–14 si falla la demo.</li>
+          <li>Botella de agua fuera de cuadro. Respirar.</li>
+        </ul>
+      </div>
+
+      <div class="blank">
+        <b>Si te quedas en blanco:</b> mira el número más grande de la diapositiva y di su lectura. Después conecta con la siguiente: “y eso se traduce en…”. Nunca improvises una cifra: usa las de la tira superior.
+      </div>
+
+      <div class="box">
+        <h3>Versión de 8 minutos</h3>
+        <div class="plan">Mantén <b>1, 4, 5, 6, 11, 15, 16 y 17</b>. Comprime 2, 3, 7, 8, 9, 10, 13, 14 a una frase. El anexo no se presenta.</div>
+      </div>
+
+    </aside>
+  </div>
+
+  <footer class="foot">
+    <span><b>Archivos:</b> presentacion.html · presentacion.pdf · presentacion.pptx · guion_presentacion.md</span>
+    <span>Club Pingüí · 27/10/2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

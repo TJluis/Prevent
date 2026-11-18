@@ -1,0 +1,1292 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Club Pingüí · Presentación de avances · 27/10/2026</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#060b14; --card:#101c2f; --card2:#16263f; --line:#1e3350;
+    --text:#e9f2fc; --muted:#8ea8c6; --dim:#5f7a99;
+    --cyan:#22d3ee; --blue:#3b82f6; --amber:#fbbf24; --coral:#fb7185;
+    --green:#34d399; --violet:#a78bfa;
+  }
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1100px 680px at 12% -12%, #102740 0%, transparent 62%),
+      radial-gradient(900px 620px at 112% 112%, #0c2b33 0%, transparent 58%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    overflow:hidden;
+    display:grid;place-items:center;
+  }
+  .deck{width:1280px;height:720px;position:relative;transform:scale(var(--scale,1));transform-origin:center center}
+
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:36px 46px 26px;overflow:hidden;
+  }
+  .slide.active{display:flex}
+
+  /* ---------- encabezado / pie ---------- */
+  .s-head{margin-bottom:16px;flex:0 0 auto}
+  .kicker{font-size:10.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--cyan);font-weight:700;margin-bottom:7px}
+  .s-head h1{font-size:29px;line-height:1.13;font-weight:700;letter-spacing:-.3px;max-width:1080px}
+  .s-head h1 em{font-style:normal;color:var(--cyan)}
+  .s-head .sub{font-size:12.5px;color:var(--muted);margin-top:7px;max-width:1020px;line-height:1.45}
+  .s-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:12px}
+  .s-foot{
+    flex:0 0 auto;margin-top:10px;padding-top:8px;border-top:1px solid rgba(30,51,80,.7);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:9.5px;color:var(--dim);letter-spacing:.4px
+  }
+  .s-foot .pg{font-weight:700;color:var(--muted)}
+
+  /* ---------- utilidades ---------- */
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:13px;min-height:0}
+  .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;min-height:0}
+  .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-height:0}
+  .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .row{display:flex;gap:13px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:11px;min-height:0}
+  .fill{flex:1 1 auto;min-height:0}
+  .center{align-items:center}
+  .between{justify-content:space-between}
+
+  .card{
+    background:linear-gradient(158deg,var(--card) 0%,var(--card2) 100%);
+    border:1px solid var(--line);border-radius:14px;padding:13px 15px;min-height:0
+  }
+  .card.tight{padding:10px 12px}
+  .card h3{font-size:12.5px;font-weight:700;letter-spacing:.2px;margin-bottom:6px}
+  .card p{font-size:11.5px;line-height:1.45;color:var(--muted)}
+  .card .mini{font-size:10px;color:var(--dim);line-height:1.4}
+  .rule{height:1px;background:var(--line);margin:8px 0}
+
+  .kpi{background:linear-gradient(158deg,#101c2f,#152741);border:1px solid var(--line);border-radius:13px;padding:11px 13px}
+  .kpi .lab{font-size:9.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);font-weight:700}
+  .kpi .v{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-top:4px;line-height:1}
+  .kpi .v small{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0}
+  .kpi .n{font-size:9.5px;color:var(--dim);margin-top:4px}
+  .v.cy{color:var(--cyan)} .v.gr{color:var(--green)} .v.am{color:var(--amber)} .v.co{color:var(--coral)} .v.vi{color:var(--violet)}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.3px;border:1px solid transparent;white-space:nowrap}
+  .chip.ok{background:rgba(52,211,153,.12);color:var(--green);border-color:rgba(52,211,153,.35)}
+  .chip.wip{background:rgba(251,191,36,.12);color:var(--amber);border-color:rgba(251,191,36,.35)}
+  .chip.warn{background:rgba(251,113,133,.12);color:var(--coral);border-color:rgba(251,113,133,.35)}
+  .chip.plan{background:rgba(59,130,246,.14);color:#7cb3ff;border-color:rgba(59,130,246,.35)}
+  .chip.cy{background:rgba(34,211,238,.12);color:var(--cyan);border-color:rgba(34,211,238,.35)}
+  .chip.vi{background:rgba(167,139,250,.13);color:var(--violet);border-color:rgba(167,139,250,.35)}
+
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);font-weight:700;padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:5px 7px;border-bottom:1px solid rgba(30,51,80,.55);vertical-align:top;line-height:1.35}
+  tr:last-child td{border-bottom:none}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tbl-wrap{background:linear-gradient(158deg,rgba(16,28,47,.92),rgba(21,39,65,.92));border:1px solid var(--line);border-radius:13px;padding:6px 10px 4px}
+
+  .pb{height:6px;border-radius:99px;background:#0a1424;border:1px solid rgba(30,51,80,.8);overflow:hidden}
+  .pb i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--blue))}
+  .pb i.gr{background:linear-gradient(90deg,#34d399,#22d3ee)}
+  .pb i.am{background:linear-gradient(90deg,#fbbf24,#f97316)}
+  .pb i.co{background:linear-gradient(90deg,#fb7185,#f43f5e)}
+
+  .shot{border-radius:12px;border:1px solid var(--line);overflow:hidden;background:#04080f;position:relative;display:flex;flex-direction:column}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .shot .cap{position:absolute;left:0;right:0;bottom:0;padding:6px 10px;font-size:9.5px;color:#dbe9f8;background:linear-gradient(0deg,rgba(4,8,15,.92),transparent);letter-spacing:.3px}
+
+  ul.tick{list-style:none;display:flex;flex-direction:column;gap:7px}
+  ul.tick li{font-size:11.5px;line-height:1.4;color:var(--muted);padding-left:20px;position:relative}
+  ul.tick li b{color:var(--text)}
+  ul.tick li::before{content:"";position:absolute;left:4px;top:6px;width:7px;height:7px;border-radius:2px;background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,.6)}
+  ul.tick.gr li::before{background:var(--green);box-shadow:0 0 8px rgba(52,211,153,.55)}
+  ul.tick.am li::before{background:var(--amber);box-shadow:0 0 8px rgba(251,191,36,.5)}
+
+  .footnote{font-size:9.5px;color:var(--dim);line-height:1.4}
+  .footnote b{color:var(--muted)}
+
+  /* ---------- navegación ---------- */
+  .nav{position:fixed;right:18px;bottom:14px;display:flex;align-items:center;gap:8px;z-index:50}
+  .nav button{
+    width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(16,28,47,.9);color:var(--muted);font-size:14px;cursor:pointer;line-height:1
+  }
+  .nav button:hover{color:var(--cyan);border-color:var(--cyan)}
+  .nav .count{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+  .progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--blue));z-index:60;transition:width .18s ease}
+  .hint{position:fixed;left:18px;bottom:16px;font-size:9.5px;color:#3f5875;z-index:50}
+
+  /* ---------- portada ---------- */
+  .cover{padding:0;display:none}
+  .cover.active{display:grid;grid-template-columns:1.32fr .68fr}
+  .cover-l{padding:52px 30px 40px 62px;display:flex;flex-direction:column;justify-content:center;position:relative}
+  .cover-l::before{content:"";position:absolute;inset:0;background:radial-gradient(700px 460px at 20% 30%,rgba(34,211,238,.09),transparent 65%);pointer-events:none}
+  .uni{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .uni b{color:var(--cyan)}
+  .cover h1{font-size:53px;line-height:1.02;letter-spacing:-1.6px;margin:18px 0 0;font-weight:800}
+  .cover h1 span{display:block;color:var(--cyan);text-shadow:0 0 34px rgba(34,211,238,.35)}
+  .cover .tagline{font-size:15px;color:var(--muted);margin-top:14px;max-width:520px;line-height:1.4}
+  .cover .meta{margin-top:26px;display:grid;grid-template-columns:auto auto;gap:7px 26px;font-size:11.5px;color:var(--muted);width:max-content}
+  .cover .meta b{color:var(--text);font-weight:600}
+  .cover .who{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:flex-end;gap:20px}
+  .cover .who .name{font-size:19px;font-weight:700}
+  .cover .who .role{font-size:10.5px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase;margin-top:3px}
+  .cover .date{font-size:12.5px;color:var(--amber);font-weight:700;margin-left:auto;text-align:right}
+  .cover .date small{display:block;color:var(--dim);font-weight:500;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+  .cover-r{position:relative;display:grid;place-items:center;overflow:hidden;border-left:1px solid rgba(30,51,80,.6)}
+  .cover-r::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.16),transparent 62%);filter:blur(4px)}
+  .cover-r .mascot{width:300px;height:auto;position:relative;filter:drop-shadow(0 24px 44px rgba(0,0,0,.55))}
+  .cover-chips{position:absolute;bottom:34px;left:0;right:0;display:flex;justify-content:center;gap:7px;flex-wrap:wrap;padding:0 22px}
+  .cover-chips span{font-size:9.5px;letter-spacing:.6px;color:var(--muted);border:1px solid var(--line);background:rgba(16,28,47,.75);padding:4px 9px;border-radius:999px}
+
+  /* ---------- misceláneos ---------- */
+  .phase{position:relative;padding-left:38px}
+  .phase .n{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:800;background:rgba(34,211,238,.12);color:var(--cyan);border:1px solid rgba(34,211,238,.35)}
+  .tl{display:flex;align-items:flex-start;gap:0;position:relative;padding-top:14px}
+  .tl::before{content:"";position:absolute;left:0;right:0;top:24px;height:2px;background:linear-gradient(90deg,rgba(34,211,238,.7),rgba(59,130,246,.45),rgba(251,191,36,.6))}
+  .tl .step{flex:1;position:relative;padding:24px 12px 0 0}
+  .tl .dot{position:absolute;top:-3px;left:0;width:13px;height:13px;border-radius:50%;background:var(--bg);border:2px solid var(--cyan);box-shadow:0 0 10px rgba(34,211,238,.5)}
+  .tl .step.am .dot{border-color:var(--amber);box-shadow:0 0 10px rgba(251,191,36,.45)}
+  .tl .d{font-size:10.5px;color:var(--amber);font-weight:700;letter-spacing:.3px}
+  .tl .t{font-size:11.5px;font-weight:600;margin-top:3px;line-height:1.25}
+  .tl .s{font-size:9.5px;color:var(--dim);margin-top:3px;line-height:1.3}
+
+  .svgs{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:18px;align-items:center;font-size:10px;color:var(--muted);flex-wrap:wrap}
+  .legend i{display:inline-block;width:16px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px}
+  .legend .ln{display:inline-block;width:18px;height:2px;margin-right:5px;vertical-align:3px}
+
+  .gate{position:relative;overflow:hidden}
+  .gate .gn{position:absolute;right:-6px;top:-14px;font-size:52px;font-weight:800;color:rgba(34,211,238,.07);letter-spacing:-3px}
+  .gate h3{font-size:12px;margin-bottom:2px}
+  .gate .crit{font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:5px}
+  .gate .ev{font-size:9.5px;color:var(--dim);line-height:1.35;margin-top:7px;padding-top:6px;border-top:1px solid rgba(30,51,80,.8)}
+
+  .quote{font-size:11.5px;line-height:1.45;color:var(--muted);border-left:2px solid var(--cyan);padding-left:11px}
+
+  .qa{border-left:2px solid var(--line);padding-left:9px}
+  .qa b{display:block;font-size:10.5px;color:var(--cyan);margin-bottom:2px}
+  .qa span{font-size:10px;color:var(--muted);line-height:1.35;display:block}
+
+  .risk td:first-child{font-weight:600;color:var(--text)}
+
+  @page{size:13.333in 7.5in;margin:0}
+  @media print{
+    html,body{background:var(--bg);display:block;overflow:visible}
+    .deck{width:auto;height:auto;transform:none}
+    .slide,.slide.active{
+      display:flex !important;position:relative;width:1280px;height:720px;
+      page-break-after:always;break-after:page;transform:none
+    }
+    .cover.active{display:grid !important}
+    .nav,.progress,.hint{display:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+<!-- ================= 1 · PORTADA ================= -->
+<section class="slide cover active">
+  <div class="cover-l">
+    <div class="uni">Universidad Tecnológica del Norte de Coahuila<br><b>Ingeniería en Tecnologías de la Información e Innovación Digital</b></div>
+    <h1>Club Pingüí<span>Presentación de avances</span></h1>
+    <p class="tagline">Juego multijugador 3D que corre en el navegador: avatares, salas privadas, 17 armas, 8 mapas y un servidor en tiempo real.</p>
+    <div class="meta">
+      <div><b>Materia:</b> Formulación de Proyectos de Tecnología (7A)</div>
+      <div><b>Docente:</b> Mtro. Domingo Fraga Hernández</div>
+      <div><b>Avance:</b> Parcial octubre · Fase 1 y desarrollo</div>
+      <div><b>Lugar:</b> Piedras Negras, Coahuila</div>
+    </div>
+    <div class="who">
+      <div>
+        <div class="name">Luis Javier Tovar Segura</div>
+        <div class="role">Alumno · Líder de proyecto y desarrollador</div>
+      </div>
+      <div class="date">27 de octubre de 2026<small>Corte de la presentación</small></div>
+    </div>
+  </div>
+  <div class="cover-r">
+    <svg class="mascot" viewBox="0 0 260 320" aria-label="Pingüino de Club Pingüí">
+      <defs>
+        <linearGradient id="pgBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#16263f"/><stop offset="1" stop-color="#0a1526"/>
+        </linearGradient>
+        <linearGradient id="pgBelly" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f2f8ff"/><stop offset="1" stop-color="#c9dcef"/>
+        </linearGradient>
+        <linearGradient id="pgBeak" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#fcd34d"/><stop offset="1" stop-color="#f59e0b"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="130" cy="300" rx="82" ry="14" fill="#02060d" opacity=".65"/>
+      <ellipse cx="130" cy="168" rx="96" ry="126" fill="url(#pgBody)" stroke="#22d3ee" stroke-opacity=".45" stroke-width="2"/>
+      <ellipse cx="130" cy="182" rx="66" ry="100" fill="url(#pgBelly)"/>
+      <ellipse cx="74" cy="262" rx="30" ry="13" fill="url(#pgBeak)" transform="rotate(-12 74 262)"/>
+      <ellipse cx="186" cy="262" rx="30" ry="13" fill="url(#pgBeak)" transform="rotate(12 186 262)"/>
+      <ellipse cx="42" cy="170" rx="17" ry="52" fill="#101f36" stroke="#22d3ee" stroke-opacity=".3" transform="rotate(14 42 170)"/>
+      <ellipse cx="218" cy="170" rx="17" ry="52" fill="#101f36" stroke="#22d3ee" stroke-opacity=".3" transform="rotate(-14 218 170)"/>
+      <circle cx="103" cy="92" r="13" fill="#f8fbff"/><circle cx="157" cy="92" r="13" fill="#f8fbff"/>
+      <circle cx="105" cy="94" r="7" fill="#0a1526"/><circle cx="159" cy="94" r="7" fill="#0a1526"/>
+      <circle cx="108" cy="91" r="2.4" fill="#7ee7ff"/><circle cx="162" cy="91" r="2.4" fill="#7ee7ff"/>
+      <path d="M130 104 L110 122 L130 133 L150 122 Z" fill="url(#pgBeak)"/>
+      <path d="M96 148 q34 16 68 0" stroke="#a8c0d8" stroke-width="2.5" fill="none" opacity=".5"/>
+      <path d="M130 40 l9 18 l20 3 l-15 14 l4 20 l-18-10 l-18 10 l4-20 l-15-14 l20-3 z" fill="#fbbf24" opacity=".9"/>
+      <circle cx="130" cy="66" r="3.2" fill="#7c4a03"/>
+    </svg>
+    <div class="cover-chips">
+      <span>17 armas</span><span>8 mapas</span><span>3 tuners</span><span>160 h línea base</span><span>Node.js + Three.js</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 · RUTA ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Ruta de la presentación</div>
+    <h1>Qué se construyó, cómo se mide y qué falta</h1>
+    <p class="sub">Seis bloques: las cuatro prácticas del parcial, los objetivos actualizados con su validación, la demostración de los módulos que ya funcionan y los instrumentos de programación (Gantt y PERT).</p>
+  </div>
+  <div class="s-body">
+    <div class="g5">
+      <div class="kpi"><div class="lab">SPI</div><div class="v cy">1.13</div><div class="n">Cronograma adelantado</div></div>
+      <div class="kpi"><div class="lab">CPI</div><div class="v gr">1.04</div><div class="n">Costo bajo control</div></div>
+      <div class="kpi"><div class="lab">Valor ganado</div><div class="v">145.2<small> h</small></div><div class="n">de 160 h de línea base</div></div>
+      <div class="kpi"><div class="lab">Armas</div><div class="v">17/17</div><div class="n">0 fallos de estructura</div></div>
+      <div class="kpi"><div class="lab">Mapas</div><div class="v">8/8</div><div class="n">Sin errores de JavaScript</div></div>
+    </div>
+
+    <div class="g2 fill">
+      <div class="col">
+        <div class="card">
+          <h3>Contenido</h3>
+          <table>
+            <tr><td style="width:26px;color:var(--cyan);font-weight:700">01</td><td>Organización de fases · 4 fases, 15 actividades</td></tr>
+            <tr><td style="color:var(--cyan);font-weight:700">02</td><td>Seguimiento y validación de objetivos · O1–O6, OKR y valor ganado</td></tr>
+            <tr><td style="color:var(--cyan);font-weight:700">03</td><td>Estimación PERT · duración, varianza y probabilidad</td></tr>
+            <tr><td style="color:var(--cyan);font-weight:700">04</td><td>Gestión de recursos · presupuesto, roles y KPIs</td></tr>
+            <tr><td style="color:var(--cyan);font-weight:700">05</td><td>Demostración de módulos funcionando</td></tr>
+            <tr><td style="color:var(--cyan);font-weight:700">06</td><td>Gantt, PERT y cierre con próximos pasos</td></tr>
+          </table>
+        </div>
+        <div class="card tight" style="flex:1">
+          <h3>Mensaje central</h3>
+          <p>El proyecto no se presenta con promesas: cada objetivo tiene una prueba que lo respalda y cada cifra de avance proviene de un corte documentado. El <b>corte de valor ganado es del 06/10/2026</b>; el <b>estado técnico se verificó el 27/10/2026</b>.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card tight">
+          <h3>Evidencia que se mostrará en vivo</h3>
+          <ul class="tick gr">
+            <li>Sesión multijugador conectada: avatar, sala y sincronización.</li>
+            <li>Mapa Pradera de Flores en tercera y primera persona.</li>
+            <li>Inventario, recarga de arma y controles táctiles en móvil.</li>
+            <li>Tuner de armas con 17/17 armas y exportación válida.</li>
+          </ul>
+        </div>
+        <div class="card tight" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+          <h3 style="margin-bottom:8px">Validación en sala · 27/10/2026</h3>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <span class="chip ok">connected</span><span class="chip ok">avatar</span><span class="chip ok">inRoom</span>
+            <span class="chip ok">inventario</span><span class="chip ok">recarga 16→14→16</span><span class="chip ok">primera persona</span>
+          </div>
+          <p style="margin-top:9px;font-size:10.5px">Servidor <b>node server/index.js</b> activo · <b>/healthz</b> responde <b>{"ok":true,"sessions":2}</b> · <b>0 errores JS</b> en consola.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Club Pingüí · Presentación de avances · 27/10/2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 3 · PRÁCTICA 1 ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Práctica 1 · Organización de fases</div>
+    <h1>Cuatro fases para ordenar <em>15 actividades</em></h1>
+    <p class="sub">Las actividades se agruparon por el tipo de trabajo que producen, no por el orden en que se ocurrieron. Cada fase tiene entregable y producto verificable.</p>
+  </div>
+  <div class="s-body">
+    <div class="g4" style="flex:0 0 auto">
+      <div class="card phase">
+        <div class="n">1</div>
+        <h3>Inicio y Análisis</h3>
+        <div class="mini" style="margin-bottom:5px;color:var(--cyan);font-weight:700">A1 – A4</div>
+        <p>Alcance, investigación tecnológica, arquitectura y diseño preliminar de interfaz, personaje y escenarios.</p>
+        <div class="rule"></div>
+        <div class="mini"><b style="color:var(--text)">Producto:</b> diseño del proyecto y base técnica aprobada.</div>
+      </div>
+      <div class="card phase">
+        <div class="n">2</div>
+        <h3>Desarrollo</h3>
+        <div class="mini" style="margin-bottom:5px;color:var(--cyan);font-weight:700">A5 – A9</div>
+        <p>Modelado 3D, base de datos, servidor en tiempo real, cliente 3D e interactividad (chat, salas, juego).</p>
+        <div class="rule"></div>
+        <div class="mini"><b style="color:var(--text)">Producto:</b> juego jugable de extremo a extremo.</div>
+      </div>
+      <div class="card phase">
+        <div class="n">3</div>
+        <h3>Pruebas</h3>
+        <div class="mini" style="margin-bottom:5px;color:var(--cyan);font-weight:700">A10 – A11</div>
+        <p>Integración, pruebas funcionales, concurrencia y carga con varios clientes conectados.</p>
+        <div class="rule"></div>
+        <div class="mini"><b style="color:var(--text)">Producto:</b> evidencia PASS/FAIL y 0 regresiones.</div>
+      </div>
+      <div class="card phase">
+        <div class="n">4</div>
+        <h3>Cierre y Entrega</h3>
+        <div class="mini" style="margin-bottom:5px;color:var(--cyan);font-weight:700">A12 – A15</div>
+        <p>Despliegue, documentación técnica, manual de usuario, avance del parcial y presentación final.</p>
+        <div class="rule"></div>
+        <div class="mini"><b style="color:var(--text)">Producto:</b> versión publicada y aceptada.</div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+      <h3>Línea base del cronograma e hitos</h3>
+      <div class="tl">
+        <div class="step"><div class="dot"></div><div class="d">15/09/2026</div><div class="t">Línea base v1.0</div><div class="s">Plan de actividades y fechas aprobadas.</div></div>
+        <div class="step"><div class="dot"></div><div class="d">09–15/09</div><div class="t">A2 en curso</div><div class="s">Investigación de tecnologías.</div></div>
+        <div class="step am"><div class="dot"></div><div class="d">26–30/10</div><div class="t">Avance del parcial</div><div class="s">Diseño del proyecto · esta presentación.</div></div>
+        <div class="step am"><div class="dot"></div><div class="d">06/11/2026</div><div class="t">Prototipo funcional</div><div class="s">Servidor + cliente 3D integrados.</div></div>
+        <div class="step am"><div class="dot"></div><div class="d">23/11/2026</div><div class="t">Versión estable</div><div class="s">Carga concluida y correcciones aplicadas.</div></div>
+        <div class="step am"><div class="dot"></div><div class="d">02/12/2026</div><div class="t">Entrega final</div><div class="s">Proyecto completo y documentación.</div></div>
+      </div>
+      <div class="footnote" style="margin-top:14px"><b>Lectura:</b> la línea base fija las fechas comprometidas; el seguimiento semanal registra fechas reales y recalcula el pronóstico. El avance del parcial se concentra en la Fase 1, pero el proyecto ya ejecutó trabajo de las fases 2 y 3 (ver diapositivas 11–14).</div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Práctica 1 · Organización de fases</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 4 · PRÁCTICA 2 · OBJETIVOS ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Práctica 2 · Seguimiento y validación de objetivos</div>
+    <h1>Seis objetivos, cada uno con <em>indicador y evidencia</em></h1>
+    <p class="sub">Redactados con criterios SMART y con la distinción entre meta y objetivo. El estado se reporta al corte del 06/10/2026 y se actualiza con la verificación técnica del 27/10/2026.</p>
+  </div>
+  <div class="s-body">
+    <div class="tbl-wrap fill">
+      <table>
+        <tr>
+          <th style="width:31%">Objetivo actualizado</th>
+          <th style="width:34%">Indicador medible</th>
+          <th style="width:13%">Plazo</th>
+          <th style="width:22%">Estado</th>
+        </tr>
+        <tr>
+          <td><b>O1.</b> Desarrollar el núcleo multijugador: salas, emparejamiento y sincronización de jugadores en el navegador.</td>
+          <td>Suites de servidor, autenticación y lógica sin errores; una sesión conecta, entra a sala y sincroniza posiciones.</td>
+          <td>25/10/2026</td>
+          <td><span class="chip wip">95 % · validado en sala</span><div class="mini" style="margin-top:4px">Falta acta con 2+ clientes.</div></td>
+        </tr>
+        <tr>
+          <td><b>O2.</b> Modelar y animar las 17 armas en primera persona, con estructura de piezas y postura de agarre.</td>
+          <td>17 de 17 armas pasan la suite de estructura con 0 fallos; ningún cambio altera las medidas base.</td>
+          <td>30/09/2026</td>
+          <td><span class="chip ok">Cumplido · 17/17</span></td>
+        </tr>
+        <tr>
+          <td><b>O3.</b> Construir los 8 mapas con su ambiente, relieve, paleta de colores y objetos colocados.</td>
+          <td>Los 8 mapas construyen escena completa sin errores de JavaScript y sin diferencias contra la línea base geométrica.</td>
+          <td>04/10/2026</td>
+          <td><span class="chip ok">Cumplido · 8/8</span></td>
+        </tr>
+        <tr>
+          <td><b>O4.</b> Producir tres tuners (aletas, estructura de armas y mapas) para ajustar sin editar código a mano.</td>
+          <td>Cada tuner exporta bloques listos para pegar y envía su estado al lector local; los tres cargan sin errores.</td>
+          <td>06/10/2026</td>
+          <td><span class="chip ok">Cumplido · 3/3</span><div class="mini" style="margin-top:4px">Reserva: repetir revisión de <b>mapatune</b>.</div></td>
+        </tr>
+        <tr>
+          <td><b>O5.</b> Mantener una validación automatizada de regresión que impida romper funcionalidad ya entregada.</td>
+          <td>Las suites se ejecutan en cada entrega y reportan PASS/FAIL objetivo; 0 regresiones desde la línea base.</td>
+          <td>Continuo al 15/12/2026</td>
+          <td><span class="chip ok">Cumplido al corte</span></td>
+        </tr>
+        <tr>
+          <td><b>O6.</b> Entregar el juego completo con su documentación antes del cierre del cuatrimestre.</td>
+          <td>Versión jugable publicada y aceptada por el docente en la revisión de cierre.</td>
+          <td>15/12/2026</td>
+          <td><span class="chip plan">En proceso</span><div class="mini" style="margin-top:4px">Depende de los hitos de noviembre.</div></td>
+        </tr>
+      </table>
+    </div>
+    <div class="footnote">
+      <b>Por qué O1 cambió de 75 % a 95 %:</b> la verificación del 27/10/2026 confirmó conexión, avatar, sala, inventario y recarga con 0 errores de consola. El 5 % restante no es técnico: es la <b>prueba formal con dos o más clientes y su acta</b>. No se declara cumplido un objetivo sin la evidencia que su propio indicador exige.
+    </div>
+  </div>
+  <div class="s-foot"><span>Práctica 2 · Objetivos actualizados y justificados</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 5 · OKR + EVM ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Práctica 2 · OKR y valor ganado</div>
+    <h1>El avance se mide con <em>resultados clave</em>, no con horas trabajadas</h1>
+  </div>
+  <div class="s-body">
+    <div class="g2 fill">
+      <div class="card">
+        <h3>Objetivo general y resultados clave (corte 06/10/2026)</h3>
+        <p style="font-size:10.5px;margin-bottom:9px">Entregar un juego multijugador 3D jugable antes del 15/12/2026, con 17 armas, 8 mapas y documentación.</p>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div><div class="row between" style="font-size:10.5px;margin-bottom:3px"><span>RK1 · 17 armas con estructura validada</span><b style="color:var(--green)">100 %</b></div><div class="pb"><i class="gr" style="width:100%"></i></div></div>
+          <div><div class="row between" style="font-size:10.5px;margin-bottom:3px"><span>RK2 · 8 mapas construidos y verificados</span><b style="color:var(--green)">100 %</b></div><div class="pb"><i class="gr" style="width:100%"></i></div></div>
+          <div><div class="row between" style="font-size:10.5px;margin-bottom:3px"><span>RK3 · 3 tuners operativos y exportables</span><b style="color:var(--cyan)">95 %</b></div><div class="pb"><i style="width:95%"></i></div></div>
+          <div><div class="row between" style="font-size:10.5px;margin-bottom:3px"><span>RK4 · sesiones multijugador estables</span><b style="color:var(--amber)">75 % → 95 %</b></div><div class="pb"><i class="am" style="width:95%"></i></div></div>
+          <div><div class="row between" style="font-size:10.5px;margin-bottom:3px"><span>RK5 · 0 regresiones en las suites</span><b style="color:var(--green)">100 %</b></div><div class="pb"><i class="gr" style="width:100%"></i></div></div>
+        </div>
+        <div class="footnote" style="margin-top:10px">RK4 se actualiza con la verificación del 27/10. La tasa objetivo de Doerr (70 %) se supera en los cinco resultados; RK1, RK2 y RK5 se reevalúan para el siguiente ciclo porque ya están al 100 %.</div>
+      </div>
+
+      <div class="card">
+        <h3>Valor ganado · línea base de 160 h</h3>
+        <table>
+          <tr><th>Indicador</th><th style="text-align:right">Valor</th><th>Lectura</th></tr>
+          <tr><td>PV · valor planeado</td><td class="num">128.0 h</td><td>80 % de 160 h</td></tr>
+          <tr><td>EV · valor ganado</td><td class="num" style="color:var(--cyan)"><b>145.2 h</b></td><td>90.75 % real</td></tr>
+          <tr><td>AC · costo real</td><td class="num">140.0 h</td><td>Horas invertidas</td></tr>
+          <tr><td>SV · variación de cronograma</td><td class="num" style="color:var(--green)"><b>+17.2 h</b></td><td>Adelanto</td></tr>
+          <tr><td>CV · variación de costo</td><td class="num" style="color:var(--green)"><b>+5.2 h</b></td><td>Bajo lo presupuestado</td></tr>
+          <tr><td>SPI · índice de cronograma</td><td class="num" style="color:var(--green)"><b>1.13</b></td><td>&gt; 1: adelantado</td></tr>
+          <tr><td>CPI · índice de costo</td><td class="num" style="color:var(--green)"><b>1.04</b></td><td>≈ 1: conforme</td></tr>
+        </table>
+        <div class="rule"></div>
+        <div class="row" style="gap:9px">
+          <div class="kpi" style="flex:1;padding:8px 10px"><div class="lab">Ponderación</div><div class="mini">Armas 30 % · Mapas 25 % · Multijugador 25 % · Tuners 12 % · Documentación 8 %</div></div>
+        </div>
+        <div class="footnote" style="margin-top:9px"><b>Nota metodológica:</b> las cifras corresponden al corte del <b>06/10/2026</b> y no se recalculan al 27/10 para no inventar avance. Lo que sí se actualiza es el <b>estado técnico</b>, verificado en sala.</div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Práctica 2 · OKR, línea base y control</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 6 · PRÁCTICA 3 · PERT ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Práctica 3 · Técnicas de estimación</div>
+    <h1>PERT convierte la incertidumbre en <em>una fecha con probabilidad</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="row" style="flex:0 0 auto">
+      <div class="card" style="flex:1.5">
+        <h3>Modelo aplicado a las 15 actividades</h3>
+        <div class="row" style="gap:22px;align-items:center">
+          <div>
+            <div class="mini" style="color:var(--muted)">Duración esperada</div>
+            <div style="font-size:15px;font-weight:700;margin-top:2px">TE = (O + 4M + P) / 6</div>
+          </div>
+          <div>
+            <div class="mini" style="color:var(--muted)">Varianza</div>
+            <div style="font-size:15px;font-weight:700;margin-top:2px">σ² = ((P − O) / 6)²</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpi" style="flex:1"><div class="lab">Σ TE de las 15 actividades</div><div class="v cy">111.85<small> d</small></div><div class="n">Si todo fuera secuencial</div></div>
+      <div class="kpi" style="flex:1"><div class="lab">Duración de la ruta crítica</div><div class="v am">85.17<small> d</small></div><div class="n">17.03 semanas de trabajo</div></div>
+      <div class="kpi" style="flex:1"><div class="lab">σ del proyecto</div><div class="v">4.02<small> d</small></div><div class="n">Varianza de la ruta: 16.19</div></div>
+    </div>
+
+    <div class="g2 fill">
+      <div class="card" style="display:flex;flex-direction:column">
+        <h3>Actividades con mayor incertidumbre</h3>
+        <table>
+          <tr><th>ID</th><th>Actividad</th><th class="num">O</th><th class="num">M</th><th class="num">P</th><th class="num">TE</th><th class="num">σ</th></tr>
+          <tr><td><b>A8</b></td><td>Cliente 3D: mundo, avatares y cámara</td><td class="num">10</td><td class="num">15</td><td class="num">22</td><td class="num"><b>15.33</b></td><td class="num" style="color:var(--coral)">2.00</td></tr>
+          <tr><td><b>A9</b></td><td>Interactividad: chat, salas y juego</td><td class="num">8</td><td class="num">13</td><td class="num">20</td><td class="num"><b>13.33</b></td><td class="num" style="color:var(--coral)">2.00</td></tr>
+          <tr><td><b>A7</b></td><td>Servidor y comunicación en tiempo real</td><td class="num">8</td><td class="num">12</td><td class="num">18</td><td class="num"><b>12.33</b></td><td class="num" style="color:var(--amber)">1.67</td></tr>
+          <tr><td><b>A5</b></td><td>Modelado 3D de personaje y escenarios</td><td class="num">8</td><td class="num">12</td><td class="num">18</td><td class="num"><b>12.33</b></td><td class="num" style="color:var(--amber)">1.67</td></tr>
+          <tr><td><b>A4</b></td><td>Diseño preliminar (UI y escenarios)</td><td class="num">6</td><td class="num">9</td><td class="num">13</td><td class="num"><b>9.17</b></td><td class="num">1.17</td></tr>
+          <tr><td><b>A15</b></td><td>Presentación final</td><td class="num">1</td><td class="num">2</td><td class="num">3</td><td class="num"><b>2.00</b></td><td class="num">0.33</td></tr>
+        </table>
+        <div class="footnote" style="margin-top:8px">A8 es la actividad más larga y la de mayor varianza; está en la ruta crítica, por eso concentra atención y recursos.</div>
+      </div>
+
+      <div class="col">
+        <div class="card tight" style="flex:1">
+          <h3>Lectura probabilística</h3>
+          <div class="row center" style="gap:18px;margin-top:4px">
+            <div style="text-align:center">
+              <div style="font-size:34px;font-weight:800;color:var(--green);line-height:1">88 %</div>
+              <div class="mini" style="margin-top:3px">de terminar en ≤ 90 días</div>
+            </div>
+            <div style="flex:1">
+              <div class="pb" style="height:9px"><i class="gr" style="width:88%"></i></div>
+              <div class="mini" style="margin-top:5px">Z = (90 − 85.17) / 4.02 = 1.20 → P ≈ 0.88</div>
+            </div>
+          </div>
+          <div class="rule"></div>
+          <p style="font-size:10.5px">La estimación no es un solo número: es una distribución. Con 85.17 días de media y σ = 4.02, el compromiso de 90 días tiene 88 % de probabilidad de cumplirse, margen suficiente para absorber retrasos en A8 o A9.</p>
+        </div>
+        <div class="card tight" style="flex:1">
+          <h3>Actividades con holgura</h3>
+          <div class="row" style="gap:7px;flex-wrap:wrap">
+            <span class="chip cy">A6 · 44.0 d</span>
+            <span class="chip cy">A7 · 24.5 d</span>
+            <span class="chip cy">A13 · 2.17 d</span>
+            <span class="chip cy">A14 · 57.5 d</span>
+          </div>
+          <p style="font-size:10.5px;margin-top:8px">Pueden retrasarse hasta su margen sin mover la fecha final. A13 es la más frágil: solo 2.17 días de holgura.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Práctica 3 · Estimación por tres valores (PERT)</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 7 · PRÁCTICA 4 · RECURSOS ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Práctica 4 · Gestión de recursos</div>
+    <h1>Un proyecto individual con <em>presupuesto, roles y límites claros</em></h1>
+    <p class="sub">Recursos financieros, humanos y materiales identificados, asignados y monitoreados. Las cifras son estimaciones propias en pesos mexicanos para un proyecto escolar.</p>
+  </div>
+  <div class="s-body">
+    <div class="row" style="flex:0 0 auto">
+      <div class="kpi" style="flex:1"><div class="lab">Desembolso nuevo</div><div class="v am">$3,025<small> MXN</small></div><div class="n">Lo que el proyecto realmente gasta</div></div>
+      <div class="kpi" style="flex:1"><div class="lab">Valor total de recursos</div><div class="v">$21,025<small> MXN</small></div><div class="n">Incluye equipo ya disponible</div></div>
+      <div class="kpi" style="flex:1"><div class="lab">Esfuerzo de línea base</div><div class="v cy">160<small> h</small></div><div class="n">Base del valor ganado</div></div>
+      <div class="kpi" style="flex:1"><div class="lab">Reserva de contingencia</div><div class="v">10 %</div><div class="n">$275 sobre $2,750</div></div>
+    </div>
+
+    <div class="g2 fill">
+      <div class="card">
+        <h3>Presupuesto de desembolso</h3>
+        <table>
+          <tr><th>Concepto</th><th>Tipo</th><th class="num">MXN</th></tr>
+          <tr><td>Hospedaje / VPS para Node.js y Socket.IO</td><td>Variable · 4 meses</td><td class="num">$900.00</td></tr>
+          <tr><td>Dominio para publicar la plataforma</td><td>Fijo · 1 año</td><td class="num">$300.00</td></tr>
+          <tr><td>Internet (parte proporcional)</td><td>Fijo · 4 meses</td><td class="num">$1,200.00</td></tr>
+          <tr><td>Energía eléctrica (prorrateada)</td><td>Variable · 4 meses</td><td class="num">$350.00</td></tr>
+          <tr><td>Reserva de contingencia</td><td>Reserva</td><td class="num">$275.00</td></tr>
+          <tr><td><b>Subtotal</b></td><td></td><td class="num" style="color:var(--amber)"><b>$3,025.00</b></td></tr>
+        </table>
+        <div class="footnote" style="margin-top:7px">El equipo de cómputo ($18,000) y el software open source ($0) ya están disponibles: suman valor, pero no desembolso.</div>
+      </div>
+
+      <div class="card">
+        <h3>Roles y dedicación</h3>
+        <table>
+          <tr><th>Rol</th><th>Responsable</th><th class="num">Horas</th></tr>
+          <tr><td>Líder de proyecto</td><td>Luis Javier Tovar Segura</td><td class="num">—</td></tr>
+          <tr><td>Desarrollador full-stack</td><td>Luis Javier Tovar Segura</td><td class="num">95</td></tr>
+          <tr><td>Diseñador 3D y UX</td><td>Luis Javier Tovar Segura</td><td class="num">35</td></tr>
+          <tr><td>Aseguramiento de calidad</td><td>Luis Javier Tovar Segura</td><td class="num">20</td></tr>
+          <tr><td>Documentación y cierre</td><td>Luis Javier Tovar Segura</td><td class="num">10</td></tr>
+          <tr><td>Asesor y validación</td><td>Mtro. Domingo Fraga Hernández</td><td class="num">2 h / quincena</td></tr>
+          <tr><td>Usuarios de prueba</td><td>Compañeros del grupo</td><td class="num">5 × 1 h</td></tr>
+        </table>
+        <div class="footnote" style="margin-top:7px"><b>Control:</b> RACI con responsable único por entregable y revisión del asesor en cada gate. Los KPIs de recursos son horas reales vs. planeadas, desviación de costo y disponibilidad del servidor.</div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Práctica 4 · Recursos financieros, humanos y materiales</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 8 · TÉCNICAS ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Técnicas investigadas y cómo se aplicaron</div>
+    <h1>Ocho técnicas, <em>ocho decisiones concretas</em></h1>
+    <p class="sub">No se citan como teoría: cada una dejó un artefacto verificable en el proyecto.</p>
+  </div>
+  <div class="s-body">
+    <div class="g4 fill">
+      <div class="card tight">
+        <div class="chip vi" style="margin-bottom:7px">MBO · Drucker</div>
+        <h3>Administración por objetivos</h3>
+        <p>Distinción entre meta y objetivos con responsable único.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ O1–O6 con indicador y fecha.</div>
+      </div>
+      <div class="card tight">
+        <div class="chip cy" style="margin-bottom:7px">SMART · Doran</div>
+        <h3>Criterios SMART</h3>
+        <p>Específico, medible, alcanzable, relevante y con plazo.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ “17/17 armas, 0 fallos, 30/09”.</div>
+      </div>
+      <div class="card tight">
+        <div class="chip" style="margin-bottom:7px;background:rgba(52,211,153,.12);color:var(--green);border-color:rgba(52,211,153,.35)">OKR · Doerr</div>
+        <h3>Objetivos y resultados clave</h3>
+        <p>Un objetivo ambicioso con 3–5 resultados medibles por ciclo.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ RK1–RK5 con % de avance.</div>
+      </div>
+      <div class="card tight">
+        <div class="chip plan" style="margin-bottom:7px">PMBOK</div>
+        <h3>Línea base y control</h3>
+        <p>Recolectar, comparar, decidir y reportar en cada revisión.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ Alcance congelado y control de cambios.</div>
+      </div>
+      <div class="card tight">
+        <div class="chip am" style="margin-bottom:7px;background:rgba(251,191,36,.12);color:var(--amber);border-color:rgba(251,191,36,.35)">EVM</div>
+        <h3>Valor ganado</h3>
+        <p>PV, EV, AC, SV, CV, SPI y CPI sobre 160 h.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ SPI 1.13 y CPI 1.04 al 06/10.</div>
+      </div>
+      <div class="card tight">
+        <div class="chip vi" style="margin-bottom:7px">Scrum</div>
+        <h3>Iteraciones con DoD</h3>
+        <p>Cada entrega cumple una Definición de Hecho antes de cerrarse.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ Suites PASS antes de integrar.</div>
+      </div>
+      <div class="card tight">
+        <div class="chip co" style="margin-bottom:7px">Stage-Gate</div>
+        <h3>Revisión por etapas</h3>
+        <p>Un gate no se abre si el criterio de salida no se cumple.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ Cuatro gates con evidencia (diapo. 10).</div>
+      </div>
+      <div class="card tight">
+        <div class="chip cy" style="margin-bottom:7px">Validación</div>
+        <h3>Validación de alcance</h3>
+        <p>El alcance se acepta con evidencia, no con percepciones.</p>
+        <div class="mini" style="margin-top:6px;color:var(--cyan)">→ Pruebas en sala y capturas reales.</div>
+      </div>
+    </div>
+    <div class="quote">La técnica sirve cuando cambia una decisión. El valor ganado no se usó para adornar una tabla: fue el argumento para <b>mantener la fecha de O6</b> pese a que O1 seguía abierto. El Stage-Gate, para <b>no declarar cerrado</b> el tuner de mapas sin repetir su verificación.</div>
+  </div>
+  <div class="s-foot"><span>Marco metodológico aplicado</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 9 · OBJETIVOS AL 27/10 ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Objetivos actualizados · estado al 27/10/2026</div>
+    <h1>Qué está cerrado, qué está validado y <em>qué falta</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="g3 fill">
+      <div class="card">
+        <div class="row between center"><h3 style="margin:0">O1 · Núcleo multijugador</h3><span class="chip wip">95 %</span></div>
+        <div class="pb" style="margin:9px 0"><i class="am" style="width:95%"></i></div>
+        <p style="font-size:10.5px">Conexión, avatar, sala y sincronización verificados en sala. <b style="color:var(--text)">Falta:</b> prueba formal con 2+ clientes y acta de aceptación.</p>
+        <div class="footnote" style="margin-top:7px">Era 75 % al 06/10. El avance es técnico, no declarativo.</div>
+      </div>
+      <div class="card">
+        <div class="row between center"><h3 style="margin:0">O2 · 17 armas</h3><span class="chip ok">100 %</span></div>
+        <div class="pb" style="margin:9px 0"><i class="gr" style="width:100%"></i></div>
+        <p style="font-size:10.5px">17/17 armas pasan la suite de estructura con 0 fallos. Piezas, agarre y morro validados por tipo.</p>
+        <div class="footnote" style="margin-top:7px">Evidencia: suite de estructura y tuner de armas.</div>
+      </div>
+      <div class="card">
+        <div class="row between center"><h3 style="margin:0">O3 · 8 mapas</h3><span class="chip ok">100 %</span></div>
+        <div class="pb" style="margin:9px 0"><i class="gr" style="width:100%"></i></div>
+        <p style="font-size:10.5px">8/8 mapas construyen escena completa sin errores de JavaScript ni diferencias contra la geometría base.</p>
+        <div class="footnote" style="margin-top:7px">Evidencia: suites de mundo y capturas en Pradera.</div>
+      </div>
+      <div class="card">
+        <div class="row between center"><h3 style="margin:0">O4 · 3 tuners</h3><span class="chip ok">100 %*</span></div>
+        <div class="pb" style="margin:9px 0"><i style="width:100%"></i></div>
+        <p style="font-size:10.5px">Aletas, armas y mapas cargan y exportan bloques aplicables. <b style="color:var(--text)">Reserva:</b> repetir la verificación final de <b>mapatune</b>.</p>
+        <div class="footnote" style="margin-top:7px">*Cumplido con reserva documentada.</div>
+      </div>
+      <div class="card">
+        <div class="row between center"><h3 style="margin:0">O5 · Regresión</h3><span class="chip ok">100 %</span></div>
+        <div class="pb" style="margin:9px 0"><i class="gr" style="width:100%"></i></div>
+        <p style="font-size:10.5px">0 regresiones desde la línea base. Las suites se ejecutan antes de integrar cada cambio.</p>
+        <div class="footnote" style="margin-top:7px">Evidencia: PASS/FAIL por entrega en la bitácora.</div>
+      </div>
+      <div class="card">
+        <div class="row between center"><h3 style="margin:0">O6 · Entrega final</h3><span class="chip plan">En proceso</span></div>
+        <div class="pb" style="margin:9px 0"><i style="width:70%"></i></div>
+        <p style="font-size:10.5px">Depende del prototipo (06/11), la versión estable (23/11) y la aceptación del docente (15/12).</p>
+        <div class="footnote" style="margin-top:7px">SPI 1.13 respalda mantener la fecha.</div>
+      </div>
+    </div>
+    <div class="card tight" style="flex:0 0 auto">
+      <div class="row between center">
+        <div class="footnote" style="max-width:820px"><b>Justificación del avance:</b> O2, O3 y O5 se cierran con evidencia reproducible; O1 y O4 tienen validación técnica pero conservan una condición formal. No se sube un objetivo a 100 % hasta que su propio indicador se cumple por completo.</div>
+        <div class="row" style="gap:6px"><span class="chip ok">3 cerrados</span><span class="chip wip">1 validado</span><span class="chip cy">1 con reserva</span><span class="chip plan">1 en proceso</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Objetivos · actualización y justificación</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 10 · GATES ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Validación por etapas · Stage-Gate</div>
+    <h1>Cuatro puertas y <em>una regla</em>: sin evidencia no se abre</h1>
+    <p class="sub">Cada gate tiene criterio de salida explícito y evidencia asociada. Esto evita declarar terminado lo que solo “se ve bien”.</p>
+  </div>
+  <div class="s-body">
+    <div class="g4 fill">
+      <div class="card gate">
+        <div class="gn">01</div>
+        <span class="chip ok">Aprobado · 06/10</span>
+        <h3 style="margin-top:8px">Diseño y alcance</h3>
+        <div class="crit"><b>Criterio:</b> alcance, arquitectura, objetivos y presupuesto definidos y aprobados.</div>
+        <div class="ev"><b>Evidencia:</b> Práctica 1 (fases), Práctica 2 (O1–O6 y EVM), Práctica 4 (recursos) y línea base 15/09.</div>
+      </div>
+      <div class="card gate">
+        <div class="gn">02</div>
+        <span class="chip ok">Aprobado · 04/10</span>
+        <h3 style="margin-top:8px">Contenido 3D</h3>
+        <div class="crit"><b>Criterio:</b> 17/17 armas y 8/8 mapas construidos sin errores de JavaScript.</div>
+        <div class="ev"><b>Evidencia:</b> suite de estructura de armas (0 fallos) y suite de mundo (0 diferencias contra la geometría base).</div>
+      </div>
+      <div class="card gate">
+        <div class="gn">03</div>
+        <span class="chip wip">Aprobado con condición</span>
+        <h3 style="margin-top:8px">Multijugador</h3>
+        <div class="crit"><b>Criterio:</b> sesión estable con sala, avatar, sincronización e inventario.</div>
+        <div class="ev"><b>Evidencia:</b> verificación del 27/10 con 0 errores JS. <b style="color:var(--amber)">Condición:</b> acta con 2+ clientes simultáneos.</div>
+      </div>
+      <div class="card gate">
+        <div class="gn">04</div>
+        <span class="chip plan">Programado · 15/12</span>
+        <h3 style="margin-top:8px">Cierre y entrega</h3>
+        <div class="crit"><b>Criterio:</b> versión publicada, documentación completa y aceptación del docente.</div>
+        <div class="ev"><b>Evidencia pendiente:</b> despliegue final, manual de usuario y acta de aceptación.</div>
+      </div>
+    </div>
+
+    <div class="g2" style="flex:0 0 auto">
+      <div class="card tight">
+        <h3>Lo que un gate detuvo</h3>
+        <ul class="tick am" style="margin-top:4px">
+          <li>Declarar cerrado O4 sin repetir la verificación de <b>mapatune</b>.</li>
+          <li>Publicar la versión estable antes de las pruebas de concurrencia (A11).</li>
+        </ul>
+      </div>
+      <div class="card tight">
+        <h3>Lo que un gate habilitó</h3>
+        <ul class="tick gr" style="margin-top:4px">
+          <li>Iniciar la demostración en sala con evidencia verificable y 0 errores.</li>
+          <li>Mantener la fecha de O6 con el argumento del SPI (1.13).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Stage-Gate · criterios de salida y evidencia</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 11 · DEMO NÚCLEO ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Demostración 1 · Núcleo multijugador</div>
+    <h1>El jugador entra, aparece y <em>sincroniza</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="row fill">
+      <figure class="shot" style="flex:1.62;margin:0">
+        <img src="img/11-lobby-nevado.png" alt="Pueblo Nevado en tercera persona con el avatar del jugador" />
+        <figcaption class="cap">Pueblo Nevado · avatar propio en tercera persona, HUD y mundo cargado en el navegador.</figcaption>
+      </figure>
+      <div class="col" style="flex:1">
+        <div class="card tight" style="flex:1">
+          <h3>Verificación del 27/10/2026</h3>
+          <ul class="tick gr" style="margin-top:5px">
+            <li><b>connected</b> · socket activo contra el servidor Node.js.</li>
+            <li><b>avatar</b> · modelo del pingüino con apariencia guardada.</li>
+            <li><b>inRoom</b> · sala privada creada y jugador dentro.</li>
+            <li><b>sync</b> · posición y estado replicados por Socket.IO.</li>
+            <li><b>0 errores JS</b> en consola durante la sesión.</li>
+          </ul>
+        </div>
+        <div class="card tight">
+          <h3>Servidor en ejecución</h3>
+          <div style="font-family:Consolas,monospace;font-size:10.5px;line-height:1.6;color:#9fe8ff;background:#08101c;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:5px">
+            $ node server/index.js<br>
+            GET /healthz<br>
+            {"ok":true,"sessions":2}
+          </div>
+          <div class="footnote" style="margin-top:6px">PID 12932 · Express 5 + Socket.IO 4 · escucha en el puerto 3000.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Módulo funcionando · núcleo multijugador</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 12 · DEMO MUNDO ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Demostración 2 · Cliente 3D</div>
+    <h1>Ocho mapas y dos cámaras sobre el <em>mismo mundo</em></h1>
+    <p class="sub">La escena se construye en Three.js con relieve, vegetación instanciada, iluminación y colisiones. La cámara cambia sin recargar la partida.</p>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <figure class="shot" style="margin:0">
+        <img src="img/12-pradera-tercera.png" alt="Mapa Pradera de Flores en tercera persona" />
+        <figcaption class="cap">Pradera de Flores · tercera persona, armas y HUD de sala.</figcaption>
+      </figure>
+      <figure class="shot" style="margin:0">
+        <img src="img/13-pradera-primera.png" alt="Mapa Pradera de Flores en primera persona con viewmodel" />
+        <figcaption class="cap">Misma partida · primera persona con viewmodel del arma.</figcaption>
+      </figure>
+    </div>
+    <div class="g4" style="flex:0 0 auto">
+      <div class="kpi"><div class="lab">Mapas construidos</div><div class="v cy">8/8</div><div class="n">Sin errores de JavaScript</div></div>
+      <div class="kpi"><div class="lab">Cámara</div><div class="v">3ª ↔ 1ª</div><div class="n">Alterna sin recargar</div></div>
+      <div class="kpi"><div class="lab">Controles</div><div class="v">PC + móvil</div><div class="n">Teclado, ratón y táctil</div></div>
+      <div class="kpi"><div class="lab">Colisiones</div><div class="v gr">Activas</div><div class="n">Mundo y obstáculos</div></div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Módulo funcionando · mundo 3D y cámaras</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 13 · DEMO INVENTARIO ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Demostración 3 · Armas, inventario y móvil</div>
+    <h1>Del arma en la mano al <em>inventario táctil</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="row fill">
+      <figure class="shot" style="flex:1.25;margin:0">
+        <img src="img/14-pradera-inventario.png" alt="Inventario abierto en escritorio" />
+        <figcaption class="cap">Inventario en escritorio · objetos, munición y ranuras de uso rápido.</figcaption>
+      </figure>
+      <div class="col" style="flex:1">
+        <figure class="shot" style="flex:1;margin:0">
+          <img src="img/17-movil-inventario.png" alt="Inventario en vista móvil" />
+          <figcaption class="cap">Inventario en móvil · interfaz táctil a 844 × 390.</figcaption>
+        </figure>
+        <div class="card tight">
+          <h3>Comportamiento verificado</h3>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px">
+            <span class="chip ok">abre / cierra</span><span class="chip ok">recarga 16→14→16</span><span class="chip ok">uso de objeto</span>
+          </div>
+          <div class="footnote" style="margin-top:6px">17 armas · 9 tipos de pieza · 4 ranuras de inventario · controles táctiles visibles solo dentro de sala.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Módulo funcionando · combate, inventario y responsive</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 14 · TUNER ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Herramienta de producción · Tuner de armas</div>
+    <h1>17 armas editables <em>sin tocar el código a mano</em></h1>
+    <p class="sub">Evidencia secundaria: demuestra la herramienta, no la calidad artística del juego. El escenario del tuner es oscuro a propósito para resaltar la geometría.</p>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <figure class="shot" style="margin:0">
+        <img src="img/19-tuner-sniper-lado.png" alt="Tuner de armas con el rifle de francotirador" />
+        <figcaption class="cap">Tuner · rifle de francotirador con piezas y controles de posición/rotación.</figcaption>
+      </figure>
+      <figure class="shot" style="margin:0">
+        <img src="img/20-tuner-maza.png" alt="Tuner de armas con la maza" />
+        <figcaption class="cap">Tuner · maza, un arma de cuerpo a cuerpo con geometría distinta.</figcaption>
+      </figure>
+    </div>
+    <div class="row" style="flex:0 0 auto">
+      <div class="card tight" style="flex:1">
+        <h3>Qué permite editar</h3>
+        <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:3px">
+          <span class="chip cy">9 tipos de pieza</span><span class="chip cy">x / y / z</span><span class="chip cy">rx / ry / rz</span><span class="chip cy">escala</span><span class="chip cy">material</span><span class="chip cy">visibilidad</span>
+        </div>
+      </div>
+      <div class="card tight" style="flex:1.35">
+        <h3>Resultado de la verificación</h3>
+        <p style="font-size:10.5px">9/9 tipos de pieza disponibles · <b>17/17 armas</b> cargan · exportación de <b>WEAPON_PARTS</b> con sintaxis JavaScript válida · <b>0 errores</b> en consola.</p>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>O4 · Tuner de estructura de armas</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 15 · GANTT ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Programación · Diagrama de Gantt</div>
+    <h1>Quince actividades en <em>18 semanas de trabajo</em></h1>
+    <p class="sub">Barras calculadas con la duración esperada (TE) de PERT y las precedencias reales. Escala en semanas de 5 días: 85.17 d = 17.03 semanas.</p>
+  </div>
+  <div class="s-body">
+    <svg class="svgs" viewBox="0 0 1200 520" role="img" aria-label="Diagrama de Gantt de 15 actividades en 18 semanas">
+      <defs>
+        <linearGradient id="gCrit" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fb7185"/><stop offset="1" stop-color="#e11d48"/></linearGradient>
+        <linearGradient id="gNorm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+      </defs>
+
+      <!-- encabezado de semanas -->
+      <g font-family="Segoe UI, Arial" font-size="9" fill="#6f8bab" text-anchor="middle">
+        <text x="277.8" y="18">S1</text><text x="329.5" y="18">S2</text><text x="381.2" y="18">S3</text>
+        <text x="432.9" y="18">S4</text><text x="484.6" y="18">S5</text><text x="536.3" y="18">S6</text>
+        <text x="588" y="18">S7</text><text x="639.7" y="18">S8</text><text x="691.4" y="18">S9</text>
+        <text x="743.1" y="18">S10</text><text x="794.8" y="18">S11</text><text x="846.5" y="18">S12</text>
+        <text x="898.2" y="18">S13</text><text x="949.9" y="18">S14</text><text x="1001.6" y="18">S15</text>
+        <text x="1053.3" y="18">S16</text><text x="1105" y="18">S17</text><text x="1156.7" y="18">S18</text>
+      </g>
+
+      <!-- rejilla -->
+      <g stroke="#1b2e47" stroke-width="1">
+        <line x1="252" y1="26" x2="252" y2="462"/><line x1="303.7" y1="26" x2="303.7" y2="462"/>
+        <line x1="355.4" y1="26" x2="355.4" y2="462"/><line x1="407.1" y1="26" x2="407.1" y2="462"/>
+        <line x1="458.8" y1="26" x2="458.8" y2="462"/><line x1="510.5" y1="26" x2="510.5" y2="462"/>
+        <line x1="562.2" y1="26" x2="562.2" y2="462"/><line x1="613.9" y1="26" x2="613.9" y2="462"/>
+        <line x1="665.6" y1="26" x2="665.6" y2="462"/><line x1="717.3" y1="26" x2="717.3" y2="462"/>
+        <line x1="769" y1="26" x2="769" y2="462"/><line x1="820.7" y1="26" x2="820.7" y2="462"/>
+        <line x1="872.4" y1="26" x2="872.4" y2="462"/><line x1="924.1" y1="26" x2="924.1" y2="462"/>
+        <line x1="975.8" y1="26" x2="975.8" y2="462"/><line x1="1027.5" y1="26" x2="1027.5" y2="462"/>
+        <line x1="1079.2" y1="26" x2="1079.2" y2="462"/><line x1="1130.9" y1="26" x2="1130.9" y2="462"/>
+        <line x1="1182" y1="26" x2="1182" y2="462"/>
+      </g>
+
+      <!-- etiquetas -->
+      <g font-family="Segoe UI, Arial" font-size="10.5" fill="#c8d9ec">
+        <text x="4" y="55"><tspan font-weight="700" fill="#fb7185">A1</tspan>  Definir alcance y requisitos</text>
+        <text x="4" y="83"><tspan font-weight="700" fill="#fb7185">A2</tspan>  Investigación de tecnologías</text>
+        <text x="4" y="111"><tspan font-weight="700" fill="#fb7185">A3</tspan>  Arquitectura del sistema</text>
+        <text x="4" y="139"><tspan font-weight="700" fill="#fb7185">A4</tspan>  Diseño preliminar UI / 3D</text>
+        <text x="4" y="167"><tspan font-weight="700" fill="#fb7185">A5</tspan>  Modelado 3D personaje / mapas</text>
+        <text x="4" y="195"><tspan font-weight="700" fill="#38bdf8">A6</tspan>  Base de datos y cuentas</text>
+        <text x="4" y="223"><tspan font-weight="700" fill="#38bdf8">A7</tspan>  Servidor y tiempo real</text>
+        <text x="4" y="251"><tspan font-weight="700" fill="#fb7185">A8</tspan>  Cliente 3D: mundo y cámara</text>
+        <text x="4" y="279"><tspan font-weight="700" fill="#fb7185">A9</tspan>  Interactividad: chat y salas</text>
+        <text x="4" y="307"><tspan font-weight="700" fill="#fb7185">A10</tspan>  Integración y pruebas</text>
+        <text x="4" y="335"><tspan font-weight="700" fill="#fb7185">A11</tspan>  Concurrencia y carga</text>
+        <text x="4" y="363"><tspan font-weight="700" fill="#fb7185">A12</tspan>  Despliegue y publicación</text>
+        <text x="4" y="391"><tspan font-weight="700" fill="#38bdf8">A13</tspan>  Documentación y manual</text>
+        <text x="4" y="419"><tspan font-weight="700" fill="#38bdf8">A14</tspan>  Entrega del avance (diseño)</text>
+        <text x="4" y="447"><tspan font-weight="700" fill="#fb7185">A15</tspan>  Presentación final</text>
+      </g>
+
+      <!-- barras críticas -->
+      <g fill="url(#gCrit)">
+        <rect x="252" y="44" width="32.8" height="15" rx="2.5"/>
+        <rect x="284.8" y="72" width="73.9" height="15" rx="2.5"/>
+        <rect x="358.7" y="100" width="63.8" height="15" rx="2.5"/>
+        <rect x="422.5" y="128" width="94.7" height="15" rx="2.5"/>
+        <rect x="517.2" y="156" width="127.5" height="15" rx="2.5"/>
+        <rect x="644.7" y="240" width="158.4" height="15" rx="2.5"/>
+        <rect x="803.1" y="268" width="137.8" height="15" rx="2.5"/>
+        <rect x="940.9" y="296" width="84.3" height="15" rx="2.5"/>
+        <rect x="1025.2" y="324" width="53.5" height="15" rx="2.5"/>
+        <rect x="1078.7" y="352" width="32.7" height="15" rx="2.5"/>
+        <rect x="1111.4" y="436" width="20.6" height="15" rx="2.5"/>
+      </g>
+      <!-- barras con holgura -->
+      <g fill="url(#gNorm)" opacity=".72">
+        <rect x="422.5" y="184" width="63.8" height="15" rx="2.5"/>
+        <rect x="422.5" y="212" width="127.4" height="15" rx="2.5"/>
+        <rect x="1025.2" y="380" width="63.8" height="15" rx="2.5"/>
+        <rect x="517.2" y="408" width="20.7" height="15" rx="2.5"/>
+      </g>
+
+      <!-- holguras -->
+      <g font-family="Segoe UI, Arial" font-size="8.5" fill="#7d97b6">
+        <text x="492" y="195">holgura 44.0 d</text>
+        <text x="556" y="223">holgura 24.5 d</text>
+        <text x="1095" y="391">2.17 d</text>
+        <text x="544" y="419">57.5 d</text>
+      </g>
+
+      <!-- leyenda -->
+      <g font-family="Segoe UI, Arial" font-size="9.5" fill="#8ea8c6">
+        <rect x="252" y="484" width="16" height="8" rx="2" fill="url(#gCrit)"/>
+        <text x="274" y="491">Ruta crítica · holgura 0</text>
+        <rect x="404" y="484" width="16" height="8" rx="2" fill="url(#gNorm)" opacity=".72"/>
+        <text x="426" y="491">Con holgura</text>
+        <text x="530" y="491" fill="#5f7a99">Semanas de 5 días · la barra empieza en el ES y mide la TE de PERT.</text>
+      </g>
+    </svg>
+  </div>
+  <div class="s-foot"><span>Diagrama de Gantt · 15 actividades · S1–S18</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 16 · PERT ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Programación · Diagrama de PERT / CPM</div>
+    <h1>La red muestra <em>dónde no hay margen</em></h1>
+    <p class="sub">Nodos con duración esperada (TE). Las flechas rojas forman la ruta crítica; las azules son dependencias con holgura.</p>
+  </div>
+  <div class="s-body">
+    <svg class="svgs" viewBox="0 0 1160 492" role="img" aria-label="Red PERT con la ruta crítica del proyecto">
+      <defs>
+        <marker id="arwC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#fb7185"/>
+        </marker>
+        <marker id="arwN" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#38bdf8"/>
+        </marker>
+        <linearGradient id="nodeC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1420"/><stop offset="1" stop-color="#1a0d16"/></linearGradient>
+        <linearGradient id="nodeN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#102234"/><stop offset="1" stop-color="#0b1726"/></linearGradient>
+      </defs>
+
+      <!-- aristas con holgura -->
+      <g fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-opacity=".75" marker-end="url(#arwN)">
+        <path d="M269,212 V289 H300"/>
+        <path d="M269,212 V361 H300"/>
+        <path d="M358,361 H701 V212"/>
+        <path d="M358,289 H809 V212"/>
+        <path d="M377,212 V380 H427 V400"/>
+        <path d="M795,212 V321 H860"/>
+        <path d="M918,321 H1103 V212"/>
+      </g>
+
+      <!-- aristas críticas -->
+      <g fill="none" stroke="#fb7185" stroke-width="2.2" marker-end="url(#arwC)">
+        <path d="M82,191 H132"/><path d="M190,191 H240"/><path d="M298,191 H348"/>
+        <path d="M406,191 H456"/><path d="M514,191 H564"/><path d="M622,191 H672"/>
+        <path d="M730,191 H780"/><path d="M838,191 H876"/><path d="M934,191 H962"/>
+        <path d="M1020,191 H1074"/>
+      </g>
+
+      <!-- nodos críticos -->
+      <g font-family="Segoe UI, Arial" text-anchor="middle">
+        <g>
+          <rect x="24" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="53" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A1</text>
+          <text x="53" y="202" font-size="8.5" fill="#e79aa8">TE 3.17 d</text>
+        </g>
+        <g>
+          <rect x="132" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="161" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A2</text>
+          <text x="161" y="202" font-size="8.5" fill="#e79aa8">TE 7.17 d</text>
+        </g>
+        <g>
+          <rect x="240" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="269" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A3</text>
+          <text x="269" y="202" font-size="8.5" fill="#e79aa8">TE 6.17 d</text>
+        </g>
+        <g>
+          <rect x="348" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="377" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A4</text>
+          <text x="377" y="202" font-size="8.5" fill="#e79aa8">TE 9.17 d</text>
+        </g>
+        <g>
+          <rect x="456" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="485" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A5</text>
+          <text x="485" y="202" font-size="8.5" fill="#e79aa8">TE 12.33 d</text>
+        </g>
+        <g>
+          <rect x="564" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="593" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A8</text>
+          <text x="593" y="202" font-size="8.5" fill="#e79aa8">TE 15.33 d</text>
+        </g>
+        <g>
+          <rect x="672" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="701" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A9</text>
+          <text x="701" y="202" font-size="8.5" fill="#e79aa8">TE 13.33 d</text>
+        </g>
+        <g>
+          <rect x="780" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="809" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A10</text>
+          <text x="809" y="202" font-size="8.5" fill="#e79aa8">TE 8.17 d</text>
+        </g>
+        <g>
+          <rect x="876" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="905" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A11</text>
+          <text x="905" y="202" font-size="8.5" fill="#e79aa8">TE 5.17 d</text>
+        </g>
+        <g>
+          <rect x="962" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="991" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A12</text>
+          <text x="991" y="202" font-size="8.5" fill="#e79aa8">TE 3.17 d</text>
+        </g>
+        <g>
+          <rect x="1074" y="170" width="58" height="42" rx="7" fill="url(#nodeC)" stroke="#fb7185" stroke-width="1.6"/>
+          <text x="1103" y="188" font-size="12.5" font-weight="700" fill="#ffe4e9">A15</text>
+          <text x="1103" y="202" font-size="8.5" fill="#e79aa8">TE 2.00 d</text>
+        </g>
+
+        <!-- nodos con holgura -->
+        <g>
+          <rect x="300" y="268" width="58" height="42" rx="7" fill="url(#nodeN)" stroke="#38bdf8" stroke-width="1.4"/>
+          <text x="329" y="286" font-size="12.5" font-weight="700" fill="#dff3ff">A6</text>
+          <text x="329" y="300" font-size="8.5" fill="#8ec7e8">TE 6.17 d</text>
+          <text x="329" y="325" font-size="8.5" fill="#38bdf8">holgura 44.0 d</text>
+        </g>
+        <g>
+          <rect x="300" y="340" width="58" height="42" rx="7" fill="url(#nodeN)" stroke="#38bdf8" stroke-width="1.4"/>
+          <text x="329" y="358" font-size="12.5" font-weight="700" fill="#dff3ff">A7</text>
+          <text x="329" y="372" font-size="8.5" fill="#8ec7e8">TE 12.33 d</text>
+          <text x="329" y="397" font-size="8.5" fill="#38bdf8">holgura 24.5 d</text>
+        </g>
+        <g>
+          <rect x="398" y="400" width="58" height="42" rx="7" fill="url(#nodeN)" stroke="#38bdf8" stroke-width="1.4"/>
+          <text x="427" y="418" font-size="12.5" font-weight="700" fill="#dff3ff">A14</text>
+          <text x="427" y="432" font-size="8.5" fill="#8ec7e8">TE 2.00 d</text>
+          <text x="427" y="457" font-size="8.5" fill="#38bdf8">holgura 57.5 d</text>
+        </g>
+        <g>
+          <rect x="860" y="300" width="58" height="42" rx="7" fill="url(#nodeN)" stroke="#38bdf8" stroke-width="1.4"/>
+          <text x="889" y="318" font-size="12.5" font-weight="700" fill="#dff3ff">A13</text>
+          <text x="889" y="332" font-size="8.5" fill="#8ec7e8">TE 6.17 d</text>
+          <text x="889" y="355" font-size="8.5" fill="#38bdf8">holgura 2.17 d</text>
+        </g>
+      </g>
+
+      <g font-family="Segoe UI, Arial" font-size="8.5" fill="#54708c">
+        <text x="24" y="158">inicio</text>
+        <text x="1132" y="158" text-anchor="end">fin 85.17 d</text>
+      </g>
+
+      <g font-family="Segoe UI, Arial" font-size="9.5" fill="#8ea8c6">
+        <line x1="24" y1="478" x2="44" y2="478" stroke="#fb7185" stroke-width="2.2"/>
+        <text x="50" y="481">Ruta crítica (holgura 0)</text>
+        <line x1="206" y1="478" x2="226" y2="478" stroke="#38bdf8" stroke-width="1.5"/>
+        <text x="232" y="481">Con holgura</text>
+        <text x="330" y="481" fill="#5f7a99">A14 no tiene sucesora: su LF se toma del fin del proyecto, por eso su holgura es 57.5 d.</text>
+      </g>
+    </svg>
+  </div>
+  <div class="s-foot"><span>PERT / CPM · ruta crítica A1→A2→A3→A4→A5→A8→A9→A10→A11→A12→A15 · 85.17 d</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 17 · CIERRE ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Conclusiones y próximos pasos</div>
+    <h1>El avance es real, <em>medible y todavía incompleto</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Lo que demuestra el avance</h3>
+          <ul class="tick gr" style="margin-top:5px">
+            <li>El proyecto pasó de documentación a <b>producto ejecutable</b>: servidor, cliente 3D, armas, mapas y móvil.</li>
+            <li>Los objetivos cerrados tienen <b>suite o captura</b> que los respalda; no se sostienen en percepciones.</li>
+            <li>La planeación funciona: <b>SPI 1.13</b> y <b>CPI 1.04</b> al corte, con ruta crítica identificada.</li>
+          </ul>
+        </div>
+        <div class="card" style="flex:1">
+          <h3>Lo que falta y cómo se cierra</h3>
+          <ul class="tick am" style="margin-top:5px">
+            <li><b>O1:</b> acta de prueba con 2+ clientes simultáneos.</li>
+            <li><b>O4:</b> repetir la verificación final del tuner de mapas.</li>
+            <li><b>O6:</b> pruebas de carga (A11), despliegue (A12) y aceptación docente.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Próximos hitos</h3>
+          <div class="tl" style="padding-top:8px">
+            <div class="step am"><div class="dot"></div><div class="d">06/11</div><div class="t">Prototipo funcional</div><div class="s">Servidor + cliente 3D integrados.</div></div>
+            <div class="step am"><div class="dot"></div><div class="d">23/11</div><div class="t">Versión estable</div><div class="s">Carga y correcciones cerradas.</div></div>
+            <div class="step am"><div class="dot"></div><div class="d">02/12</div><div class="t">Entrega final</div><div class="s">Juego + documentación.</div></div>
+          </div>
+        </div>
+        <div class="card tight">
+          <h3>Riesgos vivos</h3>
+          <table class="risk">
+            <tr><th>Riesgo</th><th>Mitigación</th></tr>
+            <tr><td>A8 se retrasa</td><td>Es crítica: seguimiento semanal y margen de 4.83 d a 90 días.</td></tr>
+            <tr><td>Prueba con 2+ clientes</td><td>Agendar sesión y documentar acta antes del prototipo.</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Conclusiones · estado al 27/10/2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 18 · ANEXO ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Anexo · preguntas previsibles y fuentes</div>
+    <h1>Respuestas cortas con <em>respaldo técnico</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="row" style="flex:1">
+      <div class="col" style="flex:1.12">
+        <div class="card" style="flex:1">
+          <h3>Preguntas y respuestas</h3>
+          <div class="g2" style="gap:10px;margin-top:5px">
+            <div class="qa"><b>¿Por qué 18 semanas si el cuatrimestre es sep–dic?</b><span>El PERT usa días de trabajo (5 d/semana): 85.17 d = 17.03 semanas. S1–S18 es la escala del instrumento; el calendario escolar va en los hitos.</span></div>
+            <div class="qa"><b>¿Por qué el valor ganado es del 06/10?</b><span>Es el último corte con PV, EV y AC completos y auditables. Actualizarlo sin recalcular las tres variables sería inventar cifras.</span></div>
+            <div class="qa"><b>Si O1 está al 95 %, ¿por qué no al 100 %?</b><span>Porque su indicador exige prueba con 2+ clientes y acta. La verificación individual no satisface el criterio completo.</span></div>
+            <div class="qa"><b>¿Por qué A14 tiene 57.5 d de holgura?</b><span>No tiene sucesora: su LF se toma del fin del proyecto. Es una entrega de avance, no una actividad que alimente la ruta crítica.</span></div>
+            <div class="qa"><b>¿El tuner es parte del juego?</b><span>Es una herramienta de producción. Su escenario oscuro no es evidencia visual del juego; se usa para demostrar edición de piezas y exportación.</span></div>
+            <div class="qa"><b>¿Qué pasa si A8 se retrasa?</b><span>Es crítica y la de mayor varianza: su retraso se traslada a la fecha. Por eso el compromiso de 90 días tiene 88 % de probabilidad y seguimiento semanal.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="flex:.88">
+        <div class="card" style="flex:1">
+          <h3>Fuentes</h3>
+          <div style="font-size:9.5px;line-height:1.5;color:var(--muted);display:flex;flex-direction:column;gap:5px">
+            <div>Cooper, R. G. (2017). <i>Winning at New Products</i>. Stage-Gate.</div>
+            <div>Doerr, J. (2018). <i>Measure What Matters</i>. OKR.</div>
+            <div>Doran, G. T. (1981). There's a S.M.A.R.T. way to write management's goals and objectives. <i>Management Review</i>.</div>
+            <div>Drucker, P. (1954). <i>The Practice of Management</i>. MBO.</div>
+            <div>Kerzner, H. (2022). <i>Project Management: A Systems Approach</i>.</div>
+            <div>PMI (2021). <i>PMBOK Guide</i>, 7.ª ed.</div>
+            <div>Schwaber, K. y Sutherland, J. (2020). <i>The Scrum Guide</i>.</div>
+            <div style="padding-top:5px;border-top:1px solid var(--line)">Documentos del proyecto: Práctica de organización de fases, Prácticas 2–4, Investigaciones 6 y 9, bitácora de modificaciones, documentación técnica y manual de usuario.</div>
+          </div>
+        </div>
+        <div class="card tight">
+          <h3>Evidencia disponible</h3>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:3px">
+            <span class="chip cy">HTML + PDF</span><span class="chip cy">PPTX editable</span><span class="chip cy">capturas 27/10</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Anexo · preguntas, fuentes y evidencia</span><span class="pg"></span></div>
+</section>
+</div>
+
+<div class="nav">
+  <button id="prev" title="Anterior (←)">‹</button>
+  <span class="count" id="count">1 / 18</span>
+  <button id="next" title="Siguiente (→)">›</button>
+</div>
+<div class="hint">← → navegar · F pantalla completa · Inicio/Fin</div>
+
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const total = slides.length;
+  let i = 0;
+
+  slides.forEach((s, idx) => {
+    const pg = s.querySelector(".pg");
+    if (pg) pg.textContent = String(idx + 1).padStart(2, "0") + " / " + String(total).padStart(2, "0");
+  });
+
+  function fit() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.965;
+    document.documentElement.style.setProperty("--scale", String(s));
+  }
+  function show(n) {
+    i = (n + total) % total;
+    slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+    document.getElementById("count").textContent = (i + 1) + " / " + total;
+    document.getElementById("progress").style.width = ((i + 1) / total * 100) + "%";
+    if (location.hash !== "#" + (i + 1)) history.replaceState(null, "", "#" + (i + 1));
+  }
+
+  document.getElementById("next").addEventListener("click", () => show(i + 1));
+  document.getElementById("prev").addEventListener("click", () => show(i - 1));
+
+  document.addEventListener("keydown", (e) => {
+    if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    else if (e.key === "Home") { e.preventDefault(); show(0); }
+    else if (e.key === "End") { e.preventDefault(); show(total - 1); }
+    else if (e.key.toLowerCase() === "f") {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+
+  window.addEventListener("resize", fit);
+  window.addEventListener("hashchange", () => {
+    const n = parseInt(location.hash.replace("#", ""), 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= total && n - 1 !== i) show(n - 1);
+  });
+
+  fit();
+  const start = parseInt(location.hash.replace("#", ""), 10);
+  show(Number.isNaN(start) ? 0 : Math.max(1, Math.min(total, start)) - 1);
+})();
+</script>
+</body>
+</html>

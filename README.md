@@ -25,12 +25,52 @@ npm run dev        # reinicia automáticamente en cada cambio (desarrollo)
 
 Abrir `http://localhost:3000`.
 
+## Variables de entorno
+
+| Variable       | Uso                                                        | Por defecto      |
+|----------------|------------------------------------------------------------|------------------|
+| `PORT`         | Puerto del servidor HTTP/WebSocket                         | `3000`           |
+| `DB_PATH`      | Ruta del archivo SQLite (volumen en producción)            | `./data/club.db` |
+| `ENABLE_SPIKE` | Habilita las rutas de desarrollo `/spike` (`1`)            | `0`              |
+
+## Despliegue en Railway
+
+1. Sube este repo a GitHub.
+2. En Railway crea un **New Project → Deploy from GitHub** y selecciona el repo.
+3. Railway detecta Node y usa `npm start` (o el `Procfile` incluido). Debe inyectar la variable `PORT` automáticamente y dar HTTPS.
+4. Añade un **Volume** al servicio y monta la base de datos de forma persistente:
+   - Crea un volume (p. ej. `club-data`) en el servicio.
+   - Define la variable de entorno `DB_PATH` apuntando al volumen, p. ej. `/data/club.db`.
+   - Sin esto, la BD se pierde en cada deploy (los datos son efímeros).
+5. (Opcional) Añade un check de salud apuntando a `GET /healthz`.
+6. Consulta la URL pública que te da Railway.
+
+Notas:
+- **WebSocket:** Socket.IO está configurado con `websocket` + `polling`; el HTTPS de Railway ya reenvía correctamente ambos.
+- **Sesiones:** se guardan en la base de datos con expiración de 30 días, así que sobreviven a cada redeploy (cuenta configurada una vez, se mantiene logueada).
+- **Sesiones en memoria** (mapa del mundo, salas, voz) son por proceso: un redeploy reinicia el estado en vivo de las salas, pero los datos persistentes (cuentas, posiciones, historial) se conservan.
+
 ## Stack
 
 - **3D:** Three.js (WebGL) — en el navegador, sin instalación.
 - **Tiempo real:** Socket.IO (WebSocket) — sincronización de posiciones y chat.
 - **Backend:** Node.js + Express.
 - **DB (desde la Fase 2):** SQLite en desarrollo, migrable a MariaDB/MySQL.
+
+## Seguridad y notas
+
+- **Rate limit por IP** en `/api/login` y `/api/register`: máximo 20 intentos en 15
+  minutos por IP; responde `429` superado el límite (mediante `req.ip`, requiere
+  `trust proxy` correcto al usar un proxy/HTTPS).
+- **Throttle por socket** en `server/game.js`: los eventos de alta frecuencia
+  (`player:move`, `chat:message`, `voice:signal`, `combat:shoot`, `room:create`,
+  `room:join`) tienen límites por segundo por conexión; los eventos que exceden
+  el límite se descartan silenciosamente.
+- **Voz (WebRTC) y micrófono** requieren un *contexto seguro*: HTTPS (o
+  `localhost`). En producción usa el HTTPS del proveedor; HTTP plano bloqueará
+  el acceso al micrófono.
+- Las contraseñas se guardan con `scrypt` (salt por usuario). Las sesiones duran
+  30 días y se limpian de forma periódica.
 
 ## Versionado
 
@@ -45,11 +85,22 @@ Abrir `http://localhost:3000`.
 
 - **Fase 0** ✔ Entorno, repo y servidor base.
 - **Fase 0.5** ✔ Spike de WebRTC: señalización validada y audio entre dos pestañas funcionando.
-- **Fase 1** Mapa 3D + avatar + movimiento + sincronización + chat de texto.
-- **Fase 2** Cuentas de usuario, persistencia (SQLite) e historial.
-- **Fase 3** Salas privadas y permisos de anfitrión.
-- **Fase 4** Voz de proximidad (WebRTC).
-- **Fase 5** Pulido, rendimiento e interfaz.
-- **Fase 6** Prueba con usuarios reales y despliegue.
+- **Fase 1** ✔ Mapa 3D + avatar + movimiento + sincronización + chat de texto.
+- **Fase 2** ✔ Cuentas de usuario, persistencia (SQLite) e historial.
+- **Fase 3** ✔ Salas privadas y permisos de anfitrión.
+- **Fase 4** ✔ Voz de proximidad (WebRTC).
+- **Fase 5** ✔ Pulido, rendimiento e interfaz (avatars con orientación y animación, chat colapsable con horas relativas, minimapa, cabecera, mejoras de luces/cámara, pausa de render en pestaña oculta, recuperación WebGL, diseño responsive).
+- **Fase 6** Despliegue y prueba con usuarios reales.
+  - **6.1** ✔ Preparar para el despliegue (config por entorno, sesiones persistentes, healthcheck, spike aislado, Procfile, guía Railway).
+  - **6.2** ✔ Prueba con usuarios reales (desplegar y recopilar feedback).
+- **Fase 7** Pulido y balance del combate + diseño de interfaz.
+  - Arreglar los solapamientos del HUD (HP/munición, chat, minimapa, salas y lista en línea).
+  - HUD de combate centrado en la parte inferior, sobre las instrucciones.
+  - Actualizar el texto de controles (disparo con clic izquierdo, recarga con `R`, cámara con clic derecho).
+  - Balancear el combate: daño por disparo, cadencia, tamaño de cargador, tiempo de recarga y regeneración de vida.
+  - Criterio de "hecho": la UI no se superpone en resoluciones de 360px a 1920px y todas las pruebas de regresión siguen pasando.
+  - **7.1** ✔ Animación de muerte "líquida": al ser abatido, el pingüino se derrite/colapsa hacia el suelo dejando un charco en el lugar, y al reaparecer (10s) se materializa levantándose desde el charco. El charco permanece como marca durante todo el respawn. Criterio: la animación aplica por igual al jugador propio y a los demás (client-side), y se ve correctamente tanto al morir como al revivir.
+  - **7.2** ✔ Personalización del avatar: pantalla de vestidor al entrar (cuerpo, panza, pico, sombrero, bufanda, lentes + vista previa 3D y aleatorio), persistencia por cuenta (`PUT /api/me/appearance`) y vestidor reabrible dentro del juego (botón "👕 Vestidor").
+  - **7.3** ✔ Skins: selector de trajes al final del módulo de personalización — traje, playero, programador, sencillo, táctico, voleibol, sombrero de paja, pirata, ninja y fiesta — con variantes visuales en el avatar (cliente y servidor validan el mismo set).
 
 Criterio de "hecho" de cada fase: definido en cada commit de planificación.

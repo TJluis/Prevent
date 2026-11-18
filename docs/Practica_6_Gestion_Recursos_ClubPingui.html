@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Práctica 6. Gestión de recursos del proyecto</title>
+<style>
+  @page { size: A4; margin: 2.1cm 2.1cm 2.1cm 2.4cm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11.3pt; line-height: 1.58; color: #111;
+    margin: 0; text-align: justify;
+  }
+  .portada { page-break-after: always; text-align: center; padding-top: 1.2cm; }
+  .portada .escudo { font-size: 13pt; letter-spacing: .5px; }
+  .portada h1 { font-size: 17pt; margin: 18px 0 6px; }
+  .portada h2 { font-size: 13.5pt; font-weight: normal; margin: 4px 0; }
+  .portada .practica {
+    margin-top: 40px; border-top: 2px solid #111; border-bottom: 2px solid #111;
+    padding: 16px 0; font-size: 14pt;
+  }
+  .portada .datos { margin-top: 40px; font-size: 11.5pt; line-height: 2.05; }
+  .portada .datos b { display: inline-block; width: 145px; text-align: right; margin-right: 12px; }
+  .portada .pie { margin-top: 52px; font-size: 10.5pt; }
+  h1 { font-size: 13.5pt; margin: 22px 0 8px; text-align: left; }
+  h2 { font-size: 12pt; margin: 15px 0 5px; text-align: left; }
+  p { margin: 0 0 9px; }
+  ul, ol { margin: 0 0 11px; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 7px 0 13px;
+    font-size: 9.4pt; line-height: 1.33;
+  }
+  th, td { border: 1px solid #444; padding: 4px 5px; vertical-align: top; text-align: left; }
+  th { background: #e8eef5; font-weight: bold; }
+  .nota { font-size: 9.2pt; color: #333; font-style: italic; margin-top: -7px; }
+  .ref { font-size: 9.8pt; text-indent: -0.6cm; padding-left: 0.6cm; margin-bottom: 6px; text-align: left; }
+  .salto { page-break-before: always; }
+  .dest { background: #f3f6fa; }
+</style>
+</head>
+<body>
+
+<!-- ============================ PORTADA ============================ -->
+<div class="portada">
+  <div class="escudo">UNIVERSIDAD TECNOLÓGICA DEL NORTE DE COAHUILA</div>
+  <h2>Licenciatura en Ingeniería en Tecnologías de la Información e Innovación Digital</h2>
+
+  <div class="practica">
+    <b>Práctica 6.</b> Gestión de recursos del proyecto
+  </div>
+
+  <div class="datos">
+    <div><b>Materia:</b> Formulación de Proyectos de Tecnología (7A)</div>
+    <div><b>Proyecto:</b> Club Pingüí – juego multijugador 3D en navegador</div>
+    <div><b>Alumno:</b> Luis Javier Tovar Segura</div>
+    <div><b>Docente:</b> Mtro. Domingo Fraga Hernández</div>
+    <div><b>Lugar:</b> Piedras Negras, Coahuila</div>
+    <div><b>Fecha:</b> 20 de octubre de 2026</div>
+  </div>
+
+  <div class="pie">Basado en la Investigación 9. Gestión de recursos para el proyecto</div>
+</div>
+
+<!-- ============================ INTRO ============================ -->
+<p>
+La gestión de recursos determina qué personas, dinero, materiales y herramientas necesita el proyecto
+<b>Club Pingüí</b>, cuándo deben estar disponibles y cómo se van a utilizar. Club Pingüí es un
+videojuego multijugador en tercera dimensión que corre en el navegador: un cliente 3D con Three.js,
+un servidor en Node.js con Socket.IO, avatares personalizables, diecisiete armas, ocho mapas, salas
+privadas, chat, voz por proximidad y un minijuego de hockey. El proyecto se desarrolla de forma
+individual durante el cuatrimestre septiembre–diciembre de 2026.
+</p>
+<p>
+Este documento aplica los conceptos de la Investigación 9 y se organiza conforme a la rúbrica:
+primero define los recursos financieros, humanos y materiales; después describe cómo se identifican;
+enseguida explica cómo se asignan; luego detalla cómo se les da seguimiento y monitoreo; y cierra con
+una conclusión sobre la importancia de estas cuatro actividades. Las cifras económicas son
+estimaciones propias para un proyecto escolar y se presentan en pesos mexicanos (MXN).
+</p>
+
+<!-- ============================ PUNTO 1 ============================ -->
+<h1>Punto 1. Recursos financieros, humanos y materiales del proyecto</h1>
+
+<p>
+Los recursos de Club Pingüí se derivan directamente del alcance aprobado en la línea base: núcleo
+multijugador, diecisiete armas, ocho mapas, tres herramientas de ajuste (tuners), validación
+automatizada y documentación. Para cada recurso se estima su cantidad, disponibilidad, costo y
+periodo de utilización, tal como recomienda la Investigación 9 (Atlassian, s. f.-a; PMI, 2025).
+</p>
+
+<h2>1.1 Recursos financieros</h2>
+<p>
+Son los fondos destinados a cubrir los costos del proyecto. Como el equipo de cómputo y las
+herramientas de software ya se poseen o son de código abierto, el desembolso real se concentra en
+conectividad, energía, hospedaje y dominio. Se añade una reserva para contingencias del 10 %.
+</p>
+
+<table>
+  <tr>
+    <th style="width:38%">Concepto</th>
+    <th style="width:26%">Tipo de costo</th>
+    <th style="width:18%">Periodo</th>
+    <th style="width:18%">Costo estimado (MXN)</th>
+  </tr>
+  <tr><td>Hospedaje / servidor VPS para el servidor Node.js y Socket.IO</td><td>Variable (renta)</td><td>4 meses</td><td style="text-align:right">$900.00</td></tr>
+  <tr><td>Dominio para publicar la plataforma</td><td>Fijo (anual)</td><td>1 año</td><td style="text-align:right">$300.00</td></tr>
+  <tr><td>Servicio de internet (parte proporcional al proyecto)</td><td>Fijo mensual</td><td>4 meses</td><td style="text-align:right">$1,200.00</td></tr>
+  <tr><td>Energía eléctrica (consumo del equipo, prorrateado)</td><td>Variable</td><td>4 meses</td><td style="text-align:right">$350.00</td></tr>
+  <tr><td>Reserva de contingencia (10 % de $2,750.00)</td><td>Reserva</td><td>—</td><td style="text-align:right">$275.00</td></tr>
+  <tr class="dest"><td><b>Subtotal de desembolso estimado</b></td><td></td><td></td><td style="text-align:right"><b>$3,025.00</b></td></tr>
+</table>
+
+<p>
+Además del desembolso, el proyecto utiliza recursos que ya se encuentran disponibles y que, por lo
+tanto, no generan un gasto nuevo, pero sí representan un valor que debe controlarse:
+</p>
+
+<table>
+  <tr>
+    <th style="width:46%">Recurso ya disponible</th>
+    <th style="width:22%">Cantidad</th>
+    <th style="width:32%">Valor estimado (MXN)</th>
+  </tr>
+  <tr><td>Computadora portátil de desarrollo (Windows)</td><td>1</td><td style="text-align:right">$18,000.00</td></tr>
+  <tr><td>Software y bibliotecas de código abierto (Node.js, Three.js, Socket.IO, Blender, Git)</td><td>—</td><td style="text-align:right">$0.00 (open source)</td></tr>
+  <tr><td>Túnel de exposición para pruebas móviles (plan gratuito)</td><td>1</td><td style="text-align:right">$0.00</td></tr>
+  <tr class="dest"><td><b>Valor total estimado de recursos del proyecto</b></td><td></td><td style="text-align:right"><b>$21,025.00</b></td></tr>
+</table>
+<p class="nota">
+Nota. Estimación propia. El desembolso ($3,025.00) es el dinero nuevo que requiere el proyecto; el
+valor total ($21,025.00) incluye el equipo preexistente. La reserva cubre imprevistos de hospedaje,
+renovación de dominio o pruebas en dispositivos adicionales.
+</p>
+
+<h2>1.2 Recursos humanos</h2>
+<p>
+Al tratarse de un proyecto individual, el alumno concentra varios roles; el docente actúa como
+interesado y valida los entregables, y los compañeros participan como usuarios de prueba. La
+necesidad no se mide solo por el número de personas, sino por competencias, disponibilidad y carga de
+trabajo (PMI, 2025; Atlassian, s. f.-a).
+</p>
+
+<table>
+  <tr>
+    <th style="width:22%">Rol</th>
+    <th style="width:22%">Responsable</th>
+    <th style="width:38%">Responsabilidades principales</th>
+    <th style="width:18%">Dedicación estimada</th>
+  </tr>
+  <tr>
+    <td>Líder de proyecto</td>
+    <td>Luis Javier Tovar Segura</td>
+    <td>Planear, priorizar, coordinar el alcance, administrar el presupuesto y reportar el avance.</td>
+    <td>Parte de las 160 h de la línea base</td>
+  </tr>
+  <tr>
+    <td>Desarrollador full-stack</td>
+    <td>Luis Javier Tovar Segura</td>
+    <td>Cliente 3D (Three.js), servidor (Node.js/Socket.IO), base de datos, autenticación y despliegue.</td>
+    <td>≈ 95 h</td>
+  </tr>
+  <tr>
+    <td>Diseñador 3D y de experiencia</td>
+    <td>Luis Javier Tovar Segura</td>
+    <td>Modelado de avatares, armas y mapas; interfaz, HUD y controles táctiles/escritorio.</td>
+    <td>≈ 35 h</td>
+  </tr>
+  <tr>
+    <td>Aseguramiento de la calidad</td>
+    <td>Luis Javier Tovar Segura</td>
+    <td>Suites automatizadas, pruebas funcionales, de carga y de regresión.</td>
+    <td>≈ 20 h</td>
+  </tr>
+  <tr>
+    <td>Documentación y cierre</td>
+    <td>Luis Javier Tovar Segura</td>
+    <td>Documentación técnica, manual de usuario y presentación final.</td>
+    <td>≈ 10 h</td>
+  </tr>
+  <tr>
+    <td>Asesor y validación de alcance</td>
+    <td>Mtro. Domingo Fraga Hernández</td>
+    <td>Revisar objetivos, dar realimentación y aceptar formalmente los entregables.</td>
+    <td>≈ 2 h por quincena</td>
+  </tr>
+  <tr>
+    <td>Usuarios de prueba</td>
+    <td>Compañeros del grupo</td>
+    <td>Probar usabilidad, concurrencia y el juego en dispositivos móviles.</td>
+    <td>≈ 5 personas × 1 h por sesión</td>
+  </tr>
+</table>
+<p class="nota">Nota. La línea base de esfuerzo del proyecto es de 160 horas, conforme al seguimiento del valor ganado de la Práctica 4.</p>
+
+<h2>1.3 Recursos materiales y tecnológicos</h2>
+<p>
+Incluyen los bienes, equipos e insumos tangibles y los recursos digitales que permiten ejecutar el
+trabajo. Para cada uno se debe especificar cantidad, características, ubicación, responsable,
+disponibilidad, costo y vigencia (Atlassian, s. f.-b).
+</p>
+
+<table>
+  <tr>
+    <th style="width:34%">Recurso</th>
+    <th style="width:12%">Cantidad</th>
+    <th style="width:32%">Uso en el proyecto</th>
+    <th style="width:22%">Control requerido</th>
+  </tr>
+  <tr><td>Laptop de desarrollo</td><td>1</td><td>Programación, modelado y pruebas locales.</td><td>Estado, respaldo, ubicación.</td></tr>
+  <tr><td>Navegador Google Chrome (escritorio y móvil)</td><td>—</td><td>Ejecución del cliente 3D y pruebas de compatibilidad.</td><td>Versión y actualizaciones.</td></tr>
+  <tr><td>Dispositivo móvil Android</td><td>1</td><td>Pruebas de controles táctiles y orientación horizontal.</td><td>Disponibilidad y carga.</td></tr>
+  <tr><td>Node.js y npm</td><td>—</td><td>Servidor, dependencias y scripts de prueba.</td><td>Versión (v24 LTS).</td></tr>
+  <tr><td>Three.js, Socket.IO, Express</td><td>—</td><td>Motor 3D y comunicación en tiempo real.</td><td>Versión y compatibilidad.</td></tr>
+  <tr><td>Blender</td><td>1</td><td>Modelado y exportación de assets 3D.</td><td>Versión y respaldo de archivos.</td></tr>
+  <tr><td>Git y repositorio remoto</td><td>—</td><td>Control de versiones y respaldo del código.</td><td>Commits y ramas.</td></tr>
+  <tr><td>Servidor VPS y dominio</td><td>1</td><td>Publicación accesible por internet.</td><td>Vigencia, costo y renovación.</td></tr>
+  <tr><td>Túnel de exposición (Cloudflare)</td><td>1</td><td>Acceso desde el teléfono durante pruebas.</td><td>Disponibilidad y seguridad.</td></tr>
+  <tr><td>Servicio de internet y red Wi-Fi</td><td>1</td><td>Conexión para desarrollo, pruebas y publicación.</td><td>Estabilidad y consumo.</td></tr>
+</table>
+
+<table>
+  <tr><th style="width:20%">Tipo</th><th style="width:46%">Ejemplos en Club Pingüí</th><th style="width:34%">Qué debe controlarse</th></tr>
+  <tr><td>Financieros</td><td>Hospedaje, dominio, internet, energía y contingencia.</td><td>Presupuesto aprobado, gasto real, compromisos y variación.</td></tr>
+  <tr><td>Humanos</td><td>Alumno (múltiples roles), docente y usuarios de prueba.</td><td>Competencias, disponibilidad, carga y responsabilidades.</td></tr>
+  <tr><td>Materiales y tecnológicos</td><td>Laptop, móvil, servidor, licencias, bibliotecas y red.</td><td>Cantidad, estado, asignación, vigencia y fecha de disponibilidad.</td></tr>
+</table>
+<p class="nota">Nota. Elaboración propia con base en Atlassian (s. f.-a, s. f.-b) y PMI (2025).</p>
+
+<!-- ============================ PUNTO 2 ============================ -->
+<h1>Punto 2. Proceso de identificación de los recursos del proyecto</h1>
+
+<p>
+Identificar recursos consiste en determinar qué se necesita para cada actividad y entregable, en qué
+cantidad, con qué características y en qué momento. En Club Pingüí el proceso se aplicó en cinco
+pasos encadenados y se revisa cada vez que cambian los requisitos o el calendario (Atlassian,
+s. f.-a).
+</p>
+
+<h2>2.1 Revisar el alcance y los entregables</h2>
+<p>
+Se partió de la línea base aprobada: núcleo multijugador, diecisiete armas, ocho mapas, tres tuners,
+validación automatizada y documentación. Para cada entregable se revisaron criterios de aceptación,
+restricciones técnicas (navegador, WebGL, latencia), requisitos de seguridad (autenticación de
+sesiones) y fechas objetivo. Un alcance ambiguo habría producido una estimación de recursos poco
+confiable.
+</p>
+
+<h2>2.2 Descomponer el trabajo en actividades</h2>
+<p>
+El proyecto se dividió en las quince actividades (A1–A15) de la estructura de desglose del trabajo
+utilizada en la Práctica 5 y organizadas en cuatro fases: inicio y análisis, desarrollo, pruebas, y
+cierre y entrega. Para cada actividad se documentaron competencias, herramientas, materiales,
+duración y costo. Por ejemplo, la actividad de modelado 3D exige Blender y la laptop; la de servidor
+exige Node.js y el VPS; la de pruebas de carga exige el túnel y varios dispositivos o pestañas.
+</p>
+
+<h2>2.3 Consultar a las partes interesadas y al equipo técnico</h2>
+<p>
+El alumno contrastó las estimaciones con el docente (interesado principal) y con compañeros que
+actúan como usuarios de prueba. También se revisaron los recursos ya disponibles en el equipo para no
+comprar lo que ya se posee: las bibliotecas son de código abierto, el equipo de cómputo es propio y
+las herramientas de modelado son gratuitas.
+</p>
+
+<h2>2.4 Elaborar un inventario y un calendario de recursos</h2>
+<p>
+Los recursos identificados se registraron en una lista agrupada por categoría, con descripción,
+cantidad, costo estimado, fecha en que se necesitan, disponibilidad y responsable. El calendario de
+recursos permitió ubicar la necesidad del VPS y del dominio en la fase de despliegue (A12), y la del
+dispositivo móvil en las pruebas de la interfaz táctil. El PMI (2025) reconoce la estructura de
+desglose de recursos y el calendario de recursos como instrumentos para organizar y optimizar su
+utilización.
+</p>
+
+<h2>2.5 Validar las estimaciones y los riesgos</h2>
+<p>
+Las estimaciones se compararon con el presupuesto y la capacidad real. Se identificaron riesgos
+concretos: dependencia de un solo desarrollador, posible sobrecarga en semanas de entrega, latencia
+del túnel para pruebas móviles, vencimiento del dominio y fallos de hardware. Cada riesgo se registró
+con una alternativa: reserva de contingencia, reprogramación dentro de la holgura, pruebas locales
+como respaldo y respaldo del código en el repositorio.
+</p>
+
+<table>
+  <tr>
+    <th style="width:34%">Actividad de identificación</th>
+    <th style="width:33%">Resultado o documento</th>
+    <th style="width:33%">Aplicación en Club Pingüí</th>
+  </tr>
+  <tr><td>Analizar objetivos, alcance y requisitos.</td><td>Lista de entregables y restricciones.</td><td>17 armas, 8 mapas, multijugador, tuners y documentación.</td></tr>
+  <tr><td>Descomponer el trabajo por tareas.</td><td>Estructura de desglose del trabajo (A1–A15).</td><td>Cuatro fases y quince actividades con entregables.</td></tr>
+  <tr><td>Estimar cantidad, esfuerzo y costo.</td><td>Requisitos de recursos y presupuesto.</td><td>160 h de esfuerzo y $3,025.00 de desembolso.</td></tr>
+  <tr><td>Comprobar capacidad y disponibilidad.</td><td>Calendario e inventario existente.</td><td>Equipo propio, software open source y VPS en la fase de despliegue.</td></tr>
+  <tr><td>Validar riesgos y restricciones.</td><td>Registro de riesgos y adquisiciones.</td><td>Contingencia, respaldos y pruebas locales ante fallos de red.</td></tr>
+</table>
+<p class="nota">Nota. Elaboración propia con base en Atlassian (s. f.-a) y PMI (2025).</p>
+
+<!-- ============================ PUNTO 3 ============================ -->
+<h1 class="salto">Punto 3. Proceso de asignación de los recursos del proyecto</h1>
+
+<p>
+Asignar recursos significa vincular los recursos disponibles con las actividades que los necesitan,
+respetando prioridades, competencias, plazos y presupuesto. La asignación debe ser realista: una sola
+persona no puede dedicar el cien por ciento de su tiempo a varias tareas simultáneas (Atlassian,
+s. f.-a). En Club Pingüí se combinaron seis técnicas.
+</p>
+
+<h2>3.1 Matriz de asignación de responsabilidades (RACI)</h2>
+<p>
+La matriz RACI aclara quién ejecuta (R), quién aprueba o responde por el resultado (A), a quién se
+consulta (C) y a quién se informa (I). Se adaptó al tamaño del proyecto y se acordó con el docente.
+</p>
+
+<table>
+  <tr>
+    <th style="width:34%">Actividad</th>
+    <th style="width:15%">Alumno</th>
+    <th style="width:15%">Docente</th>
+    <th style="width:18%">Usuarios de prueba</th>
+    <th style="width:18%">Proveedor (hosting)</th>
+  </tr>
+  <tr><td>A1. Alcance, objetivos y requisitos</td><td><b>R</b></td><td><b>A</b></td><td>C</td><td>I</td></tr>
+  <tr><td>A5. Modelado 3D de personajes, armas y mapas</td><td><b>R / A</b></td><td>I</td><td>C</td><td>—</td></tr>
+  <tr><td>A7. Servidor y comunicación en tiempo real</td><td><b>R / A</b></td><td>I</td><td>C</td><td>C</td></tr>
+  <tr><td>A10. Integración y pruebas funcionales</td><td><b>R</b></td><td><b>A</b></td><td>C</td><td>I</td></tr>
+  <tr><td>A11. Pruebas de concurrencia y carga</td><td><b>R / A</b></td><td>I</td><td>C</td><td>C</td></tr>
+  <tr><td>A12. Despliegue y publicación</td><td><b>R</b></td><td><b>A</b></td><td>I</td><td>C</td></tr>
+  <tr><td>A13. Documentación y manual de usuario</td><td><b>R / A</b></td><td>C</td><td>I</td><td>I</td></tr>
+  <tr><td>A15. Presentación final</td><td><b>R</b></td><td><b>A</b></td><td>I</td><td>I</td></tr>
+</table>
+<p class="nota">Nota. R = responsable de ejecutar; A = aprueba o responde por el resultado; C = se le consulta; I = se le informa.</p>
+
+<h2>3.2 Asignación según competencias y disponibilidad</h2>
+<p>
+Cada actividad se asignó a quien tiene la competencia y el tiempo disponible. Las tareas de
+programación y de modelado recayeron en el alumno por su experiencia; la validación de alcance, en el
+docente; las pruebas de usabilidad, en compañeros. Se evitó concentrar en una misma semana tareas
+pesadas de desarrollo y de modelado, y se reservó capacidad para imprevistos.
+</p>
+
+<h2>3.3 Priorización de tareas y planificación temporal</h2>
+<p>
+Las actividades se ordenaron por dependencias, valor para el usuario, riesgo y fecha límite. El
+diagrama de Gantt y el análisis PERT de la Práctica 5 permitieron ubicar en el tiempo a las personas y
+los servicios. La ruta crítica identificada (A1→A2→A3→A4→A5→A8→A9→A10→A11→A12→A15) concentra las
+actividades cuyo retraso afectaría la fecha final; las tareas con holgura se pueden reprogramar para
+equilibrar la carga.
+</p>
+
+<h2>3.4 Nivelación y suavización de recursos</h2>
+<p>
+Como el recurso humano es limitado (una sola persona), la nivelación se aplicó moviendo actividades
+dentro de su holgura para no sobreasignar al alumno en una misma semana. La suavización permitió
+aprovechar las holguras sin alterar la ruta crítica ni la fecha de cierre. El PMI (2025) distingue
+ambas técnicas como formas de optimización de recursos.
+</p>
+
+<h2>3.5 Estimación ascendente y asignación por paquetes de trabajo</h2>
+<p>
+Se estimó cada actividad y después se sumaron sus necesidades de horas, materiales y costos. La
+estimación por tres valores (PERT) de la Práctica 5 dio una duración esperada de 85.17 días y un
+esfuerzo total de 111.85 días-persona distribuido en las quince actividades; esa cifra se ajustó a la
+línea base de 160 horas del seguimiento individual. Las asignaciones se revisan cuando cambian las
+prioridades o las estimaciones.
+</p>
+
+<h2>3.6 Adquisición, renta o contratación</h2>
+<p>
+Cuando un recurso no está disponible internamente, se evalúa comprarlo, rentarlo o contratar un
+servicio. En Club Pingüí se optó por software de código abierto para evitar licencias, por un VPS en
+renta (en lugar de comprar un servidor) y por un dominio anual. Antes de adquirir se confirmó que el
+recurso fuera necesario y que no existiera una alternativa gratuita disponible, como el túnel para
+las pruebas móviles.
+</p>
+
+<table>
+  <tr>
+    <th style="width:22%">Técnica</th>
+    <th style="width:40%">Aplicación en Club Pingüí</th>
+    <th style="width:38%">Precaución</th>
+  </tr>
+  <tr><td>Matriz RACI</td><td>Define responsables por actividad (alumno, docente, usuarios, proveedor).</td><td>Evitar tareas sin responsable o aprobaciones ambiguas.</td></tr>
+  <tr><td>Asignación por competencias</td><td>Programación y modelado al alumno; validación al docente.</td><td>No asignar por cargo; validar la capacidad real.</td></tr>
+  <tr><td>Cronograma y priorización</td><td>Gantt y ruta crítica de la Práctica 5.</td><td>Actualizar ante cambios de alcance o dependencias.</td></tr>
+  <tr><td>Nivelación de recursos</td><td>Reordena tareas para evitar sobrecarga semanal.</td><td>Puede alargar el proyecto o cambiar la ruta crítica.</td></tr>
+  <tr><td>Suavización de recursos</td><td>Usa holguras para equilibrar la carga del alumno.</td><td>Solo funciona si existe holgura suficiente.</td></tr>
+  <tr><td>Contratación o adquisición</td><td>VPS, dominio y túnel gratuito para pruebas.</td><td>Revisar presupuesto, seguridad, compatibilidad y plazos.</td></tr>
+</table>
+<p class="nota">Nota. Elaboración propia con base en PMI (2025, s. f.) y Atlassian (s. f.-a).</p>
+
+<!-- ============================ PUNTO 4 ============================ -->
+<h1>Punto 4. Seguimiento y monitoreo de los recursos asignados</h1>
+
+<p>
+El seguimiento compara el uso real de los recursos con lo aprobado y permite detectar diferencias
+antes de que se conviertan en problemas de costo, plazo o calidad. No basta con recopilar cifras: los
+datos deben analizarse, comunicarse y usarse para decidir acciones correctivas (PMI, s. f.;
+Atlassian, s. f.-b).
+</p>
+
+<h2>4.1 Seguimiento del presupuesto y análisis de variaciones</h2>
+<p>
+Se comparan el presupuesto aprobado ($3,025.00), los costos comprometidos y los gastos reales. La
+variación de costo del periodo se obtiene restando al presupuesto planificado el gasto real; una
+diferencia negativa indica que se gastó más de lo previsto. En Club Pingüí los principales conceptos
+son el VPS y el dominio, que se contratan en la fase de despliegue; el resto del presupuesto es
+conectividad y energía, de comportamiento estable.
+</p>
+
+<h2>4.2 Registro de horas, capacidad y carga de trabajo</h2>
+<p>
+Las hojas de tiempo y el tablero de tareas registran horas estimadas frente a horas reales, tareas
+terminadas y trabajo pendiente. La utilización se calcula como horas dedicadas al proyecto entre horas
+disponibles en el periodo, multiplicado por cien. El seguimiento del valor ganado de la Práctica 4
+sirve de referencia: con una línea base de 160 horas, al corte se tenían PV = 128 h, EV = 145.2 h y
+AC = 140 h, con SPI = 1.13 y CPI = 1.04, lo que indica un avance adelantado y un costo conforme al
+plan.
+</p>
+
+<h2>4.3 Inventario, asignación y estado de los recursos físicos y digitales</h2>
+<p>
+Se mantiene un registro de equipos, licencias, cuentas, ambientes de prueba y servicios contratados.
+El registro indica responsable, ubicación o cuenta asignada, estado, fecha de entrega, vigencia y
+costo. Las revisiones permiten localizar equipos sin usar, licencias próximas a vencer, fallos de
+hardware o recursos que ya no se necesitan. En el proyecto se vigilan especialmente la vigencia del
+dominio y del VPS, y el estado de los respaldos del código.
+</p>
+
+<h2>4.4 Indicadores clave de desempeño (KPI)</h2>
+<table>
+  <tr>
+    <th style="width:30%">Indicador</th>
+    <th style="width:34%">Fórmula o medida</th>
+    <th style="width:18%">Meta</th>
+    <th style="width:18%">Frecuencia</th>
+  </tr>
+  <tr><td>Utilización de capacidad</td><td>(Horas dedicadas / horas disponibles) × 100.</td><td>70–85 %</td><td>Semanal</td></tr>
+  <tr><td>Variación de costo</td><td>Presupuesto planificado − gasto real del periodo.</td><td>≥ $0.00</td><td>Mensual</td></tr>
+  <tr><td>Avance de tareas</td><td>Tareas terminadas / tareas planificadas.</td><td>≥ 90 %</td><td>Semanal</td></tr>
+  <tr><td>Recursos entregados a tiempo</td><td>(Recursos disponibles a tiempo / total) × 100.</td><td>≥ 95 %</td><td>Por hito</td></tr>
+  <tr><td>Tiempo de adquisición</td><td>Días desde la solicitud hasta la disponibilidad.</td><td>≤ 2 días</td><td>Por compra</td></tr>
+  <tr><td>Licencias por vencer</td><td>Número de licencias o servicios con vencimiento en 30 días.</td><td>0</td><td>Mensual</td></tr>
+</table>
+<p class="nota">Nota. Elaboración propia con base en Atlassian (s. f.-b).</p>
+
+<h2>4.5 Revisiones periódicas, tableros y reportes</h2>
+<p>
+El proyecto se revisa semanalmente y al cierre de cada fase o hito. Un tablero centralizado presenta
+responsables, estado, horas, costos, dependencias, riesgos y fechas de entrega. Cada revisión debe
+producir acuerdos concretos: reasignar trabajo, cambiar prioridades, solicitar equipo, actualizar el
+pronóstico o escalar una decisión. La frecuencia es semanal por la duración del cuatrimestre y se
+refuerza en las semanas de entrega.
+</p>
+
+<h2>4.6 Control de cambios y acciones correctivas</h2>
+<p>
+Cuando una desviación afecta el alcance, el costo, el calendario o la calidad, se analiza su causa y
+el impacto de las alternativas. Las acciones pueden incluir redistribuir tareas, mover fechas dentro
+de la holgura, reducir trabajo no esencial, cambiar de proveedor o solicitar una modificación formal
+del presupuesto. Todo cambio importante se aprueba con el docente y se documenta en la bitácora para
+conservar la trazabilidad.
+</p>
+
+<table>
+  <tr>
+    <th style="width:24%">Técnica de seguimiento</th>
+    <th style="width:40%">Qué mide o revisa</th>
+    <th style="width:36%">Acción posible ante una desviación</th>
+  </tr>
+  <tr><td>Control presupuestario</td><td>Gasto real, costos comprometidos y previsión final.</td><td>Revisar compras, ajustar previsión o pedir aprobación de cambio.</td></tr>
+  <tr><td>Registro de horas y carga</td><td>Horas estimadas/reales, capacidad y tareas asignadas.</td><td>Reasignar trabajo, ajustar prioridades o calendario.</td></tr>
+  <tr><td>Inventario y control de licencias</td><td>Cantidad, estado, responsable y vigencia.</td><td>Reasignar, renovar, reparar o dar de baja recursos.</td></tr>
+  <tr><td>KPI y tablero de proyecto</td><td>Utilización, demanda/capacidad, avance y retrasos.</td><td>Investigar tendencias y acordar medidas correctivas.</td></tr>
+  <tr><td>Revisión de hitos y reportes</td><td>Situación global de recursos en puntos de control.</td><td>Actualizar el plan y comunicar decisiones a interesados.</td></tr>
+</table>
+<p class="nota">Nota. Elaboración propia con base en Atlassian (s. f.-b), PMI (s. f.) y Microsoft (s. f.).</p>
+
+<!-- ============================ PUNTO 5 ============================ -->
+<h1>Punto 5. Conclusión</h1>
+
+<p>
+La gestión de recursos es lo que permite que Club Pingüí cuente con las personas, el presupuesto, los
+equipos y los servicios adecuados en el momento oportuno. Primero se identificaron las necesidades a
+partir del alcance y de las quince actividades del proyecto; después se estimaron cantidades, costos
+y disponibilidad; luego se asignaron mediante una matriz RACI, un cronograma con ruta crítica y
+técnicas de nivelación y suavización; y finalmente se monitorean con registros, indicadores,
+inventarios, reportes y revisiones periódicas.
+</p>
+<p>
+La principal lección del proyecto es que la asignación no es definitiva: debe ajustarse cuando
+cambian las prioridades, aparecen riesgos o se detectan diferencias entre el plan y la ejecución. En
+un proyecto individual, donde una sola persona concentra varios roles, identificar y asignar los
+recursos evita la sobrecarga y el desperdicio; dar seguimiento y monitoreo permite decidir con
+evidencia en lugar de suposiciones. Sin estas cuatro actividades —identificar, asignar, dar
+seguimiento y monitorear— el proyecto podría consumir tiempo y dinero sin garantizar que los
+entregables estén completos, a tiempo y con la calidad esperada. Por ello, la gestión de recursos no
+es un trámite administrativo, sino una condición para entregar el proyecto dentro del alcance, el
+plazo y el presupuesto.
+</p>
+
+<!-- ============================ REFERENCIAS ============================ -->
+<h1 class="salto">Referencias</h1>
+<p class="ref">Atlassian. (s. f.-a). <i>What is resource allocation and how does it work?</i> Atlassian. https://www.atlassian.com/agile/project-management/resource-allocation</p>
+<p class="ref">Atlassian. (s. f.-b). <i>Resource tracking: Benefits, metrics, &amp; best practices.</i> Atlassian. https://www.atlassian.com/work-management/project-management/resource-management/tracking</p>
+<p class="ref">Microsoft. (s. f.). <i>Project management goal: Resolve resource allocation problems.</i> Microsoft Support. https://support.microsoft.com/en-us/project/project-management-goal-resolve-resource-allocation-problems</p>
+<p class="ref">Project Management Institute. (2025). <i>PMI lexicon of project management terms</i> (Version 5.0). https://www.pmi.org/-/media/pmi/documents/registered/pdf/pmbok-standards/pmi-lexicon-pm-terms.pdf</p>
+<p class="ref">Project Management Institute. (s. f.). <i>Project time management function.</i> https://www.pmi.org/learning/library/time-management-project-functions-schedules-5723</p>
+
+</body>
+</html>

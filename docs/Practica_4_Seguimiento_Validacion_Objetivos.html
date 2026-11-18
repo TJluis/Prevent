@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Práctica 4. Seguimiento y validación de objetivos</title>
+<style>
+  @page { size: A4; margin: 2.2cm 2.2cm 2.2cm 2.5cm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11.5pt; line-height: 1.6; color: #111;
+    margin: 0; text-align: justify;
+  }
+  .portada { page-break-after: always; text-align: center; padding-top: 1.5cm; }
+  .portada .escudo { font-size: 13pt; letter-spacing: .5px; }
+  .portada h1 { font-size: 17pt; margin: 18px 0 6px; }
+  .portada h2 { font-size: 13.5pt; font-weight: normal; margin: 4px 0; }
+  .portada .practica {
+    margin-top: 46px; border-top: 2px solid #111; border-bottom: 2px solid #111;
+    padding: 16px 0; font-size: 14pt;
+  }
+  .portada .datos { margin-top: 46px; font-size: 11.5pt; line-height: 2.1; }
+  .portada .datos b { display: inline-block; width: 145px; text-align: right; margin-right: 12px; }
+  .portada .pie { margin-top: 60px; font-size: 10.5pt; }
+  h1 { font-size: 13.5pt; margin: 22px 0 8px; text-align: left; }
+  h2 { font-size: 12pt; margin: 16px 0 6px; text-align: left; }
+  p { margin: 0 0 10px; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 5px; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 9.6pt; line-height: 1.35;
+  }
+  th, td { border: 1px solid #444; padding: 5px 6px; vertical-align: top; text-align: left; }
+  th { background: #e8eef5; font-weight: bold; }
+  .nota { font-size: 9.3pt; color: #333; font-style: italic; margin-top: -8px; }
+  .ref { font-size: 9.8pt; text-indent: -0.6cm; padding-left: 0.6cm; margin-bottom: 6px; text-align: left; }
+  .salto { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<!-- ============================ PORTADA ============================ -->
+<div class="portada">
+  <div class="escudo">UNIVERSIDAD TECNOLÓGICA DEL NORTE DE COAHUILA</div>
+  <h2>Licenciatura en Ingeniería en Tecnologías de la Información e Innovación Digital</h2>
+
+  <div class="practica">
+    <b>Práctica 4.</b> Seguimiento y validación de objetivos<br />
+    de acuerdo al avance del proyecto
+  </div>
+
+  <div class="datos">
+    <div><b>Materia:</b> Formulación de Proyectos de Tecnología (7A)</div>
+    <div><b>Proyecto:</b> Club Pingüí – juego multijugador 3D en navegador</div>
+    <div><b>Alumno:</b> Luis Javier Tovar Segura</div>
+    <div><b>Docente:</b> Mtro. Domingo Fraga Hernández</div>
+    <div><b>Lugar:</b> Piedras Negras, Coahuila</div>
+    <div><b>Fecha:</b> 6 de octubre de 2026</div>
+  </div>
+
+  <div class="pie">Basado en la Investigación 6. Técnicas para el seguimiento de objetivos del proyecto</div>
+</div>
+
+<!-- ============================ INTRO ============================ -->
+<p>
+El presente documento reporta el seguimiento y la validación de los objetivos del proyecto
+<b>Club Pingüí</b>, un videojuego multijugador en tercera dimensión que se ejecuta en el navegador
+y que se desarrolla a lo largo de este cuatrimestre. Se aplican las técnicas de la Investigación 6
+(administración por objetivos, criterios SMART, OKR, línea base y monitoreo de PMBOK, valor ganado,
+iteraciones Scrum con Definición de Hecho, revisión por etapas Stage-Gate y validación de alcance),
+se justifican los objetivos de acuerdo con el avance real, se reporta el avance al docente y se
+cierra con una reflexión sobre la importancia de validar los objetivos del proyecto.
+</p>
+
+<!-- ============================ PUNTO 1 ============================ -->
+<h1>Punto 1. Objetivos actualizados</h1>
+
+<p>
+Los objetivos se redefinieron al corte del 6 de octubre de 2026 con los criterios SMART de Doran
+(1981) y con la distinción entre metas y objetivos de Drucker (1954): la <b>meta</b> del proyecto es
+entregar un juego multijugador 3D jugable en navegador; los <b>objetivos</b> especifican los
+resultados concretos que conducen a esa meta. Todos tienen responsable único (el alumno del
+proyecto), indicador medible y fecha.
+</p>
+
+<table>
+  <tr>
+    <th style="width:34%">Objetivo actualizado</th>
+    <th style="width:30%">Indicador medible (criterio “Medible”)</th>
+    <th style="width:18%">Plazo / hito</th>
+    <th style="width:18%">Estado al corte</th>
+  </tr>
+  <tr>
+    <td><b>O1.</b> Desarrollar el núcleo multijugador de Club Pingüí (salas, emparejamiento y
+      sincronización de jugadores) en el navegador.</td>
+    <td>Las suites de servidor, autenticación y lógica de juego terminan sin errores en todas las
+      corridas; la sesión conecta y sincroniza partidas de prueba.</td>
+    <td>25 de octubre de 2026</td>
+    <td>En proceso (≈75 %)</td>
+  </tr>
+  <tr>
+    <td><b>O2.</b> Modelar y animar las 17 armas del juego en vista en primera persona, con la
+      estructura de piezas y la postura de agarre de cada una.</td>
+    <td>17 de 17 armas pasan la suite de estructura con 0 fallos; ningún cambio altera las medidas
+      base de las armas existentes.</td>
+    <td>30 de septiembre de 2026</td>
+    <td>Cumplido (17/17, 0 fallos)</td>
+  </tr>
+  <tr>
+    <td><b>O3.</b> Construir los 8 mapas del juego con su ambiente, relieve, paleta de colores y
+      objetos colocados.</td>
+    <td>Los 8 mapas construyen escena completa sin errores de JavaScript y sin diferencias contra
+      la línea base geométrica.</td>
+    <td>4 de octubre de 2026</td>
+    <td>Cumplido (8/8)</td>
+  </tr>
+  <tr>
+    <td><b>O4.</b> Producir tres herramientas de ajuste (tuners) de aletas, estructura de armas y
+      mapas, que permitan modificar el proyecto sin editar archivos de código directamente.</td>
+    <td>Cada tuner exporta bloques de código listos para pegar y envía su estado al lector local;
+      los tres cargan sin errores de JavaScript.</td>
+    <td>6 de octubre de 2026</td>
+    <td>Cumplido (3/3; verificación final del tuner de mapas pendiente de repetirse)</td>
+  </tr>
+  <tr>
+    <td><b>O5.</b> Mantener una validación automatizada de regresión que impida que avances
+      nuevos rompan funcionalidad ya entregada.</td>
+    <td>Las suites automatizadas se ejecutan en cada entrega y reportan PASS/FAIL objetivo;
+      0 regresiones desde que se estableció la línea base.</td>
+    <td>Continuo, hasta el 15 de diciembre de 2026</td>
+    <td>Cumplido hasta el corte</td>
+  </tr>
+  <tr>
+    <td><b>O6.</b> Entregar el juego completo con su documentación antes del cierre del
+      cuatrimestre.</td>
+    <td>Versión jugable publicada y aceptada por el docente en la revisión de cierre.</td>
+    <td>15 de diciembre de 2026</td>
+    <td>En proceso</td>
+  </tr>
+</table>
+<p class="nota">Nota. Objetivos de elaboración propia redactados con los criterios de Doran (1981).</p>
+
+<!-- ============================ PUNTO 2 ============================ -->
+<h1>Punto 2. Técnicas investigadas y cómo se aplicaron</h1>
+
+<h2>2.1 Administración por objetivos (MBO) y criterios SMART</h2>
+<p>
+Se partió de la idea de Drucker (1954) de que las metas deben traducirse en resultados medibles
+alineados con la organización: la meta “tener un juego jugable” se desglosó en seis objetivos por
+módulo (núcleo multijugador, armas, mapas, herramientas de ajuste, validación y entrega). Cada
+objetivo se redactó con los cinco criterios de Doran (1981) —específico, medible, asignable,
+realista y con tiempo definido— y se verificaron además los criterios de claridad, responsabilidad,
+alineación, enfoque en resultados y documentación (sección 1.6 de la investigación). El resultado
+es la tabla del Punto 1, que funciona como referencia escrita contra la cual se compara el avance.
+</p>
+
+<h2>2.2 Objetivos y resultados clave (OKR)</h2>
+<p>
+Se definió un objetivo general y de tres a cinco resultados clave medibles por ciclo, tal como
+recomienda Doerr (2018), midiendo cada resultado en una escala de 0 a 100 % y usando indicadores
+adelantados (avance verificable con pruebas) y no solo cantidad de trabajo entregado.
+</p>
+<table>
+  <tr><th style="width:42%">Objetivo</th><th colspan="3">Resultados clave y cumplimiento al 6 de octubre de 2026</th></tr>
+  <tr>
+    <td rowspan="5"><b>Entregar un juego multijugador 3D jugable en navegador antes del 15 de
+      diciembre de 2026, con las 17 armas, los 8 mapas y su documentación.</b></td>
+    <td>RK1: 17 armas con estructura validada por pruebas</td><td style="text-align:center"><b>100 %</b></td><td>meta 100 %</td>
+  </tr>
+  <tr><td>RK2: 8 mapas construidos y verificados sin errores</td><td style="text-align:center"><b>100 %</b></td><td>meta 100 %</td></tr>
+  <tr><td>RK3: 3 tuners operativos que exportan cambios aplicables</td><td style="text-align:center"><b>95 %</b></td><td>meta 100 %</td></tr>
+  <tr><td>RK4: sesiones multijugador estables en las pruebas automatizadas</td><td style="text-align:center"><b>75 %</b></td><td>meta 100 %</td></tr>
+  <tr><td>RK5: 0 regresiones en las suites de validación</td><td style="text-align:center"><b>100 %</b></td><td>meta 100 %</td></tr>
+</table>
+<p class="nota">
+Nota. Estimación propia al corte. Siguiendo a Doerr (2018) y a la tasa objetivo del 70 %, todos los
+resultados clave superan el umbral; como RK1, RK2 y RK5 se cumplen al 100 % de forma constante,
+en el siguiente ciclo se reevalúan para que sean más ambiciosos (p. ej. añadir animación avanzada
+por arma y medir su tiempo de carga), tal como prevé la sección 2.3 de la investigación.
+</p>
+
+<h2>2.3 Línea base, monitoreo y control (PMBOK)</h2>
+<p>
+La declaración de alcance aprobada en la planeación se convirtió en la <b>línea base</b>: 17 armas,
+8 mapas, 3 herramientas de ajuste, núcleo multijugador y documentación (sección 1.5 de la
+investigación). Sobre ella se aplica el grupo de procesos de monitoreo y control: en cada revisión
+se <b>recolecta</b> el avance real (resultados de las suites), se <b>compara</b> con lo planeado, se
+<b>deciden</b> acciones correctivas y se <b>reporta</b> el estado. El <b>control integrado de
+cambios</b> se aplicó de forma literal: los tuners no escriben sobre los archivos del proyecto,
+sino que exportan bloques que reviso y aplico yo mismo; así ninguna modificación entra sin
+pasar por revisión, evitando ampliaciones de alcance no autorizadas.
+</p>
+
+<h2>2.4 Seguimiento de cronograma y costo: valor ganado</h2>
+<p>
+Se calculó el valor ganado con la línea base de esfuerzo del proyecto (estimación propia: 160 horas
+totales; al 6 de octubre el plan marcaba 80 % de avance). El avance real se ponderó por módulo:
+armas 30 %, mapas 25 %, multijugador 25 %, tuners 12 % y documentación 8 %.
+</p>
+<table>
+  <tr><th>Indicador</th><th>Fórmula</th><th>Valor al corte</th><th>Interpretación</th></tr>
+  <tr><td>Valor planeado (PV)</td><td>—</td><td>128 h (80 % de 160 h)</td><td>Trabajo que debía estar listo a la fecha.</td></tr>
+  <tr><td>Valor ganado (EV)</td><td>—</td><td>145.2 h (90.75 % de 160 h)</td><td>Trabajo realmente completado.</td></tr>
+  <tr><td>Costo real (AC)</td><td>—</td><td>140 h</td><td>Horas efectivamente invertidas.</td></tr>
+  <tr><td>Variación del cronograma (SV)</td><td>SV = EV − PV</td><td>+17.2 h</td><td>Positiva: el avance va adelante del plan.</td></tr>
+  <tr><td>Variación del costo (CV)</td><td>CV = EV − AC</td><td>+5.2 h</td><td>Positiva: se gasta menos de lo planeado.</td></tr>
+  <tr><td>Índice de cronograma (SPI)</td><td>SPI = EV / PV</td><td>1.13</td><td>Mayor que 1: avance mayor al planeado.</td></tr>
+  <tr><td>Índice de costo (CPI)</td><td>CPI = EV / AC</td><td>1.04</td><td>Cercano a 1: costo conforme al presupuesto.</td></tr>
+</table>
+<p class="nota">Nota. Fórmulas tomadas de Milner (s. f.) y ProjectEngineer (s. f.); los valores son estimación propia a partir de la línea base del proyecto.</p>
+
+<h2>2.5 Iteraciones Scrum y Definición de Hecho</h2>
+<p>
+El desarrollo se organizó en iteraciones cortas con un objetivo por iteración (Sprint Goal), por
+ejemplo “las 17 armas con su estructura declarada y validada” o “los 8 mapas construidos y
+verificados”. La inspección diaria del avance y la revisión al cierre de cada iteración siguen el
+Scrum Guide (Schwaber y Sutherland, 2020). La <b>Definición de Hecho</b> acordada para cada
+entregable fue: (1) funciona en el navegador, (2) las suites automatizadas correspondientes terminan
+en PASS y (3) se conserva la línea base sin diferencias; solo lo que cumple esos tres criterios se
+considera parte del incremento. Ese criterio medible es el mismo que se convirtió en criterio de
+aceptación de los objetivos, como indica la sección 2.5 de la investigación.
+</p>
+
+<h2>2.6 Revisión por etapas (Stage-Gate) y validación del alcance</h2>
+<p>
+Cada módulo cerró en una “puerta” con criterios definidos <i>antes</i> de la revisión: criterios
+obligatorios (las suites PASS, cero errores de JavaScript, sin diferencias contra la línea base) y
+deseables (rendimiento y estética). De cada puerta salió una decisión explícita de continuar,
+pausar o repetir: se <b>continuó</b> con armas, mapas y tuners; se <b>pausó</b> a fase 2 el tuner
+de terreno paramétrico (semilla, relieve y agua) para no desviar el alcance; se <b>repitió</b> la
+corrección de la pose de las aletas cuando las pruebas reportaron penetración. La validación final
+ante el interesado (docente) corresponde a Validar el alcance, mientras que la ejecución de las
+suites corresponde a Controlar la calidad (Project Management Institute, 2017); ambas decisiones
+quedaron registradas en la bitácora de la sección 4.
+</p>
+
+<!-- ============================ PUNTO 3 ============================ -->
+<h1 class="salto">Punto 3. Justificación de los objetivos de acuerdo con el avance</h1>
+
+<p>
+Cada objetivo se justifica contrastando su estado real con la evidencia que lo respalda. Un
+objetivo se mantiene si su avance justifica seguirlo, se ajusta si el alcance descubierto en el
+desarrollo lo exige y se mantiene pendiente si aún no hay evidencia suficiente.
+</p>
+
+<table>
+  <tr>
+    <th style="width:8%">Obj.</th>
+    <th style="width:30%">Justificación</th>
+    <th style="width:30%">Evidencia al corte</th>
+    <th style="width:32%">Decisión</th>
+  </tr>
+  <tr>
+    <td>O1</td>
+    <td>Es el objetivo que sostiene la meta del proyecto; sin multijugador no hay producto jugable,
+      por lo que concentra la prioridad inmediata.</td>
+    <td>Suites de servidor, autenticación, lógica y señalización disponibles; pruebas de emparejamiento
+      ejecutadas.</td>
+    <td><b>Se mantiene</b> como prioridad alta; es el único objetivo con avance menor al 100 % y
+      concentra el trabajo de las próximas semanas.</td>
+  </tr>
+  <tr>
+    <td>O2</td>
+    <td>El alcance de 17 armas era ambicioso pero factible: se cumplió con la misma estructura
+      declarativa reutilizable, lo que confirma que era realista.</td>
+    <td>Suite de estructura: 17 armas correctas, 0 fallos; comparación con la línea base: 0 diferencias.</td>
+    <td><b>Cumplido.</b> En el siguiente ciclo se refuerza con un objetivo más ambicioso (animaciones
+      por arma), siguiendo la recomendación de reevaluar los resultados que se cumplen al 100 %.</td>
+  </tr>
+  <tr>
+    <td>O3</td>
+    <td>Los 8 mapas eran necesarios para dar variedad al juego y ya estaban comprometidos en el
+      alcance; el avance confirma que la estimación fue realista.</td>
+    <td>Verificación de 8/8 mapas con conteo de mallas, instancias y triángulos sin errores.</td>
+    <td><b>Cumplido.</b> El relieve de mapas nuevos quedó habilitado como opción, sin ampliar el
+      alcance de los mapas existentes.</td>
+  </tr>
+  <tr>
+    <td>O4</td>
+    <td>Los tuners nacieron de una necesidad detectada al validar O2 y O3: ajustar visualmente sin
+      arriesgar el código. Es un objetivo ajustado, incorporado después de la primera revisión.</td>
+    <td>Tres tuners cargados y verificados; el de aletas y el de armas exportan bloques y envían
+      estado al lector.</td>
+    <td><b>Cumplido con ajuste:</b> se puso a fase 2 el tuner de terreno para no desviar alcance
+      (decisión de puerta Stage-Gate).</td>
+  </tr>
+  <tr>
+    <td>O5</td>
+    <td>Sin validación automatizada, cada avance pone en riesgo lo anterior; por eso se mantuvo
+      continuo y no se dio por terminado.</td>
+    <td>Suites de estructura de armas, verificación de mapa, tuners y regresión: PASS en todas las
+      corridas del ciclo.</td>
+    <td><b>Se mantiene</b> hasta el cierre, con ejecución obligatoria en cada entrega.</td>
+  </tr>
+  <tr>
+    <td>O6</td>
+    <td>Es el objetivo de cierre; al 6 de octubre no hay evidencia suficiente para darlo por
+      avanzado, solo para declarar su trayectoria.</td>
+    <td>Ruta crítica: cierre de O1 (multijugador) y de la pose de aletas antes de la entrega final.</td>
+    <td><b>En proceso y justificado:</b> su plazo se conserva porque el SPI del proyecto (1.13) indica
+      que la trayectoria es sostenible.</td>
+  </tr>
+</table>
+
+<!-- ============================ PUNTO 4 ============================ -->
+<h1>Punto 4. Reporte de avance con el docente</h1>
+
+<p>
+El reporte de avance se estructuró con los procesos de la investigación: se estableció la línea
+base, se recolectó el avance real, se comparó contra lo planeado, se decidieron acciones y se
+informó el estado. La Tabla siguiente resume qué se reporta, con qué proceso se valida, cuál es el
+criterio de aceptación y qué evidencia sustenta cada punto.
+</p>
+
+<table>
+  <tr>
+    <th style="width:22%">Avance reportado</th>
+    <th style="width:20%">Proceso de validación</th>
+    <th style="width:26%">Criterio de aceptación</th>
+    <th style="width:20%">Evidencia</th>
+    <th style="width:12%">Responsable</th>
+  </tr>
+  <tr>
+    <td>Estructura de las 17 armas</td>
+    <td>Control de la calidad (suites automatizadas)</td>
+    <td>17/17 armas correctas y 0 fallos contra la línea base</td>
+    <td>Salida de la suite de estructura y comparación de medidas</td>
+    <td>Alumno</td>
+  </tr>
+  <tr>
+    <td>Los 8 mapas construidos</td>
+    <td>Control de la calidad + revisión de puerta</td>
+    <td>8/8 mapas sin errores de JavaScript y con conteo de escena completo</td>
+    <td>Salida de la verificación de mapas</td>
+    <td>Alumno</td>
+  </tr>
+  <tr>
+    <td>Tres herramientas de ajuste (tuners)</td>
+    <td>Revisión de incremento (Sprint Review)</td>
+    <td>Abren sin errores, exportan bloques aplicables y reportan su estado</td>
+    <td>Captura de cada tuner y registro del lector local</td>
+    <td>Alumno</td>
+  </tr>
+  <tr>
+    <td>Desempeño global del proyecto</td>
+    <td>Revisión de hito con valor ganado</td>
+    <td>SPI ≥ 1 y CPI ≥ 1 en la fecha de corte</td>
+    <td>Cálculo de PV, EV, AC, SV, CV, SPI y CPI (sección 2.4)</td>
+    <td>Alumno</td>
+  </tr>
+  <tr>
+    <td>Núcleo multijugador</td>
+    <td>Validar el alcance con el docente</td>
+    <td>Partida de prueba conecta y sincroniza jugadores sin errores</td>
+    <td>Demostración en sesión con el docente</td>
+    <td>Alumno y docente</td>
+  </tr>
+  <tr>
+    <td>Entrega final</td>
+    <td>Revisión de puerta y aceptación formal</td>
+    <td>Juego publicado y aceptado; documentación entregada</td>
+    <td>Acta de aceptación de cierre</td>
+    <td>Docente</td>
+  </tr>
+</table>
+
+<h2>4.1 Bitácora de reporte y decisiones</h2>
+<table>
+  <tr><th style="width:14%">Fecha</th><th style="width:30%">Avance reportado</th><th style="width:56%">Acuerdo / decisión registrada</th></tr>
+  <tr>
+    <td>15 de septiembre de 2026</td>
+    <td>Planeación y línea base del proyecto (≈35 %).</td>
+    <td>Se aceptan los objetivos redactados con criterios SMART; se define como criterio de aceptación
+      de cada módulo la ejecución PASS de sus pruebas.</td>
+  </tr>
+  <tr>
+    <td>29 de septiembre de 2026</td>
+    <td>17 armas y 8 mapas construidos (≈65 %).</td>
+    <td>Se aprueba incorporar el objetivo O4 (tuners) como respuesta al riesgo de modificar archivos
+      de código a mano; se pausa a fase 2 el tuner de terreno (decisión <i>hold</i> de puerta).</td>
+  </tr>
+  <tr>
+    <td>6 de octubre de 2026</td>
+    <td>Tres tuners operativos y validación automatizada (≈91 %).</td>
+    <td>Se acepta el avance; queda como acuerdo cerrar la pose de las aletas y el núcleo multijugador
+      antes del siguiente reporte.</td>
+  </tr>
+</table>
+<p class="nota">
+Nota. Las fechas corresponden al plan de reportes acordado con el docente; el porcentaje de avance
+es la estimación ponderada descrita en la sección 2.4.
+</p>
+
+<h2>4.2 Riesgos y desviaciones identificadas</h2>
+<ul>
+  <li><b>Pose de las aletas en tercera persona:</b> la suite reporta 38 casos de colocación o
+    penetración; el objetivo O2 se aceptó en primera persona y este caso queda como acción
+    correctiva registrada.</li>
+  <li><b>Tuner de terreno paramétrico:</b> se pospuso (<i>hold</i>) para evitar desviar el alcance
+    de la práctica de mapas; se reevaluará en el siguiente ciclo.</li>
+  <li><b>Rendimiento y red:</b> el juego depende de un túnel local para las pruebas multijugador; se
+    mantiene como riesgo técnico con plan de contingencia (servidor local).</li>
+</ul>
+
+<!-- ============================ PUNTO 5 ============================ -->
+<h1>Punto 5. Conclusión: la importancia de validar los objetivos del proyecto</h1>
+
+<p>
+Validar los objetivos no es un trámite administrativo, sino el mecanismo que convierte una idea en
+un proyecto controlable. Durante el desarrollo de Club Pingüí quedó demostrado que un objetivo sin
+indicador no permite saber si se avanza: en cuanto cada objetivo se reescribió con un criterio
+medible y una fecha, el avance dejó de percibirse como “sensación de trabajo” y pasó a medirse con
+evidencia (resultados de pruebas, conteo de elementos verificados y cálculo de SPI y CPI). La
+validación periódica permitió detectar desviaciones a tiempo: el desajuste de la pose de las aletas
+se identificó porque existía una prueba que lo señaló, y el tuner de terreno se pospuso porque una
+puerta de revisión con criterios previos mostró que continuar habría ampliado el alcance sin
+autorización.
+</p>
+<p>
+Además, validar conecta el trabajo técnico con el interesado: las pruebas automatizadas verifican
+que lo entregado sea correcto (control de la calidad), mientras que la revisión con el docente
+confirma que lo entregado es lo que se pidió (validar el alcance). Esa doble verificación es la que
+permite justificar objetivos, explicar por qué algunos están cumplidos y otros en proceso, y tomar
+decisiones con evidencia en lugar de suposiciones. En proyectos de ingeniería de software, donde el
+alcance cambia a medida que se construye, validar los objetivos con regularidad es lo que mantiene
+alineados el propósito, el tiempo y los recursos; sin ello, el proyecto puede entregar muchas
+actividades y muy pocos resultados, que es precisamente la diferencia entre metas y objetivos que
+señalaba Drucker (1954).
+</p>
+
+<!-- ============================ REFERENCIAS ============================ -->
+<h1 class="salto">Referencias</h1>
+<p class="ref">Cooper, R. G. (1990). Stage-gate systems: A new tool for managing new products. <i>Business Horizons, 33</i>(3), 44-54.</p>
+<p class="ref">Doerr, J. (2018). <i>Measure what matters: How Google, Bono, and the Gates Foundation rock the world with OKRs</i>. Portfolio/Penguin.</p>
+<p class="ref">Doran, G. T. (1981). There's a S.M.A.R.T. way to write management's goals and objectives. <i>Management Review, 70</i>(11), 35-36.</p>
+<p class="ref">Drucker, P. F. (1954). <i>The practice of management</i>. Harper &amp; Brothers.</p>
+<p class="ref">Milner, T. (s. f.). <i>Monitoring and controlling your project</i> [Diapositivas]. SlideShare. https://www.slideshare.net/Tom_Milner/project-monitoring-and-controlling</p>
+<p class="ref">Project Management Institute. (2017). <i>A guide to the project management body of knowledge (PMBOK® guide)</i> (6.ª ed.). Project Management Institute.</p>
+<p class="ref">ProjectEngineer. (s. f.). <i>Effective project monitoring</i>. https://www.projectengineer.net/effective-project-monitoring/</p>
+<p class="ref">Schwaber, K. y Sutherland, J. (2020). <i>The Scrum guide</i>. https://scrumguides.org/docs/scrumguide/v2020/2020-Scrum-Guide-US.pdf</p>
+<p class="ref">Wikipedia. (s. f.-a). <i>Objectives and key results</i>. https://en.wikipedia.org/wiki/Objectives_and_key_results</p>
+<p class="ref">Wikipedia. (s. f.-b). <i>SMART criteria</i>. https://en.wikipedia.org/wiki/SMART_criteria</p>
+
+</body>
+</html>

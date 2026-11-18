@@ -3,38 +3,345 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="data:," />
-  <title>Club Pingüi</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/icon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/icon-180.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="description" content="Club Pingüi: plataforma social en 3D con avatares, chat, salas privadas y combate multijugador." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Club Pingüi" />
+  <meta property="og:title" content="Club Pingüi · Plataforma 3D Social &amp; Combate" />
+  <meta property="og:description" content="Avatares, chat, salas privadas y combate multijugador en 3D." />
+  <meta property="og:url" content="https://pinguidev.corvet.dpdns.org/" />
+  <meta property="og:image" content="https://pinguidev.corvet.dpdns.org/assets/server-card.jpg" />
+  <meta property="og:image:width" content="1600" />
+  <meta property="og:image:height" content="900" />
+  <meta property="og:image:alt" content="Club Pingüi" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Club Pingüi · Plataforma 3D Social &amp; Combate" />
+  <meta name="twitter:description" content="Avatares, chat, salas privadas y combate multijugador en 3D." />
+  <meta name="twitter:image" content="https://pinguidev.corvet.dpdns.org/assets/server-card.jpg" />
+  <title>Club Pingüi · Plataforma 3D Social & Combate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
   <div id="join-screen">
-    <h1>Club Pingüi</h1>
-    <p class="hint">Elígete un nombre para entrar al espacio 3D.</p>
-    <form id="join-form">
-      <input id="name-input" type="text" maxlength="20" placeholder="Tu nombre…" autocomplete="off" />
-      <button id="join-btn" type="submit">Entrar</button>
-    </form>
-    <p id="join-error"></p>
+    <div id="join-card">
+      <img id="join-banner" src="/assets/server-card.jpg" alt="Club Pingüi" width="1600" height="900" decoding="async" onerror="this.remove()" />
+      <div class="brand-badge">
+        <span class="penguin-logo">🐧</span>
+        <span class="brand-sparkle">✨</span>
+      </div>
+      <h1>Club Pingüi</h1>
+      <p class="subtitle">Plataforma social en 3D · Avatares, chat y combate multijugador</p>
+      <p class="hint">Inicia sesión con tu cuenta o entra al instante como invitado.</p>
+      <form id="join-form" autocomplete="off">
+        <div class="field">
+          <input id="name-input" type="text" maxlength="20" placeholder="Nombre de usuario…" autocomplete="username" />
+        </div>
+        <div class="field">
+          <input id="password-input" type="password" maxlength="64" placeholder="Contraseña (opcional para invitados)" autocomplete="current-password" />
+        </div>
+        <div class="field-row">
+          <button id="join-btn" type="submit" class="btn-primary">🎮 Jugar</button>
+          <button id="register-btn" type="button" class="btn-secondary">✨ Crear cuenta</button>
+        </div>
+      </form>
+      <p id="join-error"></p>
+    </div>
+  </div>
+
+  <div id="dress-screen" hidden>
+    <div id="dress-card">
+      <div id="dress-left-col">
+        <h2 id="dress-name">Personaliza tu Pingüino</h2>
+        <div id="dress-preview"></div>
+      </div>
+      <div id="dress-right-col">
+        <div id="dress-tabs">
+          <button class="dress-tab active" data-tab="all">🎨 Todo</button>
+          <button class="dress-tab" data-tab="body">Cuerpo</button>
+          <button class="dress-tab" data-tab="belly">Panza</button>
+          <button class="dress-tab" data-tab="beak">Pico</button>
+          <button class="dress-tab" data-tab="hat">Sombrero</button>
+          <button class="dress-tab" data-tab="scarf">Bufanda</button>
+          <button class="dress-tab" data-tab="glasses">Lentes</button>
+          <button class="dress-tab" data-tab="skin">Skin</button>
+        </div>
+        <div id="dress-controls">
+          <div id="dress-body-row" class="dress-row" data-category="body">
+            <div class="dress-row-title">Color del cuerpo</div>
+            <div id="dress-body" class="dress-options"></div>
+          </div>
+          <div id="dress-belly-row" class="dress-row" data-category="belly">
+            <div class="dress-row-title">Color de la panza</div>
+            <div id="dress-belly" class="dress-options"></div>
+          </div>
+          <div id="dress-beak-row" class="dress-row" data-category="beak">
+            <div class="dress-row-title">Color del pico</div>
+            <div id="dress-beak" class="dress-options"></div>
+          </div>
+          <div id="dress-hat-row" class="dress-row" data-category="hat">
+            <div class="dress-row-title">Sombrero / Accesorio</div>
+            <div id="dress-hat" class="dress-options"></div>
+          </div>
+          <div id="dress-scarf-row" class="dress-row" data-category="scarf">
+            <div class="dress-row-title">Bufanda</div>
+            <div id="dress-scarf" class="dress-options"></div>
+          </div>
+          <div id="dress-glasses-row" class="dress-row" data-category="glasses">
+            <div class="dress-row-title">Lentes</div>
+            <div id="dress-glasses" class="dress-options"></div>
+          </div>
+          <div id="dress-skin-row" class="dress-row" data-category="skin">
+            <div class="dress-row-title">Trajes & Skins</div>
+            <div id="dress-skin" class="dress-options"></div>
+          </div>
+          <div id="dress-jersey-row" class="dress-row" data-category="skin" hidden>
+            <div class="dress-row-title">Número de la playera</div>
+            <div class="dress-options">
+              <input id="dress-jersey" class="dress-input" type="number" min="0" max="99" inputmode="numeric" title="Elige el número de la playera" />
+            </div>
+          </div>
+          <div id="dress-jerseyname-row" class="dress-row" data-category="skin" hidden>
+            <div class="dress-row-title">Nombre en la espalda</div>
+            <div class="dress-options">
+              <input id="dress-jerseyname" class="dress-input dress-input-wide" type="text" maxlength="12" placeholder="Vacío = tu nombre de usuario" title="Nombre que se ve en la espalda de la playera" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div id="dress-actions">
+          <button id="dress-back-btn" type="button" class="btn-ghost">← Volver</button>
+          <button id="dress-random-btn" type="button" class="btn-secondary">🎲 Aleatorio</button>
+          <button id="dress-play-btn" type="button" class="btn-primary">¡A jugar!</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="game" hidden>
     <div id="game-error" hidden></div>
-    <div id="instructions">Muévete con WASD o las flechas</div>
+    <button id="menu-btn" type="button" class="corner-btn" title="Menú" aria-label="Menú" aria-controls="mobile-menu" aria-expanded="false">☰</button>
+    <div id="game-header">
+      <div class="header-brand">
+        <span class="brand-logo">🐧</span>
+        <span class="brand-title">Club Pingüi</span>
+        <span id="header-place" class="header-tag">· Lobby</span>
+      </div>
+      <div class="header-actions">
+        <button id="wardrobe-btn" type="button" class="hdr-btn">👕 Vestidor</button>
+        <button id="fp-toggle" type="button" class="hdr-btn" hidden>🎯 Primera persona (V)</button>
+      </div>
+    </div>
 
-    <div id="online-panel">
-      <div id="online-title">En línea <button id="logout-btn" type="button">Cerrar sesión</button></div>
+    <div id="mobile-menu" aria-hidden="true" inert>
+      <button type="button" class="mm-item" data-act="rooms">🛖 Salas</button>
+      <button type="button" class="mm-item" data-act="online">👥 Jugadores</button>
+      <button type="button" class="mm-item" data-act="chat">💬 Chat</button>
+      <div class="mm-sep" role="separator"></div>
+      <button type="button" class="mm-item" data-act="wardrobe">👕 Vestidor</button>
+      <button type="button" class="mm-item" data-act="info">❓ Información</button>
+      <button type="button" class="mm-item" data-act="settings">⚙ Ajustes</button>
+      <button type="button" class="mm-item" data-act="logout">🚪 Cerrar sesión</button>
+    </div>
+
+    <div id="settings-pop" hidden>
+      <div class="sp-title">Ajustes</div>
+      <label class="sp-row">
+        <span>Sensibilidad</span>
+        <input id="sens-range" type="range" min="0.4" max="2" step="0.05" value="1" />
+        <span id="sens-val">1.00</span>
+      </label>
+      <label class="sp-row sp-chk">
+        <input id="tgl-autoreload" type="checkbox" checked /> Recarga automática
+      </label>
+    </div>
+    
+    <div id="fp-crosshair" hidden>
+      <div class="crosshair-dot"></div>
+      <div class="crosshair-line top"></div>
+      <div class="crosshair-line bottom"></div>
+      <div class="crosshair-line left"></div>
+      <div class="crosshair-line right"></div>
+    </div>
+    <div id="fp-hint" hidden>🎯 Clic en la pantalla para fijar ratón (ESC para liberar)</div>
+    
+    <div id="minimap-wrap" title="Minimapa">
+      <canvas id="minimap" width="160" height="160"></canvas>
+    </div>
+
+    <div id="score-hud" hidden>
+      <span class="score-label">PUNTOS</span>
+      <span id="score-value">0</span>
+      <span id="score-streak" class="score-streak" hidden></span>
+    </div>
+
+    <div id="scoreboard-panel" hidden>
+      <div class="scoreboard-card">
+        <div class="scoreboard-head">
+          <span>🏆 Marcador de la zona</span>
+          <button id="scoreboard-close" type="button" class="btn-xs" aria-label="Cerrar">✕</button>
+        </div>
+        <table class="scoreboard-table">
+          <thead>
+            <tr><th>#</th><th>Jugador</th><th>Bajas</th><th>Muertes</th><th>Puntos</th></tr>
+          </thead>
+          <tbody id="scoreboard-body"></tbody>
+        </table>
+        <p class="scoreboard-hint">Mantén <b>Tab</b> para ver el marcador · <b>B</b> abre la tienda.</p>
+      </div>
+    </div>
+
+    <div id="shop-panel" hidden>
+      <div class="shop-card">
+        <div class="shop-head">
+          <span>🛒 Tienda de armas</span>
+          <span id="shop-score" class="shop-score">0 pts</span>
+          <button id="shop-close" type="button" class="btn-xs" aria-label="Cerrar">✕</button>
+        </div>
+        <p id="shop-note" class="shop-note"></p>
+        <div id="shop-grid" class="shop-grid"></div>
+      </div>
+    </div>
+
+    <div id="rooms-panel" class="hud-card social-page">
+      <div id="rooms-title" class="card-title">
+        <span id="rooms-title-text">Salas privadas</span>
+        <span class="card-title-actions">
+          <button id="room-info-toggle" type="button" class="room-info-toggle" aria-expanded="true" aria-controls="room-place" aria-label="Ocultar información de la sala" title="Ocultar información de la sala" hidden>▾</button>
+          <button id="rooms-close-btn" type="button" class="rooms-close" aria-label="Cerrar salas">✕</button>
+        </span>
+      </div>
+      <form id="room-create-form" autocomplete="off">
+        <input id="room-name-input" type="text" maxlength="20" placeholder="Nombre de la sala…" />
+        <select id="room-map-select">
+          <option value="">Mapa aleatorio</option>
+        </select>
+        <button type="submit" class="btn-sm">Crear</button>
+      </form>
+      <form id="room-join-form" autocomplete="off">
+        <input id="room-code-input" type="text" maxlength="4" placeholder="Código (ej. ABCD)…" />
+        <button type="submit" class="btn-sm">Unirse</button>
+      </form>
+      <div id="room-place" hidden>
+        <div id="room-current"></div>
+        <div id="room-owner-info"></div>
+        <div id="room-buttons">
+          <button id="shop-open-btn" type="button" class="btn-sm">🛒 Tienda</button>
+          <button id="room-leave-btn" type="button" class="btn-sm btn-danger">Salir de la sala</button>
+          <button id="room-close-btn" type="button" class="btn-sm btn-danger" hidden>Cerrar sala</button>
+        </div>
+      </div>
+      <div id="room-list"></div>
+      <p id="room-error"></p>
+    </div>
+
+    <div id="online-panel" class="hud-card social-page">
+      <div id="online-title" class="card-title">
+        <span>En línea</span>
+        <span class="card-title-actions">
+          <button id="logout-btn" type="button" class="btn-xs">Salir</button>
+          <button id="online-close-btn" type="button" class="rooms-close" aria-label="Cerrar jugadores">✕</button>
+        </span>
+      </div>
+      <div id="voice-row">
+        <button id="voice-btn" type="button" class="btn-sm">Activar voz</button>
+        <span id="voice-status"></span>
+      </div>
       <ul id="online-list"></ul>
     </div>
 
-    <div id="chat">
-      <div id="chat-log"></div>
-      <form id="chat-form">
-        <input id="chat-input" type="text" maxlength="200" placeholder="Escribe un mensaje…" autocomplete="off" />
-      </form>
+    <div id="chat" class="hud-card">
+      <div id="chat-header">
+        <span>💬 Chat</span>
+        <button id="chat-toggle" type="button" title="Abrir / cerrar chat" aria-label="Abrir chat" aria-expanded="false">💬</button>
+      </div>
+      <div id="chat-body">
+        <div id="chat-log"></div>
+        <form id="chat-form">
+          <input id="chat-input" type="text" maxlength="200" placeholder="Escribe un mensaje… (Enter)" autocomplete="off" />
+        </form>
+      </div>
+    </div>
+  <div id="touch-hud">
+      <div id="joy-area">
+        <div id="joy-base"><div id="joy-stick"></div></div>
+      </div>
+      <div id="touch-motion">
+        <button id="t-jump" class="tbtn tbtn-small" type="button" aria-label="Saltar">🦘</button>
+        <button id="t-sprint" class="tbtn tbtn-small" type="button" aria-label="Correr (interruptor)" aria-pressed="false">💨</button>
+        <button id="t-slide" class="tbtn tbtn-small" type="button" aria-label="Deslizarse">🛷</button>
+      </div>
+      <div id="touch-actions">
+        <button id="t-view" class="tbtn" type="button" aria-label="Cambiar vista">👁</button>
+        <button id="t-inv" class="tbtn" type="button" aria-label="Objetos">🎒</button>
+        <button id="t-block" class="tbtn" type="button" aria-label="Bloquear con el escudo">🛡</button>
+        <button id="t-use" class="tbtn" type="button" aria-label="Usar o lanzar">✋</button>
+        <button id="t-reload" class="tbtn" type="button" aria-label="Recargar">🔄</button>
+      </div>
+      <button id="fire-btn" type="button" aria-label="Disparar"><span class="fire-dot"></span></button>
+    </div>
+
+    <div id="motion-stamina" class="is-full" aria-hidden="true">
+      <span class="stamina-label">RESISTENCIA</span>
+      <div class="stamina-track"><div id="motion-stamina-fill" class="stamina-fill"></div></div>
     </div>
   </div>
 
+  <div id="info-modal" hidden>
+    <div class="info-card">
+      <button id="info-close" class="info-close" type="button" aria-label="Cerrar">✕</button>
+      <h2>Club Pingüi · Cómo se juega</h2>
+      <div class="info-scroll">
+        <section>
+          <h3>🎮 Controles</h3>
+          <p><b>PC:</b> <b>WASD</b>/flechas caminar · <b>Shift</b> mantener para correr · <b>Espacio</b> saltar · <b>C</b> o <b>Ctrl</b> deslizarse (corriendo) · <b>clic izq.</b> disparar · <b>clic der.</b> girar cámara · <b>Q</b> o <b>clic der.</b> (en 1.ª persona) bloquear con el escudo · <b>R</b> recargar · <b>V</b> cambia entre 1.ª y 3.ª persona · <b>1-5</b> elige objeto · <b>F</b> usa o lanza · <b>Enter</b> recoge el cristal ofrecido o abre el chat · <b>Esc</b> cierra el chat.</p>
+          <p><b>Móvil:</b> joystick izquierdo para caminar · arrastra la pantalla para mirar · botón grande para disparar · <b>🦘</b> saltar · <b>💨</b> tocar para correr (interruptor) · <b>🛷</b> deslizarse · <b>🔄</b> recargar · <b>🛡</b> mantener para bloquear · <b>✋</b> usar/lanzar · <b>👁</b> cambiar vista · <b>🎒</b> ver los objetos.</p>
+        </section>
+        <section>
+          <h3>⚔️ Combate</h3>
+          <p>Toca un <b>cristal de armas</b> del mapa para equipar un arma (o pulsa <b>Enter</b> cuando aparezca la oferta, sin usar el ratón). Dispara al rival hasta dejar su <b>HP</b> en 0: se derrite y reaparece en unos segundos. Las armas cuerpo a cuerpo (espada, hacha, daga, maza, lanza, escudo) golpean en corto alcance; el arco, la escopeta y el francotirador funcionan mejor a distancia.</p>
+          <p><b>Escudo:</b> mantén <b>Q</b> (o <b>clic der.</b> en 1.ª persona) para levantar el escudo: anula todo el daño que venga de frente mientras quede <b>aguante</b> (barra azul, ~3,6 s). Si el aguante llega a 0 el escudo se <b>rompe</b> y quedas sin guardia 1,2 s. Mientras bloqueas caminas al 55 % y no puedes disparar, pero sí golpear con el escudo. Recupera aguante al bajar la guardia.</p>
+        </section>
+        <section>
+          <h3>🔫 Armas, cristales e inventario</h3>
+          <p>El arma equipada y su <b>munición</b> aparecen en el centro inferior de la pantalla (el botón <b>Recargar</b> recarga). Si el cargador se vacía, se recarga solo. El <b>inventario</b> tiene 5 espacios con comida (cura) y objetos lanzables (bola de nieve, granada): elige con <b>1-5</b> y usa con <b>F</b>. La comida se puede usar también en el <b>lobby</b> para curarte; si ya tienes la vida al máximo, el juego te avisa y no la gasta. Los objetos lanzables solo se pueden usar dentro de una sala.</p>
+        </section>
+        <section>
+          <h3>🏟️ Salas y lobby</h3>
+          <p>En el <b>lobby</b> está todo el mundo junto y puedes jugar al hockey. Desde <b>Salas</b> creas una sala privada con un <b>código</b> (o te unes con el código de alguien) para jugar solo con tus amigos; ahí se activa el combate, aparecen los <b>cristales</b> de armas/objetos y se pueden lanzar objetos. Solo el anfitrión puede expulsar o cerrar la sala.</p>
+        </section>
+        <section>
+          <h3>🏓 Hockey, chat y voz</h3>
+          <p>En el lobby corre el <b>minijuego de hockey</b>: empuja el disco hacia la portería contraria para marcar. El <b>chat</b> sirve para hablar con todos en tiempo real, y la <b>voz</b> se activa con su botón: se escucha a los jugadores <b>cerca</b> de ti.</p>
+        </section>
+        <section>
+          <h3>🐧 Vestidor y skins</h3>
+          <p>Desde el botón <b>👕 Vestidor</b> cambias color de cuerpo, panza y pico, sombrero, bufanda, lentes, skins y la playera (número y nombre). Se puede abrir desde el menú ☰ en cualquier momento de la partida.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div id="rotate-hint">
+    <div class="rotate-card">
+      <span class="rotate-icon">📱</span>
+      <p>Gira tu dispositivo a horizontal</p>
+      <small>El joystick, el HUD y los botones necesitan el modo horizontal</small>
+    </div>
+  </div>
+  <div id="toast" hidden></div>
   <script src="/socket.io/socket.io.js"></script>
   <script type="module" src="/js/main.js"></script>
 </body>
