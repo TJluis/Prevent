@@ -132,7 +132,8 @@ powershell -ExecutionPolicy Bypass -File scripts\backup-proyecto.ps1 -ConDatos
 
 Los zip se guardan en `backups\clubpingui_AAAAMMDD_HHMMSS.zip`.
 
-- No hay `git` instalado en este equipo; el respaldo en zip es la red de seguridad.
+- Git está en `C:\Program Files\Git\cmd\git.exe` (no siempre en el `PATH` de la shell). El repo está conectado a `https://github.com/TJluis/Prevent.git`, rama `main`.
+- El zip sigue siendo la red de seguridad rápida; el commit + push es el respaldo definitivo.
 - Antes de un respaldo con `-ConDatos`, detén los servidores (`stop-servers.ps1`) para que la copia de SQLite sea consistente.
 - Recomendado: un zip por fase terminada.
 
@@ -166,3 +167,22 @@ Los zip se guardan en `backups\clubpingui_AAAAMMDD_HHMMSS.zip`.
 - Base de datos: `data\club.db` (SQLite). Contiene usuarios, mensajes y (a partir de la Fase 3) `user_stats`.
 - Copia de la BD vacía anterior: `data\_empty_backup_20261113_175350\`.
 - Las suites `t-auth` y `t-servidor` usan una BD temporal (`%TEMP%\pingui-*.db`) y **no** tocan `data\club.db`.
+
+---
+
+## 8. Documentación de la expansión
+
+Antes de programar cualquier modalidad nueva, leer estos dos documentos en este orden:
+
+| Documento | Para qué |
+|---|---|
+| [`PLAN_MODALIDADES_2026-12.md`](PLAN_MODALIDADES_2026-12.md) | Contrato de modo, las seis modalidades, fases, esfuerzos, calendario, pruebas y riesgos. |
+| [`INVESTIGACION_HERRAMIENTAS_2026-11.md`](INVESTIGACION_HERRAMIENTAS_2026-11.md) | Versiones, licencias, costos y veredicto de cada herramienta (Rapier, Colyseus, Blender, glTF, LiveKit…). |
+
+Reglas que salen de esos documentos y aplican desde ya:
+
+1. **Nada de modos nuevos antes del 23/11/2026** (versión estable). Primero se cierra y se respalda.
+2. Toda modalidad implementa el **contrato de modo** (`public/js/modeDefs.js` + `server/modes/`); no se añaden `if` de modo dentro de `server/game.js`.
+3. El cliente envía **intenciones**, nunca resultados; el servidor valida.
+4. Cada ola termina con `scripts\test-all.ps1` en 0, prueba manual en dos navegadores y respaldo zip.
+5. No se toca el *quick tunnel* del puerto 8099 ni el túnel `pinguidev.corvet.dpdns.org`.

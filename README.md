@@ -15,6 +15,14 @@ permisos de anfitrión.
 - `public/` — frontend servido por el backend (Three.js, Socket.IO client)
 - `public/css` y `public/js` — estilos y código del frontend
 
+## Documentación
+
+- [`docs/GUIA_DESARROLLO.md`](docs/GUIA_DESARROLLO.md) — arrancar, probar, respaldar y desplegar.
+- [`docs/PLAN_MEJORAS_2026-11.md`](docs/PLAN_MEJORAS_2026-11.md) — mejoras de jugabilidad ya implementadas.
+- [`docs/PLAN_MODALIDADES_2026-12.md`](docs/PLAN_MODALIDADES_2026-12.md) — plan de las seis modalidades nuevas (pares, coliseo, escondite, TNT, karts y ciudad).
+- [`docs/INVESTIGACION_HERRAMIENTAS_2026-11.md`](docs/INVESTIGACION_HERRAMIENTAS_2026-11.md) — investigación de herramientas, versiones, licencias y veredictos.
+- [`docs/Manual_Usuario_ClubPingui.md`](docs/Manual_Usuario_ClubPingui.md) — controles y uso para jugadores.
+
 ## Cómo correrlo
 
 ```bash
