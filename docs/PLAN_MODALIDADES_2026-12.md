@@ -576,3 +576,20 @@ La expansión se considera terminada cuando:
 6. Cada modo tiene su respaldo zip y su entrada en la bitácora.
 7. El túnel `pinguidev.corvet.dpdns.org` sigue respondiendo 200 y el *quick tunnel*
    del puerto 8099 sigue intacto.
+
+---
+
+## 11. Decisiones confirmadas (18/11/2026)
+
+| Tema | Decisión |
+|---|---|
+| **Trabajo antes del 23/11** | **Congelación total**: no se toca código de juego. Solo estabilización, pruebas y respaldo de la versión estable. |
+| **Inicio de la Ola 0** | **24/11/2026**, con la versión estable ya cerrada y etiquetada. |
+| **Orden de modalidades** | Pares → Coliseo → Escondite → TNT Run → Karts → Ciudad rol. |
+| **Alcance pre-entrega (02/12)** | Ninguna modalidad nueva; como máximo, el contrato de modo sin UI si sobra margen. |
+| **Karts** | *Spike* de 3 días con Colyseus 0.18 antes de comprometerse; si falla, predicción manual sobre Socket.IO. |
+| **Ciudad** | Empieza por distrito + coleccionables (C1–C2); casas y trabajos después. |
+| **Assets** | Mixto: procedural para arenas, glTF (Blender → gltf-transform) para karts, muebles y edificios. |
+
+Con esto no queda ninguna decisión bloqueante. El siguiente entregable es la **Ola 0**
+del 24/11.
