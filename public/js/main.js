@@ -37,7 +37,14 @@ import { createLoot } from "./loot.js";
 import { createInventoryBar } from "./inventory.js";
 import { createScoreboard } from "./scoreboard.js";
 import { createShop } from "./shop.js";
-import { createPairsUI } from "./pairs.js";
+import { createPairsHud } from "./pairs.js";
+import { createPairsBoard } from "./pairsBoard.js";
+import {
+  resolvePairsVariant,
+  teamPadAt,
+  cardIndexAt,
+  getPairsTeam,
+} from "./pairsDefs.js";
 import { HUB_CODE, LOBBY_PORTAL, PORTAL_TRIGGER_RADIUS, nearestPortal } from "./hubDefs.js";
 import { getWeapon } from "./weaponDefs.js";
 import { isTouchMode, initTouchControls } from "./touch.js";
@@ -98,6 +105,10 @@ const staminaFillEl = document.getElementById("motion-stamina-fill");
 const portalPrompt = document.getElementById("portal-prompt");
 const portalPromptText = document.getElementById("portal-prompt-text");
 const portalPromptBtn = document.getElementById("portal-prompt-btn");
+const pairsSelect = document.getElementById("pairs-select");
+const pairsSelectClose = document.getElementById("pairs-select-close");
+const zoneFade = document.getElementById("zone-fade");
+const zoneFadeLabel = document.getElementById("zone-fade-label");
 
 const WALK_SPEED = 6;
 const MOVE_SEND_INTERVAL = 50;
@@ -171,6 +182,20 @@ if (portalPromptBtn) {
   portalPromptBtn.addEventListener("click", () => activatePortal());
 }
 
+if (pairsSelectClose) pairsSelectClose.addEventListener("click", closePairsSelect);
+if (pairsSelect) {
+  pairsSelect.addEventListener("click", (event) => {
+    if (event.target === pairsSelect) {
+      closePairsSelect();
+      return;
+    }
+    const button = event.target.closest && event.target.closest("[data-variant]");
+    if (!button) return;
+    closePairsSelect();
+    joinMode("pares", button.dataset.variant);
+  });
+}
+
 voiceBtn.addEventListener("click", handleVoiceToggle);
 
 document.getElementById("wardrobe-btn").addEventListener("click", openWardrobe);
@@ -216,6 +241,11 @@ addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Escape" && !typing) {
+    if (pairsSelectOpen()) {
+      event.preventDefault();
+      closePairsSelect();
+      return;
+    }
     if (shop && shop.isOpen()) {
       event.preventDefault();
       shop.hide();
@@ -380,6 +410,10 @@ let inventoryBar = null;
 let scoreboard = null;
 let shop = null;
 let pairsUI = null;
+let pairsBoard = null;
+let lastPairsPad = null;
+let lastZoneKey = null;
+let zoneFadeTimer = null;
 // Portal bajo los pies (isla) o puerta del lobby; se recalcula cada frame.
 let portalTarget = null;
 let myScore = 0;
@@ -511,6 +545,8 @@ function applyMap(mapId) {
 function rebuildWorld() {
   if (!running || !started) return;
 
+  if (pairsBoard) pairsBoard.detach();
+
   const oldRenderer = world ? world.renderer : null;
   if (world) {
     if (world.scene) {
@@ -532,6 +568,7 @@ function rebuildWorld() {
   camera = world.camera;
   renderer = world.renderer;
 
+  if (pairsBoard) pairsBoard.attachScene(scene);
   if (combat) combat.rebindScene(scene);
   if (hockey) hockey.attachScene(scene);
   if (loot) loot.attachScene(scene);
@@ -822,12 +859,14 @@ combat.setOwn(myOwnHp, myOwnAlive);
     },
   });
 
-  pairsUI = createPairsUI({
-    onFlip: (index) => sendModeAction({ type: "flip", index }),
+  pairsUI = createPairsHud({
     onLeave: () => leaveMode(),
     getMyId: () => myId,
     notify: (text) => showToast(text, 2200),
   });
+
+  pairsBoard = createPairsBoard();
+  pairsBoard.attachScene(scene);
 
   if (TOUCH_MODE) {
     const needRoom = () => {
@@ -862,6 +901,33 @@ combat.setOwn(myOwnHp, myOwnAlive);
 
   document.addEventListener("keydown", handleGameKey);
 
+  // Caminata por pasos pequeños para pruebas: mueve la posición local y la
+  // envía al servidor respetando el presupuesto de movimiento. El rAF de una
+  // pestaña en segundo plano va a ~1 fps, así que caminar con teclas no sirve.
+  async function walkTo(x, z) {
+    for (let i = 0; i < 300; i++) {
+      const dx = x - myPosition.x;
+      const dz = z - myPosition.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 0.2) break;
+      const step = Math.min(0.5, dist);
+      myPosition = {
+        x: myPosition.x + (dx / dist) * step,
+        z: myPosition.z + (dz / dist) * step,
+      };
+      if (myAvatar) {
+        myAvatar.position.set(
+          myPosition.x,
+          getTerrainHeightAt(currentMapId, myPosition.x, myPosition.z),
+          myPosition.z
+        );
+      }
+      sendMove(myPosition.x, myPosition.z, cameraYaw, 0, false, false);
+      await new Promise((resolve) => setTimeout(resolve, 70));
+    }
+    return { x: myPosition.x, z: myPosition.z };
+  }
+
   window.__test = {
     combat,
     loot,
@@ -869,7 +935,9 @@ combat.setOwn(myOwnHp, myOwnAlive);
     scoreboard,
     shop,
     pairsUI,
+    pairsBoard,
     remotes,
+    walkTo,
     // Ganchos de prueba para la isla y los minijuegos: el servidor valida
     // igualmente proximidad, turno y presupuesto de movimiento.
     enterHub,
@@ -877,6 +945,9 @@ combat.setOwn(myOwnHp, myOwnAlive);
     leaveMode,
     sendModeAction,
     sendMove,
+    openPairsSelect,
+    closePairsSelect,
+    get pairsState() { return pairsUI ? pairsUI.getState() : null; },
     get myId() { return myId; },
     get myRoom() { return myRoom; },
     get myAvatar() { return myAvatar; },
@@ -991,6 +1062,12 @@ combat.setOwn(myOwnHp, myOwnAlive);
       }
     },
     onRoomState: ({ room, hosting: isHosting }) => {
+      const nextZoneKey = room ? `${room.kind || "room"}:${room.code}` : "lobby";
+      if (lastZoneKey !== null && nextZoneKey !== lastZoneKey) {
+        closePairsSelect();
+        flashZone(zoneLabel(room));
+      }
+      lastZoneKey = nextZoneKey;
       myRoom = room;
       hosting = !!isHosting;
       const kind = room ? room.kind || "room" : "lobby";
@@ -1013,8 +1090,16 @@ combat.setOwn(myOwnHp, myOwnAlive);
         shop.setEquipped(combat ? combat.getWeaponId() : null);
       }
       if (pairsUI) {
-        if (kind === "mode" && room.modeId === "pares") pairsUI.show();
-        else pairsUI.hide();
+        if (kind === "mode" && room.modeId === "pares") {
+          pairsUI.show(room.variant || "1v1");
+          lastPairsPad = null;
+        } else {
+          pairsUI.hide();
+        }
+      }
+      if (pairsBoard) {
+        if (kind === "mode" && room.modeId === "pares") pairsBoard.show(room.variant || "1v1");
+        else pairsBoard.hide();
       }
       updatePortalPrompt();
       renderRoomPanel();
@@ -1195,7 +1280,18 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (shop) shop.handleResult(data);
     },
     onModeState: (snapshot) => {
-      if (pairsUI) pairsUI.setState(snapshot);
+      if (!snapshot) return;
+      // El servidor no manda el equipo propio: se deduce del id local para que
+      // el HUD y el resaltado del tablero sepan a quién pertenece el turno.
+      const mine = (snapshot.players || []).find((player) => player.id === myId);
+      snapshot.myTeam = mine ? mine.team : null;
+      if (pairsUI) {
+        if (myRoom && myRoom.modeId === "pares" && !pairsUI.isOpen()) {
+          pairsUI.show(snapshot.variant || myRoom.variant);
+        }
+        pairsUI.setState(snapshot);
+      }
+      if (pairsBoard) pairsBoard.setState(snapshot);
     },
     onModeEvent: (payload) => {
       if (pairsUI) pairsUI.event(payload);
@@ -1327,6 +1423,15 @@ function leaveGame() {
     pairsUI.dispose();
     pairsUI = null;
   }
+  if (pairsBoard) {
+    pairsBoard.dispose();
+    pairsBoard = null;
+  }
+  closePairsSelect();
+  if (zoneFade) zoneFade.classList.remove("is-on");
+  clearTimeout(zoneFadeTimer);
+  lastZoneKey = null;
+  lastPairsPad = null;
   portalTarget = null;
   if (portalPrompt) portalPrompt.hidden = true;
   myScore = 0;
@@ -1452,12 +1557,13 @@ function loop(now) {
     const dt = Math.min((now - lastUpdate) / 1000, 0.05);
     lastUpdate = now;
 
-    // Paneles que bloquean el movimiento: vestidor, tienda, marcador y tablero.
+    // Paneles que bloquean el movimiento: vestidor, tienda, marcador y selector
+    // de formato. El HUD de Pares NO bloquea: se juega caminando por la arena.
     const uiOpen =
       dressingOpen() ||
       !!(shop && shop.isOpen()) ||
       !!(scoreboard && scoreboard.isOpen()) ||
-      !!(pairsUI && pairsUI.isOpen());
+      pairsSelectOpen();
     if (touchCtl && !uiOpen) {
       const l = touchCtl.consumeLook();
       if (l.dx || l.dy) {
@@ -1496,8 +1602,12 @@ function loop(now) {
         dz /= mag;
       }
     }
-    const cosY = Math.cos(cameraYaw);
-    const sinY = Math.sin(cameraYaw);
+    // En la arena de Pares la cámara está fija: el movimiento se hace relativo
+    // a la pantalla (W hacia el fondo del tablero) para no depender del ratón.
+    const arena = pairsArena();
+    const baseYaw = arena ? 0 : cameraYaw;
+    const cosY = Math.cos(baseYaw);
+    const sinY = Math.sin(baseYaw);
     const mdx = dx * cosY + dz * sinY;
     const mdz = -dx * sinY + dz * cosY;
     const blockingNow = !!(combat && combat.isBlocking());
@@ -1506,12 +1616,14 @@ function loop(now) {
       !uiOpen && (isKeyDown("shift") || !!(touchCtl && touchCtl.sprintHeld));
     // Fase 4: salto/sprint/deslizamiento. El salto es cosmético (no esquiva
     // balas); el servidor sólo guarda y retransmite la altura para la pose.
+    // En Pares, además, un salto sobre una carta envía la intención de voltear.
+    const jumpEdge = jumpQueued && !uiOpen;
     const motionStep = stepMotion(
       motion,
       {
         move: wantsMove,
         sprint: sprintKey && !blockingNow,
-        jump: jumpQueued && !uiOpen,
+        jump: jumpEdge,
         slide: slideQueued && !uiOpen,
         blocked: lastBlocked,
       },
@@ -1581,6 +1693,45 @@ function loop(now) {
     }
 
     updatePortalPrompt();
+
+    // Arena de Pares: equipo al pisar plataforma, carta bajo los pies y salto
+    // como intención de voltear. El servidor valida turno, carta y posición.
+    let pairsPad = null;
+    let pairsCard = -1;
+    if (arena && pairsUI) {
+      const def = pairsVariantDef();
+      pairsPad = teamPadAt(def, myPosition.x, myPosition.z);
+      pairsCard = cardIndexAt(def, myPosition.x, myPosition.z);
+      const snap = pairsUI.getState();
+      const waiting = !snap || snap.status === "waiting";
+      if (
+        waiting &&
+        pairsPad &&
+        pairsPad !== pairsUI.getMyTeam() &&
+        pairsPad !== lastPairsPad
+      ) {
+        sendModeAction({ type: "team", team: pairsPad });
+      }
+      lastPairsPad = pairsPad;
+      pairsUI.setLocal({ cardIndex: pairsCard, padTeam: pairsPad });
+
+      if (jumpEdge && pairsCard >= 0 && pairsUI.canFlipNow()) {
+        // Posición fresca justo antes de la intención: el servidor deduce la
+        // carta con su posición autoritativa, no con un índice del cliente.
+        sendMove(
+          myPosition.x,
+          myPosition.z,
+          cameraYaw,
+          motionStep.y,
+          motionStep.sprinting,
+          motionStep.sliding
+        );
+        lastMoveSend = now;
+        sendModeAction({ type: "flip" });
+      }
+    } else {
+      lastPairsPad = null;
+    }
 
     // En 3.ª persona, bloquear gira al pingüino hacia donde mira la cámara:
     // el escudo debe apuntar al frente de la vista, no a la última caminata.
@@ -1652,7 +1803,26 @@ function loop(now) {
     hockey.update(dt);
   }
 
-    if (fpMode) {
+  if (pairsBoard) {
+    const team = arena && pairsUI ? getPairsTeam(pairsUI.getMyTeam()) : null;
+    pairsBoard.update(dt, {
+      active: !!arena,
+      x: myPosition.x,
+      z: myPosition.z,
+      canFlip: !!(pairsUI && pairsUI.canFlipNow()),
+      color: (team && team.color) || "#dbeafe",
+    });
+  }
+
+  if (pairsUI) pairsUI.update(dt);
+
+    if (arena) {
+      // Cámara elevada y fija sobre el tablero: se ve la cuadrícula completa,
+      // las dos plataformas y los atriles sin girar con el ratón.
+      const big = pairsVariantDef().grid >= 6;
+      camera.position.set(0, big ? 20 : 17.5, big ? 26 : 22.5);
+      camera.lookAt(0, 0.6, 0);
+    } else if (fpMode) {
       if (combat && combat.getWeaponId() !== viewWid) swapViewGun();
       cameraRecoilKick *= 0.82;
       const effectivePitch = cameraPitch + cameraRecoilKick;
@@ -1755,6 +1925,45 @@ function inMode() {
   return zoneKind() === "mode";
 }
 
+// Arena 3D de Pares: cámara elevada, movimiento relativo a la pantalla y
+// tablero físico. El resto de zonas conserva la cámara y los controles de siempre.
+function pairsArena() {
+  return !!myRoom && myRoom.kind === "mode" && myRoom.modeId === "pares";
+}
+
+function pairsVariantDef() {
+  return resolvePairsVariant(myRoom && myRoom.variant ? myRoom.variant : "1v1");
+}
+
+function zoneLabel(room) {
+  if (!room) return "Lobby";
+  const kind = room.kind || "room";
+  if (kind === "hub") return "Isla de Minijuegos";
+  if (kind === "mode") return room.name || "Minijuego";
+  return room.name || "Sala";
+}
+
+// Fundido breve al cambiar de zona. La etiqueta se ve sobre el negro.
+function flashZone(label) {
+  if (!zoneFade) return;
+  if (zoneFadeLabel) zoneFadeLabel.textContent = label;
+  zoneFade.classList.add("is-on");
+  clearTimeout(zoneFadeTimer);
+  zoneFadeTimer = setTimeout(() => zoneFade.classList.remove("is-on"), 820);
+}
+
+function pairsSelectOpen() {
+  return !!(pairsSelect && !pairsSelect.hidden);
+}
+
+function openPairsSelect() {
+  if (pairsSelect) pairsSelect.hidden = false;
+}
+
+function closePairsSelect() {
+  if (pairsSelect) pairsSelect.hidden = true;
+}
+
 function handleMinigames() {
   if (inPrivateRoom()) {
     showToast("Sal de la sala para ir a los minijuegos.", 2400);
@@ -1809,6 +2018,7 @@ function activatePortal() {
     return true;
   }
   if (portalTarget.modeId === "hub") enterHub();
+  else if (portalTarget.modeId === "pares" && !inMode()) openPairsSelect();
   else joinMode(portalTarget.modeId);
   return true;
 }

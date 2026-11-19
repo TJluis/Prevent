@@ -14,7 +14,7 @@ import {
 import { getMapBoundary, getRoomMaps, MAP_LOOT_COUNTS } from "../public/js/mapDefs.js";
 import { isInsideObstacle } from "../public/js/mapObstacles.js";
 import { HUB_CODE, HUB_MAP_ID, HUB_SPAWN, HUB_PORTALS, nearestPortal } from "../public/js/hubDefs.js";
-import { getMode, modeRoomCode } from "../public/js/modeDefs.js";
+import { getMode, getModeVariant, modeRoomCode } from "../public/js/modeDefs.js";
 import { createPairsGame } from "./modes/pairs.js";
 import {
   computeBlockedDamage,
@@ -213,6 +213,7 @@ function publicRoom(room) {
     // tablero de minijuego. Las salas privadas normales siguen siendo "room".
     kind: room.kind || "room",
     modeId: room.modeId || null,
+    variant: room.variant || null,
     status: room.status || "open",
     combat: room.combat !== false,
     maxPlayers: room.maxPlayers || MAX_ROOM_MEMBERS,
@@ -250,18 +251,22 @@ function ensureHub() {
   return hub;
 }
 
-// Cada modalidad tiene una sala oculta persistente. Así el estado de la partida
+// Cada modalidad tiene una sala oculta persistente. Los modos con formatos
+// (Pares 1v1 / 2v2) tienen una sala por variante. Así el estado de la partida
 // sobrevive a que un jugador salga y el canal de Socket.IO es el mismo que el de
 // cualquier sala.
-function ensureModeRoom(modeId) {
+function ensureModeRoom(modeId, variantId = null) {
   const def = getMode(modeId);
   if (!def) return null;
-  const code = modeRoomCode(modeId);
+  const variant = variantId ? getModeVariant(modeId, variantId) : null;
+  if (variantId && !variant) return null;
+  const code = modeRoomCode(modeId, variant ? variant.id : null);
   let room = rooms.get(code);
   if (!room) {
+    const variantLabel = variant ? ` · ${variant.label}` : "";
     room = {
       code,
-      name: def.name,
+      name: `${def.name}${variantLabel}`,
       mapId: def.mapId,
       ownerId: null,
       ownerName: "—",
@@ -269,9 +274,10 @@ function ensureModeRoom(modeId) {
       chat: [],
       kind: "mode",
       modeId: def.id,
+      variant: variant ? variant.id : null,
       status: "waiting",
       combat: false,
-      maxPlayers: def.maxPlayers || MAX_ROOM_MEMBERS,
+      maxPlayers: (variant && variant.maxPlayers) || def.maxPlayers || MAX_ROOM_MEMBERS,
       persistent: true,
       hidden: true,
       loot: [],
@@ -763,10 +769,15 @@ function crystalTick() {
 }
 
 // Avanza los temporizadores de todos los minijuegos (turnos, reinicio de ronda).
-// Cada controlador decide si hubo cambios y emite su propio estado.
+// Cada controlador decide si hubo cambios y emite su propio estado. La posición
+// autoritativa se consulta en el momento para asignar equipos y deducir cartas.
 function modeTick() {
+  const posOf = (id) => {
+    const player = players.get(id);
+    return player ? { x: player.x, z: player.z } : null;
+  };
   for (const game of modeGames.values()) {
-    game.tick();
+    game.tick(Date.now(), posOf);
   }
 }
 
@@ -787,13 +798,15 @@ function removeFromRoom(player) {
   const room = rooms.get(player.roomCode);
   if (!room) return;
 
+  // Se quita primero del recuento de la sala: `game.leave` difunde el estado y
+  // puede reenviar `room:state`, que debe reflejar ya el aforo correcto.
+  room.members.delete(player.id);
   // Los minijuegos necesitan saber que el jugador se fue (turnos, marcador).
   if (room.kind === "mode") {
-    const game = modeGames.get(room.modeId);
+    const game = modeGames.get(room.code);
     if (game) game.leave(player.id);
   }
 
-  room.members.delete(player.id);
   if (room.members.size === 0 && !room.persistent) {
     rooms.delete(room.code);
   } else if (room.ownerId === player.id) {
@@ -932,8 +945,8 @@ function moveSocketToHub(socket, player) {
 }
 
 function moveSocketToMode(socket, player, room) {
+  const game = modeGames.get(room.code);
   if (player.roomCode === room.code) {
-    const game = modeGames.get(room.modeId);
     if (game) socket.emit("mode:state", game.snapshot());
     socket.emit("room:state", { room: publicRoom(room), hosting: false });
     return;
@@ -951,7 +964,9 @@ function moveSocketToMode(socket, player, room) {
   resetBlock(player);
   room.members.add(socket.id);
 
-  const spawn = clearRoomSpawn(room.mapId);
+  // Los minijuegos 3D tienen un punto de llegada propio (fuera del tablero y de
+  // las plataformas de equipo). El resto sigue usando el spawn libre genérico.
+  const spawn = game && game.spawnFor ? game.spawnFor() : clearRoomSpawn(room.mapId);
   player.x = spawn.x;
   player.z = spawn.z;
   player.y = 0;
@@ -973,7 +988,6 @@ function moveSocketToMode(socket, player, room) {
   sendScoreState(player, socket);
   sendScoreProfile(socket, player);
 
-  const game = modeGames.get(room.modeId);
   if (game) {
     const result = game.join({ id: player.id, name: player.name });
     if (!result.ok) {
@@ -988,13 +1002,19 @@ function moveSocketToMode(socket, player, room) {
 
 // Difunde el estado de un modo a su sala oculta. También sincroniza
 // room.status para que room:list (y el cliente) sepa si hay partida en curso.
-function emitModeState(modeId, snapshot, event) {
-  const room = rooms.get(modeRoomCode(modeId));
+function emitModeState(roomCode, snapshot, event) {
+  const room = rooms.get(roomCode);
   if (!room) return;
   const statusChanged = room.status !== snapshot.status;
   room.status = snapshot.status;
   io.to(roomChannel(room.code)).emit("mode:state", snapshot);
-  if (event) io.to(roomChannel(room.code)).emit("mode:event", { modeId, ...event });
+  if (event) {
+    io.to(roomChannel(room.code)).emit("mode:event", {
+      modeId: snapshot.modeId,
+      variant: snapshot.variant,
+      ...event,
+    });
+  }
   // El panel lateral muestra el estado de la partida; si cambia (empieza,
   // termina o se reinicia) se reenvía room:state para no quedarse en
   // "Esperando jugadores" con la partida ya en marcha.
@@ -1012,13 +1032,20 @@ export function setupGame(ioServer) {
   // La isla existe desde el arranque para que room:list y los portales tengan
   // un destino estable aunque todavía no haya nadie dentro.
   ensureHub();
-  modeGames.set(
-    "pares",
-    createPairsGame({
-      maxPlayers: getMode("pares").maxPlayers,
-      onChange: (snapshot, event) => emitModeState("pares", snapshot, event),
-    })
-  );
+  // Pares tiene una sala y un controlador por formato (1v1 y 2v2). Ambos se
+  // crean al arrancar para que el estado y los canales sean estables.
+  for (const variant of getMode("pares").variants || []) {
+    const room = ensureModeRoom("pares", variant.id);
+    if (!room) continue;
+    modeGames.set(
+      room.code,
+      createPairsGame({
+        variant: variant.id,
+        maxPlayers: variant.maxPlayers,
+        onChange: (snapshot, event) => emitModeState(room.code, snapshot, event),
+      })
+    );
+  }
 
   io.on("connection", (socket) => {
     socket.on("player:join", (payload = {}) => {
@@ -1670,7 +1697,7 @@ export function setupGame(ioServer) {
       // Entrar a un minijuego: hay que estar en la isla y cerca del portal.
       // El radio del servidor (6 m) es mayor que el del aviso (3,2 m) para
       // tolerar el retardo de red sin abrir la puerta a teletransportes.
-      socket.on("mode:join", ({ modeId } = {}) => {
+      socket.on("mode:join", ({ modeId, variant } = {}) => {
         const visitor = players.get(socket.id);
         if (!visitor) return;
         if (throttle(socket, "mode", 6, 1000)) {
@@ -1681,15 +1708,32 @@ export function setupGame(ioServer) {
         if (def.status !== "live") {
           return socket.emit("mode:error", { error: `${def.name} todavía no está disponible.` });
         }
+
+        // Los modos con formatos exigen una variante válida; si no llega, se
+        // usa la primera (1v1) para no romper clientes antiguos.
+        let variantId = null;
+        if (Array.isArray(def.variants) && def.variants.length) {
+          variantId = variant || def.variants[0].id;
+          if (!getModeVariant(def.id, variantId)) {
+            return socket.emit("mode:error", { error: "Ese formato no existe." });
+          }
+        }
+
         const current = visitor.roomCode ? rooms.get(visitor.roomCode) : null;
         if (current && current.kind === "room") {
           return socket.emit("mode:error", { error: "Sal de la sala para entrar a un minijuego." });
         }
-        if (current && current.kind === "mode" && current.modeId === def.id) {
-          return moveSocketToMode(socket, visitor, current);
-        }
         if (current && current.kind === "mode") {
-          return socket.emit("mode:error", { error: "Vuelve a la isla para entrar a otro minijuego." });
+          const sameVariant = (current.variant || null) === variantId;
+          if (current.modeId === def.id && sameVariant) {
+            return moveSocketToMode(socket, visitor, current);
+          }
+          return socket.emit("mode:error", {
+            error:
+              current.modeId === def.id
+                ? "Vuelve a la isla para cambiar de formato."
+                : "Vuelve a la isla para entrar a otro minijuego.",
+          });
         }
         if (!current || current.kind !== "hub") {
           return socket.emit("mode:error", { error: "Entra a la isla para elegir un minijuego." });
@@ -1698,7 +1742,7 @@ export function setupGame(ioServer) {
         if (!portal || portal.modeId !== def.id) {
           return socket.emit("mode:error", { error: "Acércate al portal para entrar." });
         }
-        const room = ensureModeRoom(def.id);
+        const room = ensureModeRoom(def.id, variantId);
         if (!room) return socket.emit("mode:error", { error: "Ese minijuego no está listo." });
         if (!room.members.has(visitor.id) && room.members.size >= room.maxPlayers) {
           return socket.emit("mode:error", { error: "La partida está llena." });
@@ -1714,24 +1758,32 @@ export function setupGame(ioServer) {
         moveSocketToHub(socket, visitor);
       });
 
-      // Acciones del minijuego (por ahora, voltear una carta de Pares).
+      // Acciones del minijuego: elegir equipo (plataforma) o voltear una carta
+      // saltando encima. La carta se deduce de la posición autoritativa del
+      // servidor, nunca de un índice elegido por el cliente.
       socket.on("mode:action", (payload = {}) => {
         const visitor = players.get(socket.id);
         if (!visitor || !visitor.roomCode) return;
         const room = rooms.get(visitor.roomCode);
         if (!room || room.kind !== "mode") return;
         if (throttle(socket, "modeact", 12, 1000)) return;
-        const game = modeGames.get(room.modeId);
+        const game = modeGames.get(room.code);
         if (!game) return;
 
-        const result = game.action(visitor.id, payload);
+        const result = game.action(visitor.id, payload, { x: visitor.x, z: visitor.z });
         if (!result.ok) {
           const messages = {
-            "not-your-turn": "Espera tu turno.",
+            "not-your-turn": "Es el turno del otro equipo.",
             wait: "Espera a que se oculten las cartas.",
             matched: "Esa pareja ya está encontrada.",
             "already-flipped": "Esa carta ya está boca arriba.",
-            "bad-index": "Carta no válida.",
+            "not-on-card": "Ponte encima de una carta y salta.",
+            "no-team": "Pisa una plataforma para elegir equipo.",
+            "not-playing": "La partida todavía no ha empezado.",
+            "not-waiting": "La partida ya está en marcha.",
+            "team-full": "Ese equipo está completo.",
+            "not-on-pad": "Pisa la plataforma del equipo.",
+            "bad-team": "Equipo no válido.",
           };
           const message = messages[result.reason];
           if (message) socket.emit("mode:error", { error: message });

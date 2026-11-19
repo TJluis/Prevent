@@ -46,10 +46,11 @@ código y probada:
 | Isla con spawn, anillo de 6 portales y puerta del lobby | `public/js/hubDefs.js`, `public/js/world.js` |
 | Salas ocultas persistentes `ISLA` y `MODO-<ID>` | `server/game.js` (`ensureHub`, `ensureModeRoom`) |
 | Validación de portal (6 m) y guardas de combate/tienda | `server/game.js` (`mode:join`, `mode:action`) |
-| Pares autoritativo 4×4, 2–6 jugadores | `server/modes/pairs.js` |
-| Tablero DOM superpuesto en la arena 3D | `public/js/pairs.js`, `public/index.html`, `public/css/style.css` |
+| Pares autoritativo con dos formatos (1v1 y 2v2) | `server/modes/pairs.js` |
+| Tablero 3D físico, plataformas de equipo y atriles | `public/js/pairsBoard.js`, `public/js/pairsDefs.js` |
+| HUD no modal y selector de formato | `public/js/pairs.js`, `public/index.html`, `public/css/style.css` |
 | Mapas internos `isla` (64) y `pares` (44) | `public/js/mapDefs.js`, `public/js/mapObstacles.js` |
-| Suite de isla/modos/Pares (11 aserciones) | `public/test/t-modos.mjs` |
+| Suite de isla/modos/Pares (13 aserciones) | `public/test/t-modos.mjs` |
 
 Las otras cinco modalidades siguen en `status:"soon"`: su portal se ve, pero el
 servidor responde «todavía no está disponible» sin cambiar de zona. Lo pendiente de
@@ -211,33 +212,37 @@ punto donde se lee la tecla de cámara, no en el renderer.
 
 ### 3.1 Encuentra los pares
 
-**Concepto:** tablero de cartas 3D en una arena pequeña; por turnos, cada jugador voltea
-dos cartas. Si coinciden, suma y repite; si no, pasa el turno. Gana quien más parejas
-encuentre.
+**Concepto:** tablero de cartas 3D en una arena pequeña. El jugador camina sobre el
+tablero, pisa una carta y salta para voltearla. Por turnos, cada bando voltea dos
+cartas: si coinciden, suma, las cartas vuelan a su atril y repite turno; si no, pasa
+el turno. Gana quien más parejas encuentre.
 
 | Aspecto | Definición |
 |---|---|
-| Jugadores | 2–6 (equipos opcionales 2v2) |
-| Tablero | 4×4 (8 parejas) por defecto; 5×4 y 6×6 como opciones |
+| Jugadores | 1v1 (2) y 2v2 (4); un equipo por plataforma |
+| Tablero | 1v1 → 4×4 (8 parejas); 2v2 → 6×6 (18 parejas) |
 | Duración | 3–6 min |
-| Arena | Plataforma circular de 22 m, sin obstáculos, cámara orbital sobre el tablero |
-| Estado servidor | `deck[]`, `revealed[]`, `matched[]`, `turnId`, `scores{}`, `flipsThisTurn` |
-| Acciones | `flip {index}` · `leave` |
-| Trampa clásica | Doble clic rápido en la misma carta; se resuelve con `revealed` y un `lock` de 350 ms |
-| Victoria | Mayor número de parejas al agotar el tablero; desempate por menor tiempo acumulado |
+| Arena | Plataforma de 22 m, sin obstáculos; cámara elevada y fija sobre el tablero |
+| Estado servidor | `cards[]`, `teams[]` (miembros, marcador, atril), `turnTeam`, `status`, `countdownMs`, `waitMs` |
+| Acciones | `mode:action {type:"team"}` (se deduce la plataforma) · `{type:"flip"}` (se deduce la carta pisada) |
+| Trampa clásica | Saltar dos veces sobre la misma carta o voltear fuera de turno; se resuelve con `waitMs` y la posición autoritativa |
+| Victoria | Mayor número de parejas al agotar el tablero |
 | Persistencia | `user_stats` gana `pairs_wins`, `pairs_games` (pendiente) |
 | Esfuerzo | **4 días** |
 | Estado | **✔ Implementado (18/11/2026)** salvo lo listado abajo |
 
-**Implementado:** tablero 4×4 con barajado en servidor, turnos, volteo autoritativo,
-bloqueo de 1 s tras fallar, reinicio a los 12 s, tablero DOM sobre la arena 3D,
-entrada validada por proximidad al portal y vuelta a la isla al salir. Suite
-`t-modos` con **11/11** (incluye una partida determinista y el flujo real
+**Implementado:** tablero 3D real (malla, cartas, plataformas y atriles), selector de
+formato al entrar al portal, elección de equipo pisando la plataforma, cuenta atrás
+cuando ambos equipos están completos, turno por equipo, volteo autoritativo al saltar
+sobre la carta, vuelo de la pareja al atril del equipo ganador y reinicio de la ronda.
+El servidor deduce la carta de la posición autoritativa y valida turno, cooldown y
+proximidad; nunca envía emojis de cartas ocultas. HUD DOM no modal, cámara elevada
+dentro de la arena, fundido de entrada/salida y vuelta a la isla. Suite `t-modos` con
+**13/13** (incluye partida determinista, 2v2 con sala propia y el flujo real
 isla → portal → partida → isla).
 
 **Pendiente de Pares:** espectadores y reconexión como espectador, estadísticas
-persistentes (`pairs_wins`/`pairs_games`), revancha votada, equipos 2v2 y tableros
-5×4/6×6.
+persistentes (`pairs_wins`/`pairs_games`), revancha votada y más variantes de tablero.
 
 **Por qué primero:** ejercita el 100 % del contrato (turnos, estado privado, fin de
 partida, espectadores, revancha) sin física ni *netcode* difícil. Si el contrato falla,
@@ -246,7 +251,8 @@ falla barato.
 **DoD (original):** dos navegadores completan una partida; el servidor rechaza voltear
 fuera de turno, índice inválido y tercer volteo; recarga de página a mitad vuelve como
 espectador; test `t-mode-pares.mjs` con 12 aserciones. La suite se integró como
-`t-modos.mjs` (11 aserciones); el resto del DoD queda para la siguiente tanda.
+`t-modos.mjs` (13 aserciones) y el rediseño 3D sustituyó el tablero DOM; el resto del
+DoD (espectadores/reconexión) queda para la siguiente tanda.
 
 ---
 
@@ -441,7 +447,8 @@ Hoy es **18/11/2026**.
 Si el usuario quiere **antes** del 02/12 algo visible, la única opción honesta es
 **Encuentra los pares** en versión mínima (tablero 4×4, 2–4 jugadores, sin equipos, sin
 persistencia) en **3 días**. Eso consume el margen de estabilización; el plan lo marca
-como riesgo, no como recomendación.
+como riesgo, no como recomendación. Se adelantó el 18/11/2026 y terminó yendo más allá
+del mínimo: tablero 3D físico, 1v1 y 2v2 por equipos y atriles.
 
 ---
 

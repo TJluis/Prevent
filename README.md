@@ -4,10 +4,10 @@ Plataforma web de interacción social en 3D: avatares que se mueven en un espaci
 compartido, chat de texto (general y por proximidad), salas privadas con permisos
 de anfitrión y una **Isla de Minijuegos** con portales a cada modalidad.
 
-La primera modalidad jugable es **Encuentra los pares** (memoria por turnos, 2–6
-jugadores). Las otras cinco (TNT Run, karts, ciudad rol, coliseo melee y escondite)
-ya tienen su portal en la isla y se muestran como «próximamente» hasta que se
-implementen.
+La primera modalidad jugable es **Encuentra los pares**: un tablero 3D que se recorre
+a pie, donde se voltea una carta pisándola y saltando, con formatos 1v1 y 2v2 por
+equipos. Las otras cinco (TNT Run, karts, ciudad rol, coliseo melee y escondite) ya
+tienen su portal en la isla y se muestran como «próximamente» hasta que se implementen.
 
 ## Requisitos
 
@@ -119,7 +119,7 @@ Notas:
   - **7.3** ✔ Skins: selector de trajes al final del módulo de personalización — traje, playero, programador, sencillo, táctico, voleibol, sombrero de paja, pirata, ninja y fiesta — con variantes visuales en el avatar (cliente y servidor validan el mismo set).
 - **Fase 8** Expansión de modalidades (plan en `docs/PLAN_MODALIDADES_2026-12.md`).
   - **8.0** ✔ Isla de Minijuegos: portal en el lobby, sala persistente oculta `ISLA` con mapa propio y seis portales (uno por modalidad). Los portales «próximamente» avisan sin cambiar de zona.
-  - **8.1** ✔ Encuentra los pares: tablero 4×4 por turnos, 2–6 jugadores, estado autoritativo en `server/modes/pairs.js`, overlay DOM sobre la arena 3D y vuelta a la isla al salir.
+  - **8.1** ✔ Encuentra los pares: minijuego 3D con dos formatos (1v1 · 16 cartas · 4×4 y 2v2 · 36 cartas · 6×6, cada uno en su sala oculta). Se elige equipo pisando una plataforma, la partida arranca con cuenta atrás, el jugador pisa una carta y salta para voltearla, y la pareja acertada vuela al atril del equipo. Servidor autoritativo en `server/modes/pairs.js`, render en `pairsBoard.js`, HUD no modal y cámara elevada sobre el tablero.
   - **8.2** Coliseo melee · **8.3** Escondite · **8.4** TNT Run · **8.5** Karts · **8.6** Ciudad rol — pendientes.
 
 Criterio de "hecho" de cada fase: definido en cada commit de planificación.

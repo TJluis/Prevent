@@ -222,17 +222,42 @@
       <button id="portal-prompt-btn" type="button">Entrar (E)</button>
     </div>
 
-    <div id="pairs-overlay" hidden>
-      <div class="pairs-panel">
-        <div class="pairs-head">
-          <span class="pairs-title">🃏 Encuentra los pares</span>
-          <span id="pairs-turn" class="pairs-turn"></span>
-          <button id="pairs-close" type="button" class="btn-sm">← Isla</button>
-        </div>
-        <div id="pairs-players" class="pairs-players"></div>
-        <div id="pairs-board" class="pairs-board" role="grid" aria-label="Tablero de parejas"></div>
-        <p id="pairs-note" class="pairs-note"></p>
+    <div id="pairs-hud" hidden>
+      <div class="pairs-hud-head">
+        <span class="pairs-hud-title">🃏 Encuentra los pares</span>
+        <span id="pairs-hud-variant" class="pairs-hud-variant"></span>
+        <span id="pairs-hud-turn" class="pairs-hud-turn"></span>
+        <button id="pairs-hud-close" type="button" class="btn-sm">← Isla</button>
       </div>
+      <div id="pairs-hud-teams" class="pairs-hud-teams"></div>
+      <p id="pairs-hud-note" class="pairs-hud-note"></p>
+      <div id="pairs-hud-countdown" class="pairs-hud-countdown" hidden></div>
+    </div>
+
+    <div id="pairs-select" hidden>
+      <div class="pairs-select-panel" role="dialog" aria-label="Elige formato de Encuentra los pares">
+        <div class="pairs-select-head">
+          <span class="pairs-select-title">🃏 Encuentra los pares</span>
+          <button id="pairs-select-close" type="button" class="btn-sm">Cerrar</button>
+        </div>
+        <p class="pairs-select-note">
+          Camina sobre una carta y salta para voltearla. Las parejas que aciertes vuelan al atril de tu equipo.
+        </p>
+        <div class="pairs-select-list">
+          <button type="button" class="pairs-select-btn" data-variant="1v1">
+            <b>1 vs 1</b>
+            <span>16 cartas · tablero 4×4</span>
+          </button>
+          <button type="button" class="pairs-select-btn" data-variant="2v2">
+            <b>2 vs 2</b>
+            <span>36 cartas · tablero 6×6</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="zone-fade" aria-hidden="true">
+      <span id="zone-fade-label"></span>
     </div>
 
     <div id="rooms-panel" class="hud-card social-page">

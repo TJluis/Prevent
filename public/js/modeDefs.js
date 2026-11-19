@@ -12,6 +12,11 @@
 //
 // `mapId` solo es obligatorio en modos "live"; los "soon" lo declaran como
 // reserva para no romper el contrato cuando se implementen.
+//
+// `variants` es opcional: los modos con formatos (Pares 1v1/2v2) abren una sala
+// oculta distinta por variante para que ambos formatos puedan jugarse a la vez.
+
+import { PAIRS_VARIANTS } from "./pairsDefs.js";
 
 export const MODES = [
   {
@@ -21,10 +26,20 @@ export const MODES = [
     icon: "🃏",
     status: "live",
     mapId: "pares",
-    maxPlayers: 6,
+    maxPlayers: 4,
     color: "#7dd3fc",
-    tagline: "Memoria por turnos",
-    blurb: "Voltea dos cartas. Si coinciden, sumas un par y sigues jugando.",
+    tagline: "Memoria en el tablero 3D",
+    blurb: "Camina sobre una carta y salta para voltearla. Las parejas vuelan al atril de tu equipo.",
+    variants: PAIRS_VARIANTS.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      detail: variant.detail,
+      teamSize: variant.teamSize,
+      grid: variant.grid,
+      cardCount: variant.cardCount,
+      pairCount: variant.pairCount,
+      maxPlayers: variant.maxPlayers,
+    })),
   },
   {
     id: "tnt",
@@ -101,8 +116,19 @@ export function liveModes() {
   return MODES.filter((mode) => mode.status === "live");
 }
 
+// Variante concreta de un modo, o null. Los modos sin variantes devuelven null.
+export function getModeVariant(id, variantId) {
+  const mode = getMode(id);
+  if (!mode || !Array.isArray(mode.variants)) return null;
+  return mode.variants.find((variant) => variant.id === variantId) || null;
+}
+
 // Código reservado de la sala interna de cada modo. Se usa como canal de
-// Socket.IO y como `roomCode` del jugador, igual que una sala privada.
-export function modeRoomCode(id) {
-  return "MODO-" + String(id || "").toUpperCase();
+// Socket.IO y como `roomCode` del jugador, igual que una sala privada. Los
+// modos con variantes añaden el formato para tener una sala por formato.
+export function modeRoomCode(id, variant) {
+  const base = "MODO-" + String(id || "").toUpperCase();
+  if (!variant) return base;
+  const suffix = String(variant).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return suffix ? `${base}-${suffix}` : base;
 }

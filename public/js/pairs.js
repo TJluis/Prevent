@@ -1,203 +1,273 @@
-// Tablero DOM de "Encuentra los pares".
+// HUD de "Encuentra los pares".
 //
-// La partida es autoritativa en el servidor: aquí solo se pinta el snapshot que
-// llega por mode:state y se envían intenciones de voltear. El tablero vive en
-// una capa DOM (no en el canvas 3D) para que sea fiable con ratón y táctil, y
-// para que el estado oculto de las cartas nunca dependa del render 3D.
+// Ya no hay tablero DOM: el tablero es 3D (pairsBoard.js) y el jugador camina
+// por la arena. Este módulo solo pinta el estado que llega por `mode:state`
+// (equipos, turno, cuenta atrás, marcador y pista) y ofrece el botón de salir.
+// El contenedor no captura el ratón para que se pueda seguir jugando.
 
-const CARD_BACK = "❔";
+import { getPairsTeam, getPairsVariant } from "./pairsDefs.js";
 
-export function createPairsUI({ onFlip, onLeave, getMyId, notify } = {}) {
-  const overlay = document.getElementById("pairs-overlay");
-  const board = document.getElementById("pairs-board");
-  const turnEl = document.getElementById("pairs-turn");
-  const playersEl = document.getElementById("pairs-players");
-  const noteEl = document.getElementById("pairs-note");
-  const closeBtn = document.getElementById("pairs-close");
+export function createPairsHud({ onLeave, getMyId, notify } = {}) {
+  const hud = document.getElementById("pairs-hud");
+  const variantEl = document.getElementById("pairs-hud-variant");
+  const turnEl = document.getElementById("pairs-hud-turn");
+  const teamsEl = document.getElementById("pairs-hud-teams");
+  const noteEl = document.getElementById("pairs-hud-note");
+  const countdownEl = document.getElementById("pairs-hud-countdown");
+  const closeBtn = document.getElementById("pairs-hud-close");
 
   let state = null;
-  let open = false;
-  const buttons = [];
+  let visible = false;
+  let countdownLeft = 0;
+  let local = { cardIndex: -1, padTeam: null };
+  let shownVariant = null;
 
   function myId() {
     return getMyId ? getMyId() : null;
   }
 
-  function buildBoard() {
-    if (!board || buttons.length) return;
-    for (let i = 0; i < 16; i++) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "pairs-card";
-      button.dataset.index = String(i);
-      button.textContent = CARD_BACK;
-      button.setAttribute("aria-label", `Carta ${i + 1}, boca abajo`);
-      board.appendChild(button);
-      buttons.push(button);
-    }
+  function teamOf(id) {
+    if (!state || !id) return null;
+    const player = (state.players || []).find((entry) => entry.id === id);
+    return player ? player.team : null;
   }
 
-  function myTurn() {
-    return !!state && state.status === "playing" && state.turnId === myId() && !state.waitMs;
+  function getMyTeam() {
+    return teamOf(myId());
   }
 
   function nameOf(id) {
     if (!state) return "—";
-    const player = (state.players || []).find((p) => p.id === id);
+    const player = (state.players || []).find((entry) => entry.id === id);
     if (!player) return "—";
     return player.id === myId() ? "ti" : player.name;
   }
 
-  function renderBoard() {
-    buildBoard();
-    if (!state) return;
-    const cards = state.cards || [];
-    const canFlip = myTurn();
-    buttons.forEach((button, index) => {
-      const card = cards[index];
-      const faceUp = !!card && (card.matched || card.flipped);
-      button.textContent = faceUp && card.emoji ? card.emoji : CARD_BACK;
-      button.classList.toggle("is-matched", !!(card && card.matched));
-      button.classList.toggle("is-flipped", !!(card && card.flipped && !card.matched));
-      button.classList.toggle("is-mine", canFlip && !faceUp);
-      button.disabled = !canFlip || !card || card.matched || card.flipped;
-      button.setAttribute(
-        "aria-label",
-        faceUp && card.emoji
-          ? `Carta ${index + 1}, ${card.emoji}${card.matched ? ", pareja encontrada" : ""}`
-          : `Carta ${index + 1}, boca abajo`
-      );
-    });
+  function teamName(teamId) {
+    const team = getPairsTeam(teamId);
+    return team ? team.name : "Equipo";
   }
 
-  function renderPlayers() {
-    if (!playersEl) return;
-    playersEl.innerHTML = "";
+  function canFlipNow() {
+    if (!state || state.status !== "playing") return false;
+    if (state.waitMs > 0) return false;
+    const team = getMyTeam();
+    return !!team && state.turnTeam === team;
+  }
+
+  function status() {
+    return state ? state.status : "idle";
+  }
+
+  function renderVariant() {
+    if (!variantEl) return;
+    const id = (state && state.variant) || shownVariant;
+    const def = getPairsVariant(id);
+    variantEl.textContent = def ? def.label : "";
+    variantEl.hidden = !def;
+  }
+
+  function renderTeams() {
+    if (!teamsEl) return;
+    teamsEl.innerHTML = "";
     if (!state) return;
-    const list = state.players || [];
-    if (!list.length) {
-      const empty = document.createElement("span");
-      empty.className = "pairs-empty";
-      empty.textContent = "Esperando jugadores…";
-      playersEl.appendChild(empty);
+    const mine = getMyTeam();
+    for (const team of state.teams || []) {
+      const def = getPairsTeam(team.id);
+      const chip = document.createElement("div");
+      chip.className = "pairs-team";
+      chip.style.setProperty("--team-color", (def && def.color) || team.color || "#7dd3fc");
+      if (team.id === mine) chip.classList.add("is-mine");
+      if (state.status === "playing" && state.turnTeam === team.id) chip.classList.add("is-turn");
+
+      const head = document.createElement("div");
+      head.className = "pairs-team-head";
+      const name = document.createElement("b");
+      name.textContent = (def && def.short) || team.short || team.name;
+      const score = document.createElement("span");
+      const pairs = team.score === 1 ? "par" : "pares";
+      score.textContent = `${team.score} ${pairs}`;
+      head.append(name, score);
+
+      const members = document.createElement("div");
+      members.className = "pairs-team-members";
+      const names = (team.members || []).map(nameOf);
+      members.textContent = names.length ? names.join(" · ") : "libre";
+
+      chip.append(head, members);
+      teamsEl.appendChild(chip);
+    }
+  }
+
+  function renderTurn() {
+    if (!turnEl) return;
+    if (!state) {
+      turnEl.textContent = "";
       return;
     }
-    for (const player of list) {
-      const chip = document.createElement("span");
-      chip.className = "pairs-player";
-      if (player.id === myId()) chip.classList.add("is-me");
-      if (player.id === state.turnId && state.status === "playing") chip.classList.add("is-turn");
-      const name = document.createElement("b");
-      name.textContent = player.id === myId() ? `${player.name} (ti)` : player.name;
-      const score = document.createElement("span");
-      score.textContent = ` · ${player.score} ${player.score === 1 ? "par" : "pares"}`;
-      chip.append(name, score);
-      playersEl.appendChild(chip);
-    }
-  }
-
-  function renderStatus() {
-    if (!turnEl || !state) return;
+    const mine = getMyTeam();
     if (state.status === "waiting") {
-      turnEl.textContent = "Esperando jugadores…";
+      turnEl.textContent = "Esperando equipos";
+    } else if (state.status === "starting") {
+      turnEl.textContent = "Preparados…";
     } else if (state.status === "finished") {
-      const ids = state.winnerIds || [];
-      const others = ids.filter((id) => id !== myId()).map(nameOf);
-      if (!ids.length) turnEl.textContent = "Ronda terminada";
-      else if (ids.includes(myId())) {
-        turnEl.textContent = others.length ? `¡Ganas tú y ${others.join(" y ")}!` : "¡Ganas tú!";
-      } else {
-        turnEl.textContent = `Ronda terminada: gana ${others.join(" y ")}`;
-      }
-    } else if (myTurn()) {
-      turnEl.textContent = "Tu turno · voltea dos cartas";
-    } else if (state.turnId === myId()) {
-      // Espera del fallo: el turno sigue siendo mío pero aún no puedo voltear.
-      turnEl.textContent = "Tu turno en un momento…";
+      const winners = (state.winnerTeams || []).map(teamName);
+      turnEl.textContent = winners.length ? `Gana ${winners.join(" y ")}` : "Ronda terminada";
+    } else if (state.turnTeam === mine) {
+      turnEl.textContent = "Tu turno";
+    } else if (state.turnTeam) {
+      turnEl.textContent = `Turno de ${teamName(state.turnTeam)}`;
     } else {
-      turnEl.textContent = `Turno de ${nameOf(state.turnId)}`;
+      turnEl.textContent = "";
     }
   }
 
   function renderNote() {
-    if (!noteEl || !state) return;
+    if (!noteEl) return;
+    if (!state) {
+      noteEl.textContent = "";
+      return;
+    }
+    const mine = getMyTeam();
+    if (state.status === "waiting") {
+      if (!mine) {
+        noteEl.textContent = "Pisa una plataforma (Cian o Rosa) para elegir equipo.";
+      } else {
+        noteEl.textContent = `Estás en ${teamName(mine)}. Esperando al otro equipo…`;
+      }
+      return;
+    }
+    if (state.status === "starting") {
+      noteEl.textContent = "La partida empieza en unos segundos.";
+      return;
+    }
     if (state.status === "finished") {
       noteEl.textContent = "La siguiente ronda empieza en unos segundos…";
-    } else if (state.waitMs) {
-      noteEl.textContent = "No coinciden: memoriza y espera el cambio de turno.";
-    } else {
-      noteEl.textContent = "Si las dos cartas coinciden sumas un par y sigues jugando.";
+      return;
     }
+    if (!mine) {
+      noteEl.textContent = "Pisa una plataforma para elegir equipo.";
+      return;
+    }
+    if (state.waitMs > 0) {
+      noteEl.textContent = "No coinciden: memoriza y espera el cambio de turno.";
+      return;
+    }
+    if (state.turnTeam !== mine) {
+      noteEl.textContent = "Es el turno del otro equipo: observa y memoriza.";
+      return;
+    }
+    if (local.cardIndex < 0) {
+      noteEl.textContent = "Camina sobre una carta y salta (Espacio) para voltearla.";
+      return;
+    }
+    noteEl.textContent = "¡Salta para voltear esta carta!";
+  }
+
+  function renderCountdown() {
+    if (!countdownEl) return;
+    if (!state || state.status !== "starting" || countdownLeft <= 0) {
+      countdownEl.hidden = true;
+      countdownEl.textContent = "";
+      return;
+    }
+    countdownEl.hidden = false;
+    countdownEl.textContent = String(Math.max(1, Math.ceil(countdownLeft)));
   }
 
   function render() {
-    renderBoard();
-    renderPlayers();
-    renderStatus();
+    renderVariant();
+    renderTeams();
+    renderTurn();
     renderNote();
+    renderCountdown();
   }
 
-  function show() {
-    open = true;
-    if (overlay) overlay.hidden = false;
+  function show(variantId) {
+    if (variantId) shownVariant = variantId;
+    visible = true;
+    if (hud) hud.hidden = false;
     render();
   }
 
   function hide() {
-    open = false;
-    if (overlay) overlay.hidden = true;
+    visible = false;
+    if (hud) hud.hidden = true;
   }
 
   function setState(snapshot) {
     state = snapshot || null;
     if (!state) {
-      hide();
+      countdownLeft = 0;
+      render();
       return;
     }
+    if (state.variant) shownVariant = state.variant;
+    if (state.status === "starting") {
+      countdownLeft = Math.max(0, Number(state.countdownMs) || 0) / 1000;
+    } else {
+      countdownLeft = 0;
+    }
     render();
+  }
+
+  // Datos locales que no vienen del servidor: carta bajo los pies y plataforma.
+  function setLocal(info) {
+    const next = info || {};
+    const cardIndex = Number.isInteger(next.cardIndex) ? next.cardIndex : -1;
+    const padTeam = next.padTeam || null;
+    if (cardIndex === local.cardIndex && padTeam === local.padTeam) return;
+    local = { cardIndex, padTeam };
+    if (visible) renderNote();
+  }
+
+  // Cuenta atrás local entre snapshots (el servidor solo emite al cambiar).
+  function update(dt) {
+    if (!visible || !state || state.status !== "starting") return;
+    countdownLeft = Math.max(0, countdownLeft - (Number(dt) || 0));
+    renderCountdown();
   }
 
   function event(payload) {
     if (!payload || !notify) return;
     if (payload.type === "match") {
-      notify(`${payload.emoji || "✨"} ¡Pareja encontrada!`);
+      const emoji = payload.emoji || "✨";
+      notify(`${emoji} ${teamName(payload.team)} suma un par`, 2000);
     } else if (payload.type === "win") {
-      notify("🏆 ¡Tablero completado!");
-    } else if (payload.type === "restart") {
-      notify("Nueva ronda");
+      const winners = (payload.winnerTeams || []).map(teamName);
+      notify(`🏆 ${winners.length ? `Gana ${winners.join(" y ")}` : "Ronda terminada"}`, 2600);
+    } else if (payload.type === "timeout") {
+      notify(`⏱️ Se acabó el turno de ${teamName(payload.team)}`, 2000);
+    } else if (payload.type === "pause") {
+      notify("Partida en pausa: faltan jugadores", 2200);
     }
   }
 
-  const onBoardClick = (event_) => {
-    const button = event_.target.closest && event_.target.closest(".pairs-card");
-    if (!button || button.disabled) return;
-    const index = Number(button.dataset.index);
-    if (!Number.isInteger(index)) return;
-    if (onFlip) onFlip(index);
-  };
   const onCloseClick = () => {
     if (onLeave) onLeave();
   };
-
-  if (board) board.addEventListener("click", onBoardClick);
   if (closeBtn) closeBtn.addEventListener("click", onCloseClick);
-  buildBoard();
 
   function dispose() {
     hide();
-    if (board) board.removeEventListener("click", onBoardClick);
     if (closeBtn) closeBtn.removeEventListener("click", onCloseClick);
     state = null;
+    local = { cardIndex: -1, padTeam: null };
   }
 
   return {
     show,
     hide,
     setState,
+    setLocal,
+    update,
     event,
     render,
     dispose,
-    isOpen: () => open,
+    getMyTeam,
+    canFlipNow,
+    status,
     getState: () => state,
+    isOpen: () => visible,
   };
 }

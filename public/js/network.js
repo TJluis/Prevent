@@ -214,8 +214,8 @@ export function enterHub() {
   if (socket) socket.emit("hub:enter");
 }
 
-export function joinMode(modeId) {
-  if (socket) socket.emit("mode:join", { modeId });
+export function joinMode(modeId, variant) {
+  if (socket) socket.emit("mode:join", variant ? { modeId, variant } : { modeId });
 }
 
 export function leaveMode() {
