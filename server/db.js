@@ -50,6 +50,8 @@ db.exec(`
     kills INTEGER NOT NULL DEFAULT 0,
     deaths INTEGER NOT NULL DEFAULT 0,
     best_streak INTEGER NOT NULL DEFAULT 0,
+    duel_wins INTEGER NOT NULL DEFAULT 0,
+    duel_rounds INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
@@ -59,6 +61,15 @@ const DEFAULT_SPACE_ID = 1;
 const userColumns = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
 if (!userColumns.includes("appearance")) {
   db.exec("ALTER TABLE users ADD COLUMN appearance TEXT");
+}
+
+// Migración para bases de datos creadas antes del Coliseo (Ola 2).
+const statColumns = db.prepare("PRAGMA table_info(user_stats)").all().map((c) => c.name);
+if (!statColumns.includes("duel_wins")) {
+  db.exec("ALTER TABLE user_stats ADD COLUMN duel_wins INTEGER NOT NULL DEFAULT 0");
+}
+if (!statColumns.includes("duel_rounds")) {
+  db.exec("ALTER TABLE user_stats ADD COLUMN duel_rounds INTEGER NOT NULL DEFAULT 0");
 }
 
 export function ensureDefaultSpace() {
@@ -124,19 +135,26 @@ export function getUserStats(userId) {
 }
 
 // Suma el resultado de una partida al historial de la cuenta. `bestStreak` es la
-// racha máxima alcanzada en esta sesión, no un incremento.
-export function recordUserStats(userId, { score = 0, kills = 0, deaths = 0, bestStreak = 0 } = {}) {
+// racha máxima alcanzada en esta sesión, no un incremento. `duelWins` y
+// `duelRounds` acumulan el resultado del Coliseo melee.
+export function recordUserStats(
+  userId,
+  { score = 0, kills = 0, deaths = 0, bestStreak = 0, duelWins = 0, duelRounds = 0 } = {}
+) {
   if (!userId) return null;
   db.prepare(
-    `INSERT INTO user_stats (user_id, score_total, kills, deaths, best_streak, updated_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `INSERT INTO user_stats
+       (user_id, score_total, kills, deaths, best_streak, duel_wins, duel_rounds, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(user_id) DO UPDATE SET
        score_total = score_total + excluded.score_total,
        kills = kills + excluded.kills,
        deaths = deaths + excluded.deaths,
        best_streak = MAX(best_streak, excluded.best_streak),
+       duel_wins = duel_wins + excluded.duel_wins,
+       duel_rounds = duel_rounds + excluded.duel_rounds,
        updated_at = datetime('now')`
-  ).run(userId, score, kills, deaths, bestStreak);
+  ).run(userId, score, kills, deaths, bestStreak, duelWins, duelRounds);
   return getUserStats(userId);
 }
 

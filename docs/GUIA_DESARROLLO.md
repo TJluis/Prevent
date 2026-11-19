@@ -45,7 +45,8 @@ Suites incluidas:
 | `t-armas.mjs` | clases, alcances, caída de daño, precios, radio de rayo, armas nuevas y recarga (estilos + progreso) | 13/13 |
 | `t-movimiento.mjs` | salto (altura, sin doble salto), sprint (stamina, regeneración, bloqueo contra paredes) y deslizamiento (duración, cooldown, coste) | 8/8 |
 | `t-loot.mjs` | oferta de cristal y recogida con Enter (`acceptOffer`) | 7/7 |
-| `t-modos.mjs` | registro de modos y portales, mapas `isla`/`pares`, obstáculos, partida de Pares determinista (1v1 y 2v2) y flujo real isla → portal → partida → isla | 13/13 |
+| `t-modos.mjs` | registro de modos y portales, mapas `isla`/`pares`/`coliseo`, obstáculos, partida de Pares determinista (1v1 y 2v2) y flujo real isla → portal → partida → isla | 13/13 |
+| `t-coliseo.mjs` | formatos 1v1/2v2/FFA, loadout melee, spawns y límite circular, fases y rondas, espectador sin respawn, rechazo de armas de fuego, bloqueo de curación/lanzables/tienda y persistencia `duel_wins`/`duel_rounds` | 14/14 |
 | `t-assets.mjs` | imagen de tarjeta, iconos, manifest, Open Graph y caché de `/assets` | 10/10 |
 
 Suites auxiliares (se ejecutan aparte porque dependen de datos externos):
@@ -101,14 +102,16 @@ node public/test/runner.mjs public/test/t-tuningcheck.mjs
 
 - **Cómo se entra:** desde el lobby, botón **🎮 Minijuegos** del menú ☰ o el portal del Pueblo Nevado (sur de la pista de hockey, `x:0 z:-25`). También con `E` al acercarse al portal (`PORTAL_TRIGGER_RADIUS = 3.2`).
 - **La isla es una sala oculta persistente:** código reservado `ISLA`, mapa `isla` (64), 24 jugadores, `kind:"hub"`, `combat:false`. No aparece en `room:list`.
-- **Cada modo es otra sala oculta persistente:** código `MODO-<ID>`, `kind:"mode"`, `modeId`, `status` (`waiting`/`playing`/`finished`) y `combat:false`. El registro vive en `public/js/modeDefs.js` (datos puros, compartido cliente/servidor) y las reglas en `server/modes/`.
+- **Cada modo es otra sala oculta persistente:** código `MODO-<ID>`, `kind:"mode"`, `modeId`, `status` (`waiting`/`playing`/`finished`) y `combat` (`false` salvo el Coliseo, que habilita el canal de golpes melee). El registro vive en `public/js/modeDefs.js` (datos puros, compartido cliente/servidor) y las reglas en `server/modes/`.
 - **Validación del servidor:** `mode:join` exige estar en la isla y a menos de **6 m** del portal (el aviso del cliente aparece a 3,2 m). Desde el lobby hay que pasar primero por la isla; no se acepta un salto directo.
-- **Portales «próximamente»:** solo `pares` tiene `status:"live"`. Los otros cinco se dibujan en la isla pero responden con «<Modo> todavía no está disponible.» sin mover al jugador.
+- **Portales «próximamente»:** solo `pares` y `coliseo` tienen `status:"live"`. Los otros cuatro se dibujan en la isla pero responden con «<Modo> todavía no está disponible.» sin mover al jugador.
 - **Salir:** el botón contextual del panel de zona muestra «← Volver a la isla» dentro de un modo y «Salir al lobby» en la isla. También `mode:leave`.
-- **Mapas internos:** `isla` (64) y `pares` (44) están en `mapDefs.js` con `room:false` para que no salgan en el selector de salas privadas; sus layouts están en `mapObstacles.js` y sus temas/monolitos/portales en `world.js`.
+- **Mapas internos:** `isla` (64), `pares` (44) y `coliseo` (52) están en `mapDefs.js` con `room:false` para que no salgan en el selector de salas privadas; sus layouts están en `mapObstacles.js` y sus temas/monolitos/portales en `world.js`. El Coliseo sustituye el borde cuadrado por un muro circular (`collision.js` aplica `COLISEO_PLAY_RADIUS`).
 - **Añadir una modalidad:** define su entrada en `modeDefs.js`, crea su controlador en `server/modes/`, regístralo en `setupGame()` y añade su portal en `hubDefs.js`. `t-modos` valida que el registro, los mapas y los portales sigan coherentes.
 - **Pares (minijuego 3D):** al entrar al portal se elige formato (1v1 · 16 cartas · 4×4 o 2v2 · 36 cartas · 6×6), cada formato con su propia sala `MODO-PARES-1V1`/`MODO-PARES-2V2`. El jugador camina sobre el tablero, pisa una carta y salta para voltearla; el servidor deduce la carta de la posición autoritativa y valida turno, cooldown y proximidad. Los equipos se eligen pisando su plataforma y la partida arranca con cuenta atrás cuando ambos bandos están completos. La pareja acertada vuela al atril del equipo y ese equipo repite turno. La cámara se eleva y fija sobre el tablero, con **zoom** por rueda, teclas `+`/`-` o botones del HUD, el HUD es no modal y el movimiento usa *yaw* fijo. Geometría y reglas compartidas: `pairsDefs.js`; render: `pairsBoard.js`; controlador: `server/modes/pairs.js`.
 - **Pendiente de Pares:** espectadores, reconexión como espectador, estadísticas persistentes, revancha votada y más variantes de tablero.
+- **Coliseo melee (minijuego de combate):** al entrar al portal se elige formato (1v1, 2v2 o todos contra todos hasta 8), cada uno con su sala `MODO-COLISEO-1V1`/`-2V2`/`-FFA`. La arena es circular (34 m de diámetro) y solo admite el loadout cuerpo a cuerpo (`daga`, `espada`, `maza`, `escudo`, `martillo`): el jugador elige arma y pulsa **Listo**, y la partida arranca cuando la sala está completa (equipos) o hay ≥2 listos (FFA). Cada ronda dura 90 s o hasta que quede un bando; al mejor de 5 (primero a 3). El servidor es autoritativo: asigna bandos, teletransporta al empezar la ronda, ignora `player:move` fuera de `fight`, valida que `combat:shoot` use un arma melee del loadout, bloquea el fuego amigo, no programa respawn (el eliminado es espectador hasta la ronda siguiente) y bloquea curación, lanzables, cristales y tienda. Al terminar, `user_stats` acumula `duel_wins` y `duel_rounds`. Reglas y geometría: `coliseoDefs.js`; controlador: `server/modes/coliseo.js`; HUD: `coliseo.js`.
+- **Pendiente del Coliseo:** *feedback* de impacto (hit-stop, sacudida y sonido por golpe), revancha votada y espectadores de partidas ajenas.
 
 ---
 
@@ -198,7 +201,7 @@ Antes de programar cualquier modalidad nueva, leer estos dos documentos en este 
 Reglas que salen de esos documentos y aplican desde ya:
 
 1. **Nada de modos nuevos antes del 23/11/2026** (versión estable). Primero se cierra y se respalda.
-   - **Excepción aprobada (18/11/2026):** el usuario pidió adelantar la Ola 1. Se implementaron la isla y Pares con la versión estable ya respaldada y todas las suites en verde; el resto de modalidades siguen sujetas a la regla.
+   - **Excepción aprobada (18/11/2026):** el usuario pidió adelantar las olas 1 y 2. Se implementaron la isla, Pares y el Coliseo melee con la versión estable ya respaldada y todas las suites en verde; el resto de modalidades siguen sujetas a la regla.
 2. Toda modalidad implementa el **contrato de modo** (`public/js/modeDefs.js` + `server/modes/`); no se añaden `if` de modo dentro de `server/game.js`.
 3. El cliente envía **intenciones**, nunca resultados; el servidor valida.
 4. Cada ola termina con `scripts\test-all.ps1` en 0, prueba manual en dos navegadores y respaldo zip.

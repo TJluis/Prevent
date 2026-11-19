@@ -16,6 +16,8 @@ import { isInsideObstacle } from "../public/js/mapObstacles.js";
 import { HUB_CODE, HUB_MAP_ID, HUB_SPAWN, HUB_PORTALS, nearestPortal } from "../public/js/hubDefs.js";
 import { getMode, getModeVariant, modeRoomCode } from "../public/js/modeDefs.js";
 import { createPairsGame } from "./modes/pairs.js";
+import { createColiseoGame } from "./modes/coliseo.js";
+import { COLISEO_MAP_ID, coliseoClamp, isColiseoWeapon } from "../public/js/coliseoDefs.js";
 import {
   computeBlockedDamage,
   getBlockConfig,
@@ -276,7 +278,8 @@ function ensureModeRoom(modeId, variantId = null) {
       modeId: def.id,
       variant: variant ? variant.id : null,
       status: "waiting",
-      combat: false,
+      // Los minijuegos sociales no tienen combate; el Coliseo sí (solo melee).
+      combat: def.combat === true,
       maxPlayers: (variant && variant.maxPlayers) || def.maxPlayers || MAX_ROOM_MEMBERS,
       persistent: true,
       hidden: true,
@@ -422,6 +425,8 @@ function sendScoreProfile(socket, player) {
           kills: lifetime.kills,
           deaths: lifetime.deaths,
           bestStreak: lifetime.best_streak,
+          duelWins: lifetime.duel_wins || 0,
+          duelRounds: lifetime.duel_rounds || 0,
         }
       : null,
     top: getTopStats(5),
@@ -496,7 +501,7 @@ function resetBlock(player) {
   player.blockKeepAliveAt = 0;
 }
 
-function damageTarget(shooter, target, damage, dirX, dirZ) {
+function damageTarget(shooter, target, damage, dirX, dirZ, opts = {}) {
   const now = Date.now();
   const block = computeBlockedDamage(target, shooter, damage, now);
   const applied = block.blocked ? 0 : block.damage;
@@ -537,6 +542,23 @@ function damageTarget(shooter, target, damage, dirX, dirZ) {
     target.alive = false;
     target.weaponId = null;
     resetBlock(target);
+    if (opts.coliseo) {
+      // En el Coliseo no hay respawn ni puntos de kill: la baja deja al jugador
+      // como espectador hasta que el controlador inicie la siguiente ronda.
+      const zone = playerChannel(shooter);
+      io.to(zone).emit("combat:eliminated", {
+        targetId: target.id,
+        eliminatedByName: shooter.name,
+      });
+      io.to(zone).emit("crystal:equip", { playerId: target.id, weaponId: null });
+      io.to(zone).emit("combat:block", {
+        playerId: target.id,
+        blocking: false,
+        stamina: BLOCK_STAMINA_MAX,
+      });
+      if (typeof opts.onEliminated === "function") opts.onEliminated(target);
+      return;
+    }
     resolveKill(shooter, target);
     const zone = playerChannel(shooter);
     io.to(zone).emit("combat:eliminated", {
@@ -963,20 +985,43 @@ function moveSocketToMode(socket, player, room) {
   player.weaponId = null;
   resetBlock(player);
   room.members.add(socket.id);
+  socket.join(roomChannel(room.code));
+
+  // Se une al controlador ANTES de calcular el spawn: en el Coliseo el bando
+  // (y por tanto el punto de aparición) se asigna al entrar. El socket ya está
+  // en el canal para recibir el `mode:state` que difunde `join`.
+  if (game) {
+    const result = game.join({ id: player.id, name: player.name });
+    if (!result.ok) {
+      const message =
+        result.reason === "full"
+          ? "La partida está llena."
+          : result.reason === "in-progress"
+            ? "La partida ya está en marcha. Espera al siguiente reinicio."
+            : "No se pudo entrar a la partida.";
+      roomError(socket, message);
+      moveSocketToHub(socket, player);
+      return;
+    }
+    room.status = game.status;
+  }
 
   // Los minijuegos 3D tienen un punto de llegada propio (fuera del tablero y de
   // las plataformas de equipo). El resto sigue usando el spawn libre genérico.
-  const spawn = game && game.spawnFor ? game.spawnFor() : clearRoomSpawn(room.mapId);
+  const spawn = game && game.spawnFor ? game.spawnFor(player.id) : clearRoomSpawn(room.mapId);
   player.x = spawn.x;
   player.z = spawn.z;
   player.y = 0;
-  socket.join(roomChannel(room.code));
+  if (Number.isFinite(spawn.yaw)) player.yaw = spawn.yaw;
   ensureAliveForZone(player, socket, roomChannel(room.code));
 
   socket.emit("welcome", { id: socket.id, players: roomMembers(room).map(playerSnapshot) });
   socket.emit("chat:history", room.chat);
   socket.to(roomChannel(room.code)).emit("player:joined", playerSnapshot(player));
   socket.emit("room:state", { room: publicRoom(room), hosting: false });
+  // El estado se reenvía tras room:state para que el cliente ya conozca la zona
+  // cuando pinte el HUD del minijuego.
+  if (game) socket.emit("mode:state", game.snapshot());
   socket.emit("crystal:equip", { playerId: socket.id, weaponId: null });
   socket.emit("combat:block", {
     playerId: socket.id,
@@ -988,15 +1033,6 @@ function moveSocketToMode(socket, player, room) {
   sendScoreState(player, socket);
   sendScoreProfile(socket, player);
 
-  if (game) {
-    const result = game.join({ id: player.id, name: player.name });
-    if (!result.ok) {
-      roomError(socket, result.reason === "full" ? "La partida está llena." : "No se pudo entrar a la partida.");
-      moveSocketToHub(socket, player);
-      return;
-    }
-    room.status = game.status;
-  }
   broadcastRoomList();
 }
 
@@ -1026,6 +1062,93 @@ function emitModeState(roomCode, snapshot, event) {
   }
 }
 
+// ---- Coliseo melee ---------------------------------------------------------
+
+function isColiseoRoom(room) {
+  return !!room && room.kind === "mode" && room.modeId === "coliseo";
+}
+
+function coliseoGameFor(room) {
+  return isColiseoRoom(room) ? modeGames.get(room.code) || null : null;
+}
+
+// Coloca a un jugador en su punto de aparición, lo revive y le equipa el arma
+// elegida. El cliente recibe `mode:teleport` para corregir su posición local:
+// el servidor es quien decide dónde empieza cada ronda.
+function coliseoPlace(room, game, snapshot, player) {
+  const info = (snapshot.players || []).find((entry) => entry.id === player.id);
+  const spawn = game.spawnFor(player.id);
+  player.x = spawn.x;
+  player.z = spawn.z;
+  player.y = 0;
+  player.yaw = spawn.yaw;
+  player.hp = MAX_HP;
+  player.alive = true;
+  player.weaponId = info ? info.weaponId : player.weaponId;
+  player.lastShotAt = 0;
+  player.lastThrowAt = 0;
+  player.moveBudget = MOVE_BUDGET_MAX;
+  player.moveBudgetAt = Date.now();
+  resetBlock(player);
+
+  const channel = roomChannel(room.code);
+  io.to(channel).emit("mode:teleport", {
+    id: player.id,
+    x: player.x,
+    z: player.z,
+    yaw: player.yaw,
+  });
+  io.to(channel).emit("combat:revived", { targetId: player.id });
+  io.to(channel).emit("crystal:equip", {
+    playerId: player.id,
+    weaponId: player.weaponId,
+  });
+  io.to(channel).emit("combat:block", {
+    playerId: player.id,
+    blocking: false,
+    stamina: BLOCK_STAMINA_MAX,
+  });
+}
+
+// Persiste el resultado de la partida en user_stats. Los ganadores suman una
+// victoria de duelo y cada participante registrado acumula sus rondas ganadas.
+function persistColiseoResult(snapshot) {
+  if (!snapshot || !snapshot.winner) return;
+  const winnerId = snapshot.winner.id;
+  const scores = new Map((snapshot.scores || []).map((entry) => [entry.id, entry.score || 0]));
+  for (const entry of snapshot.players || []) {
+    const player = players.get(entry.id);
+    if (!player || !player.userId) continue;
+    const key = snapshot.mode === "ffa" ? entry.id : entry.side;
+    const won = snapshot.mode === "ffa" ? entry.id === winnerId : entry.side === winnerId;
+    recordUserStats(player.userId, {
+      duelWins: won ? 1 : 0,
+      duelRounds: scores.get(key) || 0,
+    });
+  }
+}
+
+// Aplica los eventos del controlador: al empezar una ronda todos vuelven a su
+// spawn con el arma elegida; al terminar la partida se guardan las estadísticas.
+function applyColiseoEvent(room, snapshot, event) {
+  if (!event || !snapshot) return;
+  const game = coliseoGameFor(room);
+  if (!game) return;
+
+  if (event.type === "countdown" || event.type === "roundStart") {
+    for (const player of roomMembers(room)) coliseoPlace(room, game, snapshot, player);
+    return;
+  }
+  if (event.type === "join" && (snapshot.phase === "countdown" || snapshot.phase === "fight")) {
+    const player = players.get(event.playerId);
+    if (player) coliseoPlace(room, game, snapshot, player);
+    return;
+  }
+  if (event.type === "matchEnd") {
+    persistColiseoResult(snapshot);
+  }
+}
+
 export function setupGame(ioServer) {
   io = ioServer;
 
@@ -1043,6 +1166,25 @@ export function setupGame(ioServer) {
         variant: variant.id,
         maxPlayers: variant.maxPlayers,
         onChange: (snapshot, event) => emitModeState(room.code, snapshot, event),
+      })
+    );
+  }
+
+  // Coliseo: una sala y un controlador por formato (1v1, 2v2 y FFA). Es el único
+  // modo con combate real, así que además de emitir el estado aplica los
+  // eventos de ronda (teletransporte, revivir, equipar y estadísticas).
+  for (const variant of getMode("coliseo").variants || []) {
+    const room = ensureModeRoom("coliseo", variant.id);
+    if (!room) continue;
+    modeGames.set(
+      room.code,
+      createColiseoGame({
+        variant: variant.id,
+        maxPlayers: variant.maxPlayers,
+        onChange: (snapshot, event) => {
+          emitModeState(room.code, snapshot, event);
+          applyColiseoEvent(room, snapshot, event);
+        },
       })
     );
   }
@@ -1126,6 +1268,11 @@ export function setupGame(ioServer) {
       socket.on("player:move", ({ x, z, yaw, y, sprint, slide } = {}) => {
         if (!Number.isFinite(x) || !Number.isFinite(z)) return;
         if (!player.alive) return;
+        // En el Coliseo solo se puede mover durante la ronda activa: en espera,
+        // cuenta atrás o fin de ronda el servidor ignora las posiciones.
+        const moveRoom = player.roomCode ? rooms.get(player.roomCode) : null;
+        const moveGame = coliseoGameFor(moveRoom);
+        if (moveGame && !moveGame.canFight(player.id)) return;
         if (throttle(socket, "move", 40, 1000)) return;
 
         const now = Date.now();
@@ -1168,6 +1315,11 @@ export function setupGame(ioServer) {
         const mapId = mapIdOf(player);
         player.x = clampPosition(targetX, mapId);
         player.z = clampPosition(targetZ, mapId);
+        if (mapId === COLISEO_MAP_ID) {
+          const inside = coliseoClamp(player.x, player.z);
+          player.x = inside.x;
+          player.z = inside.z;
+        }
         player.movedSinceSave = true;
 
         const moved = {
@@ -1224,6 +1376,10 @@ export function setupGame(ioServer) {
       socket.on("combat:block", ({ on, yaw } = {}) => {
         const now = Date.now();
         if (Number.isFinite(yaw)) player.yaw = yaw;
+        // El escudo solo se puede usar durante la ronda activa del Coliseo.
+        const blockRoom = player.roomCode ? rooms.get(player.roomCode) : null;
+        const blockGame = coliseoGameFor(blockRoom);
+        if (blockGame && !blockGame.canFight(player.id)) return;
         const cfg = getBlockConfig(player.weaponId);
         const deny = (reason) => {
           player.blocking = false;
@@ -1293,8 +1449,13 @@ export function setupGame(ioServer) {
         // La isla y los minijuegos no tienen combate: sus acciones van por
         // mode:action, no por el canal de disparos.
         if (room.combat === false) return;
+        const coliseoGame = coliseoGameFor(room);
+        if (coliseoGame && !coliseoGame.canFight(player.id)) return;
         const weapon = player.weaponId ? getWeapon(player.weaponId) : null;
         if (!weapon) return;
+        // El Coliseo solo admite el loadout melee: aunque un cliente manipulado
+        // envíe un arma de fuego, el servidor la rechaza aquí.
+        if (coliseoGame && (weapon.class !== "melee" || !isColiseoWeapon(weapon.id))) return;
         // Bloquear impide disparar armas de fuego; el escudo puede hacer bash.
         if (player.blocking && weapon.id !== "escudo") return;
         if (throttle(socket, "shoot", 40, 1000)) return;
@@ -1312,7 +1473,10 @@ export function setupGame(ioServer) {
         player.lastShotAt = shootAt;
 
         const zone = roomChannel(room.code);
-        const candidates = roomMembers(room);
+        // En el Coliseo no hay fuego amigo: se descartan los compañeros de bando.
+        const candidates = coliseoGame
+          ? roomMembers(room).filter((candidate) => !coliseoGame.sameSide(player.id, candidate.id))
+          : roomMembers(room);
 
         if (weapon.kind === "melee") {
           const arcHalf = Math.min(Math.PI, (weapon.arc || 1.5) / 2);
@@ -1332,7 +1496,12 @@ export function setupGame(ioServer) {
               target = candidate;
             }
           }
-          if (target) damageTarget(player, target, damageAtRange(weapon, bestD), nx, nz);
+          if (target) {
+            const opts = coliseoGame
+              ? { coliseo: true, onEliminated: (victim) => coliseoGame.eliminate(victim.id) }
+              : {};
+            damageTarget(player, target, damageAtRange(weapon, bestD), nx, nz, opts);
+          }
           return;
         }
 
@@ -1479,6 +1648,10 @@ export function setupGame(ioServer) {
       socket.on("inventory:use", ({ slot, id, type } = {}) => {
         const toast = (text) => socket.emit("inventory:toast", { playerId: socket.id, text });
         if (!player.alive) return toast("Estás eliminado: espera a reaparecer");
+        // El Coliseo no tiene curación: ni comida ni objetos de apoyo.
+        if (player.roomCode && isColiseoRoom(rooms.get(player.roomCode))) {
+          return toast("En el Coliseo no se puede curar");
+        }
         if (throttle(socket, "inv", 2, 400)) return;
 
         const idx = Number(slot);
@@ -1510,6 +1683,9 @@ export function setupGame(ioServer) {
         const room = rooms.get(player.roomCode);
         if (!room) return toast("Entra a una sala para lanzar objetos");
         if (room.combat === false) return toast("Aquí no se pueden lanzar objetos");
+        // El Coliseo es solo melee: se bloquean lanzables aunque el cliente los
+        // tenga en el inventario de la cuenta.
+        if (isColiseoRoom(room)) return toast("En el Coliseo no se pueden lanzar objetos");
         if (!player.alive) return toast("Estás eliminado: espera a reaparecer");
         if (throttle(socket, "throw", 20, 1000)) return;
 
@@ -1744,8 +1920,22 @@ export function setupGame(ioServer) {
         }
         const room = ensureModeRoom(def.id, variantId);
         if (!room) return socket.emit("mode:error", { error: "Ese minijuego no está listo." });
-        if (!room.members.has(visitor.id) && room.members.size >= room.maxPlayers) {
-          return socket.emit("mode:error", { error: "La partida está llena." });
+        if (!room.members.has(visitor.id)) {
+          // En el Coliseo una partida en curso está cerrada aunque quede aforo:
+          // el aviso lo decide el controlador antes que el recuento de la sala.
+          const game = modeGames.get(room.code);
+          const state = game ? game.snapshot() : null;
+          const inProgress =
+            state &&
+            (state.phase === "fight" || state.phase === "roundEnd" || state.phase === "matchEnd");
+          if (inProgress) {
+            return socket.emit("mode:error", {
+              error: "La partida ya está en marcha. Espera al reinicio.",
+            });
+          }
+          if (room.members.size >= room.maxPlayers) {
+            return socket.emit("mode:error", { error: "La partida está llena." });
+          }
         }
         moveSocketToMode(socket, visitor, room);
       });
@@ -1784,6 +1974,9 @@ export function setupGame(ioServer) {
             "team-full": "Ese equipo está completo.",
             "not-on-pad": "Pisa la plataforma del equipo.",
             "bad-team": "Equipo no válido.",
+            "bad-weapon": "Esa arma no está permitida en el Coliseo.",
+            "in-progress": "La partida ya está en marcha.",
+            "unknown-action": "Esa acción no existe.",
           };
           const message = messages[result.reason];
           if (message) socket.emit("mode:error", { error: message });

@@ -37,8 +37,8 @@ repartidos entre diciembre de 2026 y febrero de 2027.
 
 ### 0.1 Estado real (18/11/2026)
 
-El usuario pidió adelantar la Ola 1, así que la base de la expansión ya está en el
-código y probada:
+El usuario pidió adelantar las olas 1 y 2, así que la base de la expansión y el
+primer modo con combate ya están en el código y probados:
 
 | Entregado | Dónde |
 |---|---|
@@ -49,12 +49,16 @@ código y probada:
 | Pares autoritativo con dos formatos (1v1 y 2v2) | `server/modes/pairs.js` |
 | Tablero 3D físico, plataformas de equipo y atriles | `public/js/pairsBoard.js`, `public/js/pairsDefs.js` |
 | HUD no modal y selector de formato | `public/js/pairs.js`, `public/index.html`, `public/css/style.css` |
+| Coliseo autoritativo con 1v1, 2v2 y FFA | `server/modes/coliseo.js` |
+| Arena circular 3D, loadout melee y HUD de rondas | `public/js/coliseoDefs.js`, `public/js/coliseo.js`, `public/js/world.js` |
+| Mapa interno `coliseo` (52) con muro circular | `public/js/mapDefs.js`, `public/js/mapObstacles.js`, `public/js/collision.js` |
+| Persistencia `duel_wins` y `duel_rounds` | `server/db.js` (`user_stats`) |
 | Mapas internos `isla` (64) y `pares` (44) | `public/js/mapDefs.js`, `public/js/mapObstacles.js` |
-| Suite de isla/modos/Pares (13 aserciones) | `public/test/t-modos.mjs` |
+| Suites de isla/modos/Pares y del Coliseo | `public/test/t-modos.mjs`, `public/test/t-coliseo.mjs` |
 
-Las otras cinco modalidades siguen en `status:"soon"`: su portal se ve, pero el
+Las otras cuatro modalidades siguen en `status:"soon"`: su portal se ve, pero el
 servidor responde «todavía no está disponible» sin cambiar de zona. Lo pendiente de
-Pares está al final de §3.1.
+Pares y Coliseo está al final de §3.1 y §3.2.
 
 ---
 
@@ -126,7 +130,7 @@ Cada modo implementa la misma interfaz. El servidor no sabe qué hay dentro.
 // server/modes/index.js
 export const MODE_CONTROLLERS = {
   pares: createPairsMode,
-  coliseo: createColiseumMode,
+  coliseo: createColiseoGame,
   escondite: createHideMode,
   tnt: createTntMode,
   karts: createKartsMode,
@@ -286,6 +290,26 @@ si hace falta, se añade *lag compensation* de 100 ms en el servidor.
 
 **DoD:** 1v1 y 2v2 completos; un arma de fuego solicitada por un cliente manipulado se
 rechaza; al morir se pasa a espectador con cámara libre; test `t-mode-coliseo.mjs`.
+
+**Estado (18/11/2026): entregado.** Se implementaron las tres variantes (1v1, 2v2 y
+FFA hasta 8) con una sala oculta por formato (`MODO-COLISEO-<VARIANTE>`), el
+controlador autoritativo de fases (`waiting`/`countdown`/`fight`/`roundEnd`/`matchEnd`),
+el marcador al mejor de 5, el loadout melee y la persistencia `duel_wins`/`duel_rounds`.
+
+Decisiones de implementación que conviene recordar:
+
+| Tema | Cómo quedó |
+|---|---|
+| Entrada | Solo en `waiting` o `countdown`; en partida en curso el servidor responde «La partida ya está en marcha. Espera al reinicio». |
+| Movimiento | El servidor ignora `player:move` fuera de `fight` y aplica `coliseoClamp` al círculo de 16,35 m. |
+| Armas | `combat:shoot` descarta cualquier arma que no sea melee del loadout; no hay fuego amigo entre compañeros de bando. |
+| Bajas | Sin respawn ni puntos de kill: el jugador queda espectador hasta la ronda siguiente. |
+| Curación y lanzables | `inventory:use`, `inventory:throw`, cristales y tienda quedan bloqueados dentro del Coliseo. |
+| Espectador | La cámara sigue libre, pero el cliente no puede moverse ni golpear hasta que empieza la ronda. |
+| Suite | Se llama `t-coliseo.mjs` (patrón `t-*.mjs` del proyecto) y cubre 14 bloques, no 18 aserciones sueltas. |
+
+Queda pendiente para una tanda futura el *feedback* de impacto (hit-stop, sacudida y
+sonido por golpe) y la revancha votada; el reinicio automático a los 12 s ya funciona.
 
 ---
 
@@ -451,6 +475,11 @@ persistencia) en **3 días**. Eso consume el margen de estabilización; el plan 
 como riesgo, no como recomendación. Se adelantó el 18/11/2026 y terminó yendo más allá
 del mínimo: tablero 3D físico, 1v1 y 2v2 por equipos y atriles.
 
+**Adelanto del 18/11/2026:** también se entregó la **Ola 2 (Coliseo melee)** en el orden
+real del proyecto (Pares → Coliseo), aunque la tabla rotule «Ola 1» como Coliseo y
+«Ola 2» como Escondite. Con esto quedan en vivo Pares y Coliseo; el siguiente
+entregable es el **Escondite**.
+
 ---
 
 ## 5. Fundaciones (Ola 0) — el trabajo que no se ve
@@ -539,17 +568,17 @@ Se añaden, una por modo y una por contrato:
 | Suite | Qué prueba | Aserciones objetivo |
 |---|---|---|
 | `t-mode-core.mjs` | Contrato: join, leave, tick, snapshot, fin | 20 |
-| `t-modos.mjs` ✔ | Registro y portales, mapas `isla`/`pares`, obstáculos, partida determinista y flujo real isla → portal → partida → isla | 11 (implementadas) |
+| `t-modos.mjs` ✔ | Registro y portales, mapas `isla`/`pares`/`coliseo`, obstáculos, partida determinista y flujo real isla → portal → partida → isla | 13 (implementadas) |
 | `t-mode-pares.mjs` | Barajado con semilla, turnos, parejas, empate | 15 |
-| `t-mode-coliseo.mjs` | Rondas, loadout melee, rechazo de armas de fuego | 18 |
+| `t-coliseo.mjs` ✔ | Formatos, loadout melee, rondas, espectador, rechazo de armas de fuego y persistencia | 14 (implementadas) |
 | `t-mode-escondite.mjs` | Roles, fases, etiquetado con LOS, tiempo | 16 |
 | `t-mode-tnt.mjs` | Rejilla, caída, último vivo, empate por altura | 14 |
 | `t-mode-karts.mjs` | Checkpoints en orden, vueltas, ranking | 16 |
 | `t-mode-ciudad.mjs` | Interés por celda, persistencia de objetos | 12 |
 
-La suite `t-modos` ya está en `scripts\test-all.ps1`; las demás se irán añadiendo con
-cada ola. Todas usan el patrón existente: servidor real en proceso con `PORT` y
-`DB_PATH` temporales, bots de `socket.io-client`, sin navegador.
+La suite `t-modos` y la suite `t-coliseo` ya están en `scripts\test-all.ps1`; las demás
+se irán añadiendo con cada ola. Todas usan el patrón existente: servidor real en proceso
+con `PORT` y `DB_PATH` temporales, bots de `socket.io-client`, sin navegador.
 
 ### 7.2 Manuales por ola
 
@@ -632,7 +661,7 @@ La expansión se considera terminada cuando:
 | **Karts** | *Spike* de 3 días con Colyseus 0.18 antes de comprometerse; si falla, predicción manual sobre Socket.IO. |
 | **Ciudad** | Empieza por distrito + coleccionables (C1–C2); casas y trabajos después. |
 | **Assets** | Mixto: procedural para arenas, glTF (Blender → gltf-transform) para karts, muebles y edificios. |
-| **Adelanto de la Ola 1** | **Aprobado (18/11/2026):** se implementaron la isla y Pares antes del 24/11 por petición del usuario, con la versión estable respaldada y las 9 suites en verde. Las demás olas mantienen el calendario. |
+| **Adelanto de las olas 1 y 2** | **Aprobado (18/11/2026):** se implementaron la isla, Pares y Coliseo antes del 24/11 por petición del usuario, con la versión estable respaldada y las 10 suites en verde. Las demás olas mantienen el calendario. |
 
-Con esto no queda ninguna decisión bloqueante. La Ola 1 (isla + Pares) ya está
-entregada; el siguiente entregable es la **Ola 2** (Coliseo melee).
+Con esto no queda ninguna decisión bloqueante. Las olas 1 y 2 (isla + Pares + Coliseo)
+ya están entregadas; el siguiente entregable es la **Ola 3** (Escondite).

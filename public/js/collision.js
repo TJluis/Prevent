@@ -1,4 +1,5 @@
 import { getMapBoundary, getMapObstacles } from "./world.js";
+import { COLISEO_MAP_ID, COLISEO_PLAY_RADIUS } from "./coliseoDefs.js";
 
 export const PLAYER_RADIUS = 0.45;
 
@@ -6,6 +7,16 @@ export function moveWithCollisions(x, z, mapId = "nevado") {
   const limit = getMapBoundary(mapId) - PLAYER_RADIUS;
   let nx = Math.max(-limit, Math.min(limit, x));
   let nz = Math.max(-limit, Math.min(limit, z));
+
+  // El Coliseo es circular: el muro de la arena sustituye al borde cuadrado.
+  if (mapId === COLISEO_MAP_ID) {
+    const dist = Math.hypot(nx, nz);
+    const ring = COLISEO_PLAY_RADIUS - PLAYER_RADIUS;
+    if (dist > ring && dist > 0) {
+      nx = (nx / dist) * ring;
+      nz = (nz / dist) * ring;
+    }
+  }
 
   for (const obstacle of getMapObstacles(mapId)) {
     if (obstacle.type === "box") {

@@ -48,8 +48,8 @@ run("01 modeDefs: seis modalidades y Pares con dos formatos", () => {
   eq(MODE.MODES.length, 6, "número de modalidades");
   const ids = MODE.MODES.map((m) => m.id);
   eq(new Set(ids).size, 6, "ids únicos");
-  eq(MODE.liveModes().length, 1, "solo una modalidad live");
-  eq(MODE.liveModes()[0].id, "pares", "la modalidad live es Pares");
+  eq(MODE.liveModes().length, 2, "dos modalidades live");
+  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,coliseo", "Pares y Coliseo en vivo");
   for (const mode of MODE.MODES) {
     if (!mode.name || !mode.icon || !mode.mapId) throw new Error(`modalidad incompleta: ${mode.id}`);
     if (mode.status !== "live" && mode.status !== "soon") throw new Error(`estado inválido: ${mode.id}`);
@@ -63,6 +63,10 @@ run("01 modeDefs: seis modalidades y Pares con dos formatos", () => {
   eq(MODE.modeRoomCode("pares"), "MODO-PARES", "código base de Pares");
   eq(MODE.modeRoomCode("pares", "1v1"), "MODO-PARES-1V1", "sala del formato 1v1");
   eq(MODE.modeRoomCode("pares", "2v2"), "MODO-PARES-2V2", "sala del formato 2v2");
+  const coliseo = MODE.getMode("coliseo");
+  eq(coliseo.combat, true, "el Coliseo habilita combate");
+  eq(coliseo.variants.length, 3, "tres formatos de Coliseo");
+  eq(MODE.modeRoomCode("coliseo", "ffa"), "MODO-COLISEO-FFA", "sala FFA del Coliseo");
   eq(MODE.isModeLive("tnt"), false, "TNT todavía no está en vivo");
   eq(MODE.getMode("nope"), null, "modo inexistente devuelve null");
 });
@@ -87,16 +91,20 @@ run("02 hubDefs: anillo de seis portales y detección de proximidad", () => {
   if (!lobby || lobby.modeId !== "hub") throw new Error("falta la puerta del lobby");
 });
 
-run("03 mapas internos: isla y arena no aparecen en el selector de salas", () => {
+run("03 mapas internos: isla, arena y coliseo no aparecen en el selector de salas", () => {
   const isla = MAPS.getMap("isla");
   const pares = MAPS.getMap("pares");
+  const coliseo = MAPS.getMap("coliseo");
   eq(isla.size, 64, "tamaño de la isla");
   eq(pares.size, 44, "tamaño de la arena de Pares");
+  eq(coliseo.size, 52, "tamaño del Coliseo");
   eq(isla.room, false, "la isla no es sala privada");
   eq(pares.room, false, "la arena no es sala privada");
+  eq(coliseo.room, false, "el Coliseo no es sala privada");
   const roomIds = MAPS.getRoomMaps().map((m) => m.id);
   eq(roomIds.includes("isla"), false, "getRoomMaps excluye la isla");
   eq(roomIds.includes("pares"), false, "getRoomMaps excluye Pares");
+  eq(roomIds.includes("coliseo"), false, "getRoomMaps excluye el Coliseo");
 });
 
 run("04 obstáculos: portales, spawn y arena despejados", () => {
@@ -116,6 +124,18 @@ run("04 obstáculos: portales, spawn y arena despejados", () => {
   eq(OBS.isInsideObstacle("isla", 0, 0, 0.1), true, "el monumento ocupa el centro");
   eq(OBS.isInsideObstacle("isla", HUB.HUB_SPAWN.x, HUB.HUB_SPAWN.z, 0.5), false, "spawn libre");
   eq(pares.length, 8, "arena de Pares con 8 coberturas");
+
+  // Coliseo: cuatro pilares fuera del muro y cuatro rocas bajas dentro.
+  const coliseo = OBS.MAP_OBSTACLES.coliseo;
+  if (!coliseo) throw new Error("falta el layout del Coliseo");
+  eq(coliseo.length, 8, "Coliseo con 8 obstáculos");
+  eq(coliseo.filter((o) => o.kind === "pillar").length, 4, "cuatro pilares");
+  eq(coliseo.filter((o) => o.kind === "rock").length, 4, "cuatro rocas");
+  eq(OBS.isInsideObstacle("coliseo", 0, 0, 0.2), false, "centro del Coliseo libre");
+  for (const o of coliseo) {
+    if (Math.abs(o.x) > MAPS.getMapBoundary("coliseo")) throw new Error(`obstáculo fuera del Coliseo: ${o.kind}`);
+    if (Math.abs(o.z) > MAPS.getMapBoundary("coliseo")) throw new Error(`obstáculo fuera del Coliseo: ${o.kind}`);
+  }
 
   // El centro del tablero y las plataformas de equipo deben quedar libres.
   for (const variantId of ["1v1", "2v2"]) {

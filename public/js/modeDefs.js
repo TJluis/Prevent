@@ -17,6 +17,7 @@
 // oculta distinta por variante para que ambos formatos puedan jugarse a la vez.
 
 import { PAIRS_VARIANTS } from "./pairsDefs.js";
+import { COLISEO_VARIANTS } from "./coliseoDefs.js";
 
 export const MODES = [
   {
@@ -82,12 +83,24 @@ export const MODES = [
     name: "Coliseo melee",
     short: "Coliseo",
     icon: "⚔️",
-    status: "soon",
+    status: "live",
     mapId: "coliseo",
     maxPlayers: 8,
+    // El Coliseo es el único modo con combate real: el servidor habilita el
+    // canal de disparos y valida que solo se usen armas melee del loadout.
+    combat: true,
     color: "#f87171",
     tagline: "Solo cuerpo a cuerpo",
     blurb: "Arena cerrada, sin armas de fuego. Espada, escudo y reflejos.",
+    variants: COLISEO_VARIANTS.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      detail: variant.detail,
+      teamSize: variant.teamSize,
+      maxPlayers: variant.maxPlayers,
+      mode: variant.mode,
+      sides: variant.sides,
+    })),
   },
   {
     id: "escondite",

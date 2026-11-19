@@ -3,6 +3,11 @@ import { MAPS, getMap, getRoomMaps, getMapBoundary } from "./mapDefs.js";
 import { MAP_OBSTACLES } from "./mapObstacles.js";
 import { HUB_PORTALS, LOBBY_PORTAL } from "./hubDefs.js";
 import { getMode } from "./modeDefs.js";
+import {
+  COLISEO_ARENA_RADIUS,
+  COLISEO_MAP_ID,
+  COLISEO_PLAY_RADIUS,
+} from "./coliseoDefs.js";
 
 export { MAPS, getMap, getRoomMaps, getMapBoundary };
 export { makeCordilleraScenery, makeTerrain };
@@ -561,6 +566,99 @@ function makeRink() {
   // Integrar porterías 3D resaltadas en ambas cabeceras
   group.add(makeRinkGoal(-14.5, false));
   group.add(makeRinkGoal(14.5, true));
+
+  return group;
+}
+
+// Arena circular del Coliseo: suelo oscuro, anillo de aviso y muro cilíndrico
+// de 34 m de diámetro. La colisión y el servidor usan el mismo radio de juego.
+function makeColiseoArena() {
+  const group = new THREE.Group();
+  const floorRadius = COLISEO_PLAY_RADIUS + 0.65;
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(floorRadius, 80),
+    new THREE.MeshStandardMaterial({ color: 0x241820, roughness: 0.86, metalness: 0.12 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.02;
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  const sand = new THREE.Mesh(
+    new THREE.RingGeometry(COLISEO_PLAY_RADIUS - 0.9, floorRadius, 80),
+    new THREE.MeshStandardMaterial({
+      color: 0x7a3f4a,
+      emissive: 0x3a141c,
+      emissiveIntensity: 0.5,
+      roughness: 0.7,
+      side: THREE.DoubleSide,
+    })
+  );
+  sand.rotation.x = -Math.PI / 2;
+  sand.position.y = 0.04;
+  group.add(sand);
+
+  // Marca central: ayuda a leer la simetría de la arena.
+  const center = new THREE.Mesh(
+    new THREE.RingGeometry(1.1, 1.45, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0xf87171,
+      emissive: 0x8f1f2c,
+      emissiveIntensity: 0.6,
+      roughness: 0.5,
+      side: THREE.DoubleSide,
+    })
+  );
+  center.rotation.x = -Math.PI / 2;
+  center.position.y = 0.05;
+  group.add(center);
+
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(COLISEO_ARENA_RADIUS, COLISEO_ARENA_RADIUS, 2.8, 80, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x3a2530,
+      roughness: 0.62,
+      metalness: 0.18,
+      side: THREE.DoubleSide,
+    })
+  );
+  wall.position.y = 1.4;
+  wall.receiveShadow = true;
+  group.add(wall);
+
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(COLISEO_ARENA_RADIUS, 0.17, 8, 80),
+    new THREE.MeshStandardMaterial({
+      color: 0xf87171,
+      emissive: 0xf87171,
+      emissiveIntensity: 0.65,
+      roughness: 0.35,
+    })
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 2.8;
+  group.add(rim);
+
+  // Antorchas repartidas por el muro para dar profundidad sin tapar el combate.
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const torch = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 10, 8),
+      new THREE.MeshStandardMaterial({
+        color: 0xffd0a8,
+        emissive: 0xff7a4a,
+        emissiveIntensity: 1.1,
+        roughness: 0.4,
+      })
+    );
+    torch.position.set(
+      Math.cos(angle) * (COLISEO_ARENA_RADIUS - 0.25),
+      2.1,
+      Math.sin(angle) * (COLISEO_ARENA_RADIUS - 0.25)
+    );
+    group.add(torch);
+  }
 
   return group;
 }
@@ -1393,6 +1491,15 @@ export const MAP_DEFS = {
       crate: { box: 0x2c3350, bands: [0x7dd3fc, 0xf472b6, 0xfacc15] },
     },
   },
+
+  coliseo: {
+    obstacles: MAP_OBSTACLES.coliseo,
+    palette: {
+      pillar: { body: 0x4a3550, glow: 0xf87171 },
+      rock: 0x6f5f74,
+      crate: { box: 0x2a2238, bands: [0xf87171, 0xf472b6, 0xfacc15] },
+    },
+  },
 };
 
 export const THEMES = {
@@ -1567,6 +1674,26 @@ export const THEMES = {
     ambient: { color: 0x6f5fbf, intensity: 0.55 },
     sun: { color: 0xc9b8ff, intensity: 1.0 },
     particles: { color: 0x7dd3fc, count: 160, size: 0.1, opacity: 0.6, rise: true, speed: 0.4 },
+  },
+
+  coliseo: {
+    sky: { top: 0x1a0d12, mid: 0x3c1822, horizon: 0x6b2a34 },
+    fog: { color: 0x241016, near: 38, far: 120 },
+    ground: {
+      base: "#2a1d22",
+      light: "rgba(248,113,113,0.22)",
+      dark: "rgba(12,6,9,0.6)",
+      repeat: 4,
+      speckles: 1400,
+      roughness: 0.9,
+      grid: "rgba(248,113,113,0.18)",
+    },
+    wall: 0x3a2530,
+    wallTop: 0xf87171,
+    hemisphere: 0xd9a3a3,
+    ambient: { color: 0x7a3f4a, intensity: 0.6 },
+    sun: { color: 0xffd0c8, intensity: 1.1 },
+    particles: { color: 0xffb4a8, count: 140, size: 0.1, opacity: 0.5, rise: true, speed: 0.35 },
   },
 };
 
@@ -2717,6 +2844,8 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     scene.add(makeRink());
   } else if (mapId === "gruta") {
     scene.add(makeCave(boundary));
+  } else if (mapId === COLISEO_MAP_ID) {
+    scene.add(makeColiseoArena());
   }
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.55 });
@@ -2737,10 +2866,14 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     if (rotationY) cap.rotation.y = rotationY;
     scene.add(cap);
   }
-  addWall(0, -boundary, wallLong, 0);
-  addWall(0, boundary, wallLong, 0);
-  addWall(-boundary, 0, wallShort, 0);
-  addWall(boundary, 0, wallShort, 0);
+  // El Coliseo cierra su propio recinto circular: no lleva las cuatro paredes
+  // cuadradas del resto de mapas.
+  if (mapId !== COLISEO_MAP_ID) {
+    addWall(0, -boundary, wallLong, 0);
+    addWall(0, boundary, wallLong, 0);
+    addWall(-boundary, 0, wallShort, 0);
+    addWall(boundary, 0, wallShort, 0);
+  }
 
   if (mapId === "cordillera") {
     scene.add(makeCordilleraScenery());

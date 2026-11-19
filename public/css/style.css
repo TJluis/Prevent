@@ -2567,6 +2567,314 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
   box-shadow: 0 0 18px rgba(125, 211, 252, 0.25);
 }
 
+/* HUD del Coliseo: marcador, temporizador y loadout melee. */
+#coliseo-hud {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 56;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(620px, 94vw);
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(18, 8, 12, 0.76);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 26px rgba(248, 113, 113, 0.16);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+#coliseo-hud[hidden] { display: none !important; }
+
+.coliseo-hud-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.coliseo-hud-title {
+  font-weight: 800;
+  color: #fca5a5;
+}
+
+.coliseo-hud-variant {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #2a0b10;
+  background: #f87171;
+  text-transform: uppercase;
+}
+
+.coliseo-hud-phase {
+  flex: 1;
+  min-width: 110px;
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fecaca;
+}
+
+.coliseo-hud-timer {
+  min-width: 42px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(248, 113, 113, 0.24);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+}
+
+.coliseo-hud-timer[hidden] { display: none !important; }
+
+#coliseo-hud-close { pointer-events: auto; }
+
+.coliseo-hud-scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.coliseo-score {
+  padding: 6px 9px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--side-color, rgba(248, 113, 113, 0.35));
+  opacity: 0.78;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.coliseo-score.is-mine {
+  opacity: 1;
+  box-shadow: 0 0 16px -4px var(--side-color, #f87171);
+}
+
+.coliseo-score.is-dead { opacity: 0.4; }
+
+.coliseo-score-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.coliseo-score-name {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--side-color, #fecaca);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coliseo-score-points {
+  font-size: 0.86rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.coliseo-score-pips {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.coliseo-pip {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.coliseo-pip.is-on {
+  background: var(--side-color, #f87171);
+  box-shadow: 0 0 8px -1px var(--side-color, #f87171);
+}
+
+.coliseo-hud-weapons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.coliseo-weapon {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.coliseo-weapon b {
+  font-size: 0.76rem;
+}
+
+.coliseo-weapon span {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coliseo-weapon:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.coliseo-weapon.is-selected {
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.2);
+  box-shadow: 0 0 14px -4px #f87171;
+}
+
+.coliseo-weapon:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.coliseo-hud-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#coliseo-hud-ready {
+  pointer-events: auto;
+  min-width: 96px;
+  font-weight: 800;
+}
+
+#coliseo-hud-ready.is-ready {
+  color: #2a0b10;
+  background: #f87171;
+  border-color: #f87171;
+}
+
+#coliseo-hud-ready[hidden] { display: none !important; }
+
+.coliseo-hud-note {
+  flex: 1;
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.coliseo-hud-countdown {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 24px rgba(248, 113, 113, 0.8);
+  pointer-events: none;
+}
+
+.coliseo-hud-countdown[hidden] { display: none !important; }
+
+#coliseo-select {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(16, 5, 9, 0.68);
+  backdrop-filter: blur(5px);
+}
+
+#coliseo-select[hidden] { display: none !important; }
+
+.coliseo-select-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(520px, 96vw);
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--panel-bg);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  box-shadow: var(--glass-shadow), 0 0 40px rgba(248, 113, 113, 0.24);
+}
+
+.coliseo-select-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coliseo-select-title {
+  flex: 1;
+  font-weight: 800;
+  color: #fca5a5;
+}
+
+.coliseo-select-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.coliseo-select-list {
+  display: grid;
+  gap: 8px;
+}
+
+.coliseo-select-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.coliseo-select-btn b {
+  font-size: 0.9rem;
+}
+
+.coliseo-select-btn span {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.coliseo-select-btn:hover {
+  transform: translateY(-1px);
+  border-color: #f87171;
+  box-shadow: 0 0 18px rgba(248, 113, 113, 0.28);
+}
+
+@media (max-width: 620px) {
+  .coliseo-hud-weapons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Fundido de zona: cubre la pantalla un instante al cambiar de mapa o modo. */
 #zone-fade {
   position: fixed;

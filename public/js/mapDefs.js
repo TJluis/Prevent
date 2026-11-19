@@ -15,6 +15,9 @@ export const MAPS = [
   // se entra a ellas desde la isla o desde el portal del lobby.
   { id: "isla", name: "Isla de Minijuegos", room: false, size: 64 },
   { id: "pares", name: "Arena de Pares", room: false, size: 44 },
+  // El Coliseo es circular: el tamaño reserva el recinto y el muro de la arena
+  // se dibuja aparte con radio 17 (34 m de diámetro).
+  { id: "coliseo", name: "Coliseo Melee", room: false, size: 52 },
 ];
 
 export function getMap(id) {

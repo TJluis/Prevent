@@ -41,6 +41,7 @@ export function connectToGame({
   onShopResult,
   onModeState,
   onModeEvent,
+  onModeTeleport,
   onModeError,
   onGameFull,
   onDisconnect,
@@ -102,6 +103,7 @@ export function connectToGame({
   socket.on("shop:result", (data) => onShopResult && onShopResult(data));
   socket.on("mode:state", (data) => onModeState && onModeState(data));
   socket.on("mode:event", (data) => onModeEvent && onModeEvent(data));
+  socket.on("mode:teleport", (data) => onModeTeleport && onModeTeleport(data));
   socket.on("mode:error", (data) => onModeError && onModeError(data));
 }
 

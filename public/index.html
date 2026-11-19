@@ -273,6 +273,55 @@
       </div>
     </div>
 
+    <div id="coliseo-hud" hidden>
+      <div class="coliseo-hud-head">
+        <span class="coliseo-hud-title">⚔️ Coliseo</span>
+        <span id="coliseo-hud-variant" class="coliseo-hud-variant"></span>
+        <span id="coliseo-hud-phase" class="coliseo-hud-phase"></span>
+        <span id="coliseo-hud-timer" class="coliseo-hud-timer"></span>
+        <button id="coliseo-hud-close" type="button" class="btn-sm">← Isla</button>
+      </div>
+      <div id="coliseo-hud-scores" class="coliseo-hud-scores"></div>
+      <div
+        id="coliseo-hud-weapons"
+        class="coliseo-hud-weapons"
+        role="group"
+        aria-label="Arma del Coliseo"
+      ></div>
+      <div class="coliseo-hud-foot">
+        <button id="coliseo-hud-ready" type="button" class="btn-sm">Listo</button>
+        <p id="coliseo-hud-note" class="coliseo-hud-note"></p>
+      </div>
+      <div id="coliseo-hud-countdown" class="coliseo-hud-countdown" hidden></div>
+    </div>
+
+    <div id="coliseo-select" hidden>
+      <div class="coliseo-select-panel" role="dialog" aria-label="Elige formato del Coliseo">
+        <div class="coliseo-select-head">
+          <span class="coliseo-select-title">⚔️ Coliseo melee</span>
+          <button id="coliseo-select-close" type="button" class="btn-sm">Cerrar</button>
+        </div>
+        <p class="coliseo-select-note">
+          Arena cerrada, solo cuerpo a cuerpo y al mejor de 5 rondas. Elige tu arma al entrar:
+          no hay armas de fuego, curación ni objetos lanzables.
+        </p>
+        <div class="coliseo-select-list">
+          <button type="button" class="coliseo-select-btn" data-variant="1v1">
+            <b>1 vs 1</b>
+            <span>Duelo · primero a 3 rondas</span>
+          </button>
+          <button type="button" class="coliseo-select-btn" data-variant="2v2">
+            <b>2 vs 2</b>
+            <span>Equipos · primero a 3 rondas</span>
+          </button>
+          <button type="button" class="coliseo-select-btn" data-variant="ffa">
+            <b>Todos contra todos</b>
+            <span>Hasta 8 pingüinos · primero a 3 rondas</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="zone-fade" aria-hidden="true">
       <span id="zone-fade-label"></span>
     </div>

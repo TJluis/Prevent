@@ -39,6 +39,7 @@ import { createScoreboard } from "./scoreboard.js";
 import { createShop } from "./shop.js";
 import { createPairsHud } from "./pairs.js";
 import { createPairsBoard } from "./pairsBoard.js";
+import { createColiseoHud } from "./coliseo.js";
 import {
   resolvePairsVariant,
   teamPadAt,
@@ -109,6 +110,8 @@ const portalPromptText = document.getElementById("portal-prompt-text");
 const portalPromptBtn = document.getElementById("portal-prompt-btn");
 const pairsSelect = document.getElementById("pairs-select");
 const pairsSelectClose = document.getElementById("pairs-select-close");
+const coliseoSelect = document.getElementById("coliseo-select");
+const coliseoSelectClose = document.getElementById("coliseo-select-close");
 const zoneFade = document.getElementById("zone-fade");
 const zoneFadeLabel = document.getElementById("zone-fade-label");
 
@@ -198,6 +201,20 @@ if (pairsSelect) {
   });
 }
 
+if (coliseoSelectClose) coliseoSelectClose.addEventListener("click", closeColiseoSelect);
+if (coliseoSelect) {
+  coliseoSelect.addEventListener("click", (event) => {
+    if (event.target === coliseoSelect) {
+      closeColiseoSelect();
+      return;
+    }
+    const button = event.target.closest && event.target.closest("[data-variant]");
+    if (!button) return;
+    closeColiseoSelect();
+    joinMode("coliseo", button.dataset.variant);
+  });
+}
+
 voiceBtn.addEventListener("click", handleVoiceToggle);
 
 document.getElementById("wardrobe-btn").addEventListener("click", openWardrobe);
@@ -243,6 +260,11 @@ addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Escape" && !typing) {
+    if (coliseoSelectOpen()) {
+      event.preventDefault();
+      closeColiseoSelect();
+      return;
+    }
     if (pairsSelectOpen()) {
       event.preventDefault();
       closePairsSelect();
@@ -312,7 +334,8 @@ addEventListener("keydown", (event) => {
     event.preventDefault();
     blockHeldKey = true;
     const def = combat ? combat.getWeaponDef() : null;
-    if (!inPrivateRoom()) showToast("Entra a una sala para combatir");
+    if (!inCombatZone()) showToast("Entra a una sala para combatir");
+    else if (!canUseCombat()) showToast("Espera a que empiece la ronda");
     else if (def && def.block) combat.setBlock(true, cameraYaw);
     else showToast("Necesitas el escudo para bloquear");
   } else if ((event.code === "KeyR" || event.key === "r" || event.key === "R") && !typing) {
@@ -432,6 +455,7 @@ let scoreboard = null;
 let shop = null;
 let pairsUI = null;
 let pairsBoard = null;
+let coliseoUI = null;
 
 // Zoom del tablero en la arena de Pares. 1 es la vista por defecto; los valores
 // menores acercan la cámara al centro del tablero y los mayores la alejan. Los
@@ -498,7 +522,7 @@ function blockHeld() {
 // el jugador siguiera pulsando Q. Aquí se reenvía el bloqueo y, si el servidor
 // lo cortó por un hueco de red, se vuelve a levantar mientras siga pulsado.
 setInterval(() => {
-  if (!combat || !inPrivateRoom() || !myOwnAlive || !blockHeld()) return;
+  if (!combat || !canUseCombat() || !myOwnAlive || !blockHeld()) return;
   const def = combat.getWeaponDef();
   if (!def || !def.block) return;
   // Durante el guard break o sin aguante no se reintenta: el servidor
@@ -721,7 +745,7 @@ function setFPMode(on) {
 }
 
 function toggleFPView() {
-  if (!running || !started || !myAvatar || !myOwnAlive || !inPrivateRoom()) return;
+  if (!running || !started || !myAvatar || !myOwnAlive || !inCombatZone()) return;
   if (!combat) return;
   if (combat.isAnimating(myId)) return;
   setFPMode(!fpMode);
@@ -757,7 +781,7 @@ function bindPointerUI() {
         lastMouseX = event.clientX;
         lastMouseY = event.clientY;
       }
-    } else if (event.button === 0 && combat) {
+    } else if (event.button === 0 && combat && canUseCombat()) {
       combat.tryShoot();
     }
   });
@@ -922,9 +946,16 @@ combat.setOwn(myOwnHp, myOwnAlive);
   pairsBoard = createPairsBoard();
   pairsBoard.attachScene(scene);
 
+  coliseoUI = createColiseoHud({
+    getMyId: () => myId,
+    onWeapon: (weaponId) => sendModeAction({ type: "weapon", weaponId }),
+    onReady: () => sendModeAction({ type: "ready" }),
+    onLeave: () => leaveMode(),
+  });
+
   if (TOUCH_MODE) {
     const needRoom = () => {
-      if (!inPrivateRoom()) {
+      if (!inCombatZone()) {
         showToast("Entra a una sala para combatir");
         return false;
       }
@@ -990,6 +1021,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
     shop,
     pairsUI,
     pairsBoard,
+    coliseoUI,
     remotes,
     walkTo,
     // Ganchos de prueba para la isla y los minijuegos: el servidor valida
@@ -1002,8 +1034,12 @@ combat.setOwn(myOwnHp, myOwnAlive);
     openPairsSelect,
     closePairsSelect,
     setPairsZoom,
+    openColiseoSelect,
+    closeColiseoSelect,
     get pairsZoom() { return pairsZoom; },
     get pairsState() { return pairsUI ? pairsUI.getState() : null; },
+    get coliseoState() { return coliseoUI ? coliseoUI.getState() : null; },
+    get coliseoFight() { return coliseoFightActive(); },
     get myId() { return myId; },
     get myRoom() { return myRoom; },
     get myAvatar() { return myAvatar; },
@@ -1122,6 +1158,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
       const nextZoneKey = room ? `${room.kind || "room"}:${room.code}` : "lobby";
       if (lastZoneKey !== null && nextZoneKey !== lastZoneKey) {
         closePairsSelect();
+        closeColiseoSelect();
         flashZone(zoneLabel(room));
       }
       lastZoneKey = nextZoneKey;
@@ -1157,6 +1194,13 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (pairsBoard) {
         if (kind === "mode" && room.modeId === "pares") pairsBoard.show(room.variant || "1v1");
         else pairsBoard.hide();
+      }
+      if (coliseoUI) {
+        if (kind === "mode" && room.modeId === "coliseo") {
+          coliseoUI.show(room.variant || "1v1");
+        } else {
+          coliseoUI.hide();
+        }
       }
       updatePortalPrompt();
       renderRoomPanel();
@@ -1266,7 +1310,11 @@ combat.setOwn(myOwnHp, myOwnAlive);
         lastBlocked = false;
         if (touchCtl) touchCtl.setSprint(false);
         if (combat) combat.setOwn(0, false);
-        chat.system?.("Te han eliminado. Volverás en unos segundos.");
+        chat.system?.(
+          coliseoArena()
+            ? "Te han eliminado. Serás espectador hasta la próxima ronda."
+            : "Te han eliminado. Volverás en unos segundos."
+        );
       } else {
         const remote = remotes.get(targetId);
         if (remote) {
@@ -1286,7 +1334,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
         slideQueued = false;
         lastBlocked = false;
         if (combat) combat.setOwn(100, true);
-        chat.system?.("¡Has vuelto a la partida!");
+        chat.system?.(coliseoArena() ? "¡Nueva ronda! Vuelves al combate." : "¡Has vuelto a la partida!");
       } else {
         const remote = remotes.get(targetId);
         if (remote) {
@@ -1341,6 +1389,16 @@ combat.setOwn(myOwnHp, myOwnAlive);
       // El servidor no manda el equipo propio: se deduce del id local para que
       // el HUD y el resaltado del tablero sepan a quién pertenece el turno.
       const mine = (snapshot.players || []).find((player) => player.id === myId);
+      if (snapshot.modeId === "coliseo") {
+        snapshot.mySide = mine ? mine.side : null;
+        if (coliseoUI) {
+          if (myRoom && myRoom.modeId === "coliseo" && !coliseoUI.isOpen()) {
+            coliseoUI.show(snapshot.variant || myRoom.variant);
+          }
+          coliseoUI.setState(snapshot);
+        }
+        return;
+      }
       snapshot.myTeam = mine ? mine.team : null;
       if (pairsUI) {
         if (myRoom && myRoom.modeId === "pares" && !pairsUI.isOpen()) {
@@ -1351,7 +1409,42 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (pairsBoard) pairsBoard.setState(snapshot);
     },
     onModeEvent: (payload) => {
+      if (payload && payload.modeId === "coliseo") {
+        if (coliseoUI) coliseoUI.event(payload);
+        return;
+      }
       if (pairsUI) pairsUI.event(payload);
+    },
+    onModeTeleport: ({ id, x, z, yaw } = {}) => {
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+      if (id === myId) {
+        // El servidor manda dónde empieza la ronda: se reposiciona el avatar
+        // local y se orienta la cámara hacia el centro de la arena.
+        myPosition = { x, z };
+        motion = createMotionState();
+        jumpQueued = false;
+        slideQueued = false;
+        lastBlocked = false;
+        if (myAvatar) {
+          myAvatar.position.set(x, getTerrainHeightAt(currentMapId, x, z), z);
+          if (Number.isFinite(yaw)) {
+            myAvatar.rotation.y = yaw;
+            cameraYaw = yaw + Math.PI;
+          }
+        }
+      } else {
+        const remote = remotes.get(id);
+        if (remote) {
+          remote.targetX = x;
+          remote.targetZ = z;
+          remote.targetY = 0;
+          if (remote.group) {
+            remote.group.position.set(x, getTerrainHeightAt(currentMapId, x, z), z);
+            if (Number.isFinite(yaw)) remote.group.rotation.y = yaw;
+          }
+        }
+      }
+      voice.rememberPosition(id, x, z);
     },
     onModeError: ({ error } = {}) => {
       if (error) showToast(error, 2400);
@@ -1620,7 +1713,8 @@ function loop(now) {
       dressingOpen() ||
       !!(shop && shop.isOpen()) ||
       !!(scoreboard && scoreboard.isOpen()) ||
-      pairsSelectOpen();
+      pairsSelectOpen() ||
+      coliseoSelectOpen();
     if (touchCtl && !uiOpen) {
       const l = touchCtl.consumeLook();
       if (l.dx || l.dy) {
@@ -1633,10 +1727,11 @@ function loop(now) {
         }
       }
       if (touchCtl.consumeFireTap()) {
-        if (!inPrivateRoom()) showToast("Entra a una sala para combatir");
+        if (!inCombatZone()) showToast("Entra a una sala para combatir");
+        else if (!canUseCombat()) showToast("Espera a que empiece la ronda");
         else if (combat) combat.tryShoot();
       }
-      if (combat && inPrivateRoom()) {
+      if (combat && canUseCombat()) {
         const wdef = combat.getWeaponDef();
         const auto = wdef && wdef.kind !== "melee" && wdef.cooldownMs <= 280;
         if (touchCtl.fireHeld && auto) combat.tryShoot();
@@ -1668,7 +1763,10 @@ function loop(now) {
     const mdx = dx * cosY + dz * sinY;
     const mdz = -dx * sinY + dz * cosY;
     const blockingNow = !!(combat && combat.isBlocking());
-    const wantsMove = !!(mdx || mdz) && myOwnAlive;
+    // En el Coliseo solo se camina durante la ronda activa: en espera, cuenta
+    // atrás y fin de ronda el servidor ignora el movimiento.
+    const canMove = !coliseoArena() || coliseoFightActive();
+    const wantsMove = !!(mdx || mdz) && myOwnAlive && canMove;
     const sprintKey =
       !uiOpen && (isKeyDown("shift") || !!(touchCtl && touchCtl.sprintHeld));
     // Fase 4: salto/sprint/deslizamiento. El salto es cosmético (no esquiva
@@ -1996,6 +2094,28 @@ function pairsVariantDef() {
   return resolvePairsVariant(myRoom && myRoom.variant ? myRoom.variant : "1v1");
 }
 
+// Arena del Coliseo melee: misma cámara y controles que una sala, pero con
+// reglas propias (solo melee, rondas y movimiento únicamente en `fight`).
+function coliseoArena() {
+  return !!myRoom && myRoom.kind === "mode" && myRoom.modeId === "coliseo";
+}
+
+function coliseoFightActive() {
+  const state = coliseoUI ? coliseoUI.getState() : null;
+  return !!state && state.phase === "fight";
+}
+
+// Zonas donde el combate está permitido: salas privadas y el Coliseo melee.
+function inCombatZone() {
+  return inPrivateRoom() || coliseoArena();
+}
+
+// Además de estar en zona de combate, el Coliseo exige que la ronda esté
+// activa. Evita que el cliente anime golpes que el servidor va a descartar.
+function canUseCombat() {
+  return inCombatZone() && (!coliseoArena() || coliseoFightActive());
+}
+
 function zoneLabel(room) {
   if (!room) return "Lobby";
   const kind = room.kind || "room";
@@ -2023,6 +2143,18 @@ function openPairsSelect() {
 
 function closePairsSelect() {
   if (pairsSelect) pairsSelect.hidden = true;
+}
+
+function coliseoSelectOpen() {
+  return !!(coliseoSelect && !coliseoSelect.hidden);
+}
+
+function openColiseoSelect() {
+  if (coliseoSelect) coliseoSelect.hidden = false;
+}
+
+function closeColiseoSelect() {
+  if (coliseoSelect) coliseoSelect.hidden = true;
 }
 
 function handleMinigames() {
@@ -2080,6 +2212,7 @@ function activatePortal() {
   }
   if (portalTarget.modeId === "hub") enterHub();
   else if (portalTarget.modeId === "pares" && !inMode()) openPairsSelect();
+  else if (portalTarget.modeId === "coliseo" && !inMode()) openColiseoSelect();
   else joinMode(portalTarget.modeId);
   return true;
 }

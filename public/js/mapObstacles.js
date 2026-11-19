@@ -264,6 +264,21 @@ const pares = [
   { kind: "rock", type: "circle", x: 18, z: 0, r: 1.2 },
 ];
 
+// --- Coliseo melee ---------------------------------------------------------
+// Cuatro pilares de gradas fuera del muro circular (radio 19,5) y cuatro rocas
+// bajas dentro para romper la línea recta sin tapar el combate. El centro queda
+// despejado para que los spawns y las rondas se lean bien.
+const coliseo = [
+  { kind: "pillar", type: "circle", x: 13.8, z: 13.8, r: 1.1, h: 5.2 },
+  { kind: "pillar", type: "circle", x: -13.8, z: 13.8, r: 1.1, h: 5.2 },
+  { kind: "pillar", type: "circle", x: 13.8, z: -13.8, r: 1.1, h: 5.2 },
+  { kind: "pillar", type: "circle", x: -13.8, z: -13.8, r: 1.1, h: 5.2 },
+  { kind: "rock", type: "circle", x: 7, z: 0, r: 1.05 },
+  { kind: "rock", type: "circle", x: -7, z: 0, r: 1.05 },
+  { kind: "rock", type: "circle", x: 0, z: 7, r: 1.05 },
+  { kind: "rock", type: "circle", x: 0, z: -7, r: 1.05 },
+];
+
 export const MAP_OBSTACLES = {
   selva,
   desierto,
@@ -273,6 +288,7 @@ export const MAP_OBSTACLES = {
   gruta,
   isla,
   pares,
+  coliseo,
 };
 
 // Devuelve la lista de obstáculos de un mapa de sala (o null si no tiene layout
