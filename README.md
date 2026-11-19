@@ -10,8 +10,9 @@ equipos. La segunda es **Coliseo melee**: arena circular cerrada, solo cuerpo a 
 rondas al mejor de 5 en formatos 1v1, 2v2 y todos contra todos. La tercera es
 **Escondite**: aldea con doce escondites, un buscador elegido al azar que arranca en
 una jaula, 90 s para esconderse y 180 s para encontrar a todos con etiquetas a menos
-de 1,6 m y línea de visión libre. Las otras tres (TNT Run, karts y ciudad rol) ya
-tienen su portal en la isla y se muestran como «próximamente» hasta que se implementen.
+de 1,6 m y línea de visión libre. La cuarta es **TNT Run**: cinco capas de 16×16 bloques
+sobre el vacío que se derrumban 600 ms después de pisarlos; gana quien aguante arriba
+hasta el final. Solo karts y ciudad rol siguen como «próximamente».
 
 ## Requisitos
 
@@ -126,6 +127,7 @@ Notas:
   - **8.1** ✔ Encuentra los pares: minijuego 3D con dos formatos (1v1 · 16 cartas · 4×4 y 2v2 · 36 cartas · 6×6, cada uno en su sala oculta). Se elige equipo pisando una plataforma, la partida arranca con cuenta atrás, el jugador pisa una carta y salta para voltearla, y la pareja acertada vuela al atril del equipo. La cámara elevada tiene zoom con la rueda, las teclas `+`/`-` o los botones del HUD. Servidor autoritativo en `server/modes/pairs.js`, render en `pairsBoard.js` y HUD no modal.
   - **8.2** ✔ Coliseo melee: arena circular de 34 m de diámetro, solo armas cuerpo a cuerpo (`daga`, `espada`, `maza`, `escudo`, `martillo`), rondas de 90 s al mejor de 5 y formatos 1v1, 2v2 y todos contra todos (hasta 8), cada uno en su sala oculta. El jugador elige arma y pulsa «Listo»; el servidor valida el loadout, ignora el movimiento fuera de la ronda, bloquea curación/lanzables/cristales/tienda y deja al eliminado como espectador hasta la siguiente ronda. Persiste `duel_wins` y `duel_rounds` en `user_stats`. Controlador en `server/modes/coliseo.js`, arena en `world.js` y HUD en `coliseo.js`.
   - **8.3** ✔ Escondite: aldea de 72 m con jaula central y doce escondites en anillo; de 3 a 12 jugadores pulsan «Listo» y el buscador se elige con RNG sembrado. Fases `waiting` → `hide` (90 s con el buscador inmóvil) → `seek` (180 s) → `result`. El buscador etiqueta con `F` a menos de 1,6 m y con línea de visión libre (las coberturas bloquean) y lanza un pulso de 8 m cada 30 s con `G`; los escondidos tienen tres esquivas de 0,55 s que recargan cada 25 s con `G`. Si todos son etiquetados gana el buscador; si no, ganan los escondidos. Un desconectado conserva su rol 45 s y vuelve solo con `mode:rejoin`. Sin disparos, curación, lanzables ni tienda. Persiste `hide_wins` y `seek_wins`. Contratos en `hideDefs.js` y `mapObstacles.js`, aldea en `world.js`, controlador en `server/modes/escondite.js` y HUD en `escondite.js`.
-  - **8.4** TNT Run · **8.5** Karts · **8.6** Ciudad rol — pendientes.
+  - **8.4** ✔ TNT Run: isla flotante de cinco capas de 16×16 bloques separadas 1,5 m; de 4 a 16 jugadores pulsan «Listo», hay una cuenta atrás de 3 s y el servidor enciende una mecha de 600 ms en cada bloque pisado (derivado de `x,z`, sin saltos). El tick corre a 20 Hz, se permiten hasta 8 bloques/s por jugador y quien se queda sin bloque debajo baja una capa o queda eliminado. Gana el último vivo o, a los 5 minutos, quien esté en la capa más alta. Un desconectado conserva su plaza 45 s y vuelve con `mode:rejoin`. Sin combate, curación ni tienda. Persiste `tnt_wins` y `tnt_blocks`. Contratos en `tntDefs.js`, isla animada en `world.js`, controlador en `server/modes/tnt.js`, HUD en `tnt.js` y sonido WebAudio en `tntSound.js`.
+  - **8.5** Karts · **8.6** Ciudad rol — pendientes.
 
 Criterio de "hecho" de cada fase: definido en cada commit de planificación.

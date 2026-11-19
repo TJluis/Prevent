@@ -13,6 +13,16 @@ import {
   HIDE_MAP_ID,
   HIDE_SPOTS,
 } from "./hideDefs.js";
+import {
+  TNT_BLOCK_SIZE,
+  TNT_GRID,
+  TNT_LAYERS,
+  TNT_MAP_ID,
+  tntCellCenter,
+  tntGlobalIndex,
+  tntLayerHeight,
+  tntPartsOf,
+} from "./tntDefs.js";
 
 export { MAPS, getMap, getRoomMaps, getMapBoundary };
 export { makeCordilleraScenery, makeTerrain };
@@ -737,6 +747,184 @@ function makeHideVillage() {
   }
 
   return group;
+}
+
+// Isla flotante del TNT Run: una malla instanciada por capa (5 draw calls para
+// 1280 bloques). El servidor manda qué bloques están encendidos y cuáles
+// cayeron; aquí solo se anima la caída y se tiñe la mecha. El estado es
+// idempotente: un mismo evento repetido no reinicia la animación.
+function makeTntArena() {
+  const group = new THREE.Group();
+  const total = TNT_LAYERS * TNT_GRID * TNT_GRID;
+  const status = new Uint8Array(total); // 0 firme · 1 mecha · 2 cayendo · 3 ido
+  const falling = new Map();
+  const meshes = [];
+  const dummy = new THREE.Object3D();
+  const baseColors = [0x7f3f2f, 0x8d4632, 0x9d5133, 0xae5e34, 0xc06b36];
+  const fuseColors = [0xfacc15, 0xff8a3c];
+  const goneColor = new THREE.Color(0x24141a);
+  const geo = new THREE.BoxGeometry(TNT_BLOCK_SIZE, 0.34, TNT_BLOCK_SIZE);
+
+  function cellIndex(parts) {
+    return parts.row * TNT_GRID + parts.col;
+  }
+
+  function colorAt(index, color) {
+    const parts = tntPartsOf(index);
+    if (!parts) return;
+    const mesh = meshes[parts.layer];
+    if (mesh) mesh.setColorAt(cellIndex(parts), color);
+  }
+
+  function matrixAt(index) {
+    const parts = tntPartsOf(index);
+    if (!parts) return null;
+    const mesh = meshes[parts.layer];
+    if (!mesh) return null;
+    const at = cellIndex(parts);
+    mesh.getMatrixAt(at, dummy.matrix);
+    return { mesh, at };
+  }
+
+  for (let layer = 0; layer < TNT_LAYERS; layer++) {
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.74,
+      metalness: 0.04,
+    });
+    const mesh = new THREE.InstancedMesh(geo, material, TNT_GRID * TNT_GRID);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    for (let row = 0; row < TNT_GRID; row++) {
+      for (let col = 0; col < TNT_GRID; col++) {
+        const at = row * TNT_GRID + col;
+        const center = tntCellCenter(row, col);
+        dummy.position.set(center.x, tntLayerHeight(layer) - 0.17, center.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(at, dummy.matrix);
+        mesh.setColorAt(at, new THREE.Color(baseColors[layer]));
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    group.add(mesh);
+    meshes.push(mesh);
+  }
+
+  function reset() {
+    status.fill(0);
+    falling.clear();
+    for (let layer = 0; layer < TNT_LAYERS; layer++) {
+      const mesh = meshes[layer];
+      for (let row = 0; row < TNT_GRID; row++) {
+        for (let col = 0; col < TNT_GRID; col++) {
+          const at = row * TNT_GRID + col;
+          const center = tntCellCenter(row, col);
+          dummy.position.set(center.x, tntLayerHeight(layer) - 0.17, center.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(at, dummy.matrix);
+          mesh.setColorAt(at, new THREE.Color(baseColors[layer]));
+        }
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
+  }
+
+  function setFuse(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= total || status[index] !== 0) return;
+    status[index] = 1;
+    colorAt(index, new THREE.Color(fuseColors[0]));
+    const mesh = meshes[tntPartsOf(index).layer];
+    if (mesh && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }
+
+  function startFall(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= total || status[index] >= 2) return;
+    status[index] = 2;
+    const seed = ((index + 1) * 9301 + 49297) % 233280;
+    falling.set(index, {
+      t: 0,
+      y: 0,
+      vy: 0.6 + (seed / 233280) * 0.8,
+      spin: ((seed / 233280) - 0.5) * 3.2,
+    });
+    colorAt(index, new THREE.Color(fuseColors[1]));
+    const mesh = meshes[tntPartsOf(index).layer];
+    if (mesh && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }
+
+  function setState(snapshot) {
+    if (!snapshot) return;
+    if (snapshot.phase === "waiting" || snapshot.phase === "countdown") {
+      reset();
+      return;
+    }
+    for (const item of snapshot.pending || []) setFuse(item.index);
+    for (const index of snapshot.fallen || []) startFall(index);
+  }
+
+  function event(ev) {
+    if (!ev) return;
+    if (ev.type === "fuse") setFuse(ev.index);
+    else if (ev.type === "blockFall") for (const index of ev.indices || []) startFall(index);
+  }
+
+  let pulseAt = 0;
+  let pulseOn = false;
+  function update(dt) {
+    if (falling.size) {
+      for (const [index, fall] of falling) {
+        const parts = tntPartsOf(index);
+        const mesh = meshes[parts.layer];
+        const at = cellIndex(parts);
+        const center = tntCellCenter(parts.row, parts.col);
+        fall.t += dt;
+        fall.vy += 17 * dt;
+        fall.y -= fall.vy * dt;
+        dummy.position.set(center.x, tntLayerHeight(parts.layer) - 0.17 + fall.y, center.z);
+        dummy.rotation.set(fall.spin * fall.t, fall.spin * fall.t * 0.6, 0);
+        const scale = Math.max(0, 1 + fall.y * 0.06);
+        dummy.scale.set(scale, scale, scale);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(at, dummy.matrix);
+        mesh.instanceMatrix.needsUpdate = true;
+        if (fall.y < -26) {
+          dummy.position.set(center.x, -1000, center.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(0.001, 0.001, 0.001);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(at, dummy.matrix);
+          mesh.instanceMatrix.needsUpdate = true;
+          colorAt(index, goneColor);
+          status[index] = 3;
+          falling.delete(index);
+        }
+      }
+    }
+
+    pulseAt += dt;
+    if (pulseAt < 0.12) return;
+    pulseAt = 0;
+    pulseOn = !pulseOn;
+    let changed = false;
+    for (let index = 0; index < total; index++) {
+      if (status[index] !== 1) continue;
+      colorAt(index, new THREE.Color(fuseColors[pulseOn ? 1 : 0]));
+      changed = true;
+    }
+    if (changed) {
+      for (const mesh of meshes) {
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      }
+    }
+  }
+
+  return { group, setState, event, update };
 }
 
 // ---------------------------------------------------------------- decoración genérica
@@ -1720,6 +1908,11 @@ export const MAP_DEFS = {
       well: { stone: 0x8f8f86, roof: 0x6d3f34 },
     },
   },
+
+  tnt: {
+    obstacles: MAP_OBSTACLES.tnt,
+    palette: {},
+  },
 };
 
 export const THEMES = {
@@ -1933,6 +2126,25 @@ export const THEMES = {
     ambient: { color: 0x6a7a5a, intensity: 0.55 },
     sun: { color: 0xffe6b8, intensity: 1.35 },
     particles: { color: 0xffe9a8, count: 140, size: 0.1, opacity: 0.5, rise: true, speed: 0.3 },
+  },
+
+  tnt: {
+    sky: { top: 0x120c1c, mid: 0x4a1f18, horizon: 0xd45a24 },
+    fog: { color: 0x2a1420, near: 34, far: 115 },
+    ground: {
+      base: "#3a2020",
+      light: "rgba(255,150,90,0.25)",
+      dark: "rgba(20,8,14,0.5)",
+      repeat: 4,
+      speckles: 800,
+      roughness: 1,
+    },
+    wall: 0x4a2b22,
+    wallTop: 0xfb923c,
+    hemisphere: 0xffb27a,
+    ambient: { color: 0x5a2b22, intensity: 0.5 },
+    sun: { color: 0xffd2a1, intensity: 1.25 },
+    particles: { color: 0xffa54a, count: 160, size: 0.12, opacity: 0.65, rise: true, speed: 0.5 },
   },
 };
 
@@ -3095,10 +3307,11 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
   if (isTerrainMap(mapId)) {
     const { terrain, water } = makeTerrain(boundary);
     scene.add(terrain, water);
-  } else {
+  } else if (mapId !== TNT_MAP_ID) {
     scene.add(makeGround(theme.ground, boundary, renderer.capabilities.getMaxAnisotropy()));
   }
 
+  let tntArena = null;
   if (mapId === "nevado") {
     scene.add(makeRink());
   } else if (mapId === "gruta") {
@@ -3107,6 +3320,11 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     scene.add(makeColiseoArena());
   } else if (mapId === HIDE_MAP_ID) {
     scene.add(makeHideVillage());
+  } else if (mapId === TNT_MAP_ID) {
+    // Sin suelo ni muros: la isla flotante es lo único que sostiene a los
+    // jugadores y los bordes se juzgan con la rejilla del servidor.
+    tntArena = makeTntArena();
+    scene.add(tntArena.group);
   }
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.55 });
@@ -3129,7 +3347,7 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
   }
   // El Coliseo cierra su propio recinto circular: no lleva las cuatro paredes
   // cuadradas del resto de mapas.
-  if (mapId !== COLISEO_MAP_ID) {
+  if (mapId !== COLISEO_MAP_ID && mapId !== TNT_MAP_ID) {
     addWall(0, -boundary, wallLong, 0);
     addWall(0, boundary, wallLong, 0);
     addWall(-boundary, 0, wallShort, 0);
@@ -3171,10 +3389,17 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     scene,
     camera,
     renderer,
+    setTntState(snapshot) {
+      if (tntArena) tntArena.setState(snapshot);
+    },
+    tntEvent(ev) {
+      if (tntArena) tntArena.event(ev);
+    },
     update(dt) {
       elapsed += dt;
       if (particleUpdate) particleUpdate(dt);
       if (portalUpdate) portalUpdate(elapsed);
+      if (tntArena) tntArena.update(dt);
       if (isTerrainMap(mapId)) sky.position.copy(camera.position);
     },
   };

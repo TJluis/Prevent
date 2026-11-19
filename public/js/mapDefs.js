@@ -21,6 +21,9 @@ export const MAPS = [
   // La aldea del Escondite: jaula central, doce escondites en un anillo de
   // 29,5 m y muro cuadrado a 36 m (72 de lado).
   { id: "escondite", name: "Aldea del Escondite", room: false, size: 72 },
+  // Isla flotante del TNT Run: 16 × 1,5 m de lado en cada capa, con 48 m de
+  // recinto para que los muros no estorben a la caída de los bloques.
+  { id: "tnt", name: "Isla del TNT Run", room: false, size: 48 },
 ];
 
 export function getMap(id) {

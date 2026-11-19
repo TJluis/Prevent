@@ -41,6 +41,8 @@ import { createPairsHud } from "./pairs.js";
 import { createPairsBoard } from "./pairsBoard.js";
 import { createColiseoHud } from "./coliseo.js";
 import { createEsconditeHud } from "./escondite.js";
+import { createTntHud } from "./tnt.js";
+import { playTntEliminated, playTntFall, playTntFuse } from "./tntSound.js";
 import { hideSpotAt } from "./hideDefs.js";
 import {
   resolvePairsVariant,
@@ -459,6 +461,12 @@ let pairsUI = null;
 let pairsBoard = null;
 let coliseoUI = null;
 let esconditeUI = null;
+let tntUI = null;
+// Altura autoritativa de la capa del TNT y estado local de la caída del avatar.
+let tntBaseY = 0;
+let tntFalling = false;
+let tntFallY = 0;
+let tntFallVy = 0;
 
 // Zoom del tablero en la arena de Pares. 1 es la vista por defecto; los valores
 // menores acercan la cámara al centro del tablero y los mayores la alejan. Los
@@ -965,6 +973,12 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onTag: () => esconditeTagNearest(),
   });
 
+  tntUI = createTntHud({
+    getMyId: () => myId,
+    onReady: () => sendModeAction({ type: "ready" }),
+    onLeave: () => leaveMode(),
+  });
+
   if (TOUCH_MODE) {
     const needRoom = () => {
       if (!inCombatZone()) {
@@ -1035,6 +1049,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
     pairsBoard,
     coliseoUI,
     esconditeUI,
+    tntUI,
     remotes,
     walkTo,
     // Ganchos de prueba para la isla y los minijuegos: el servidor valida
@@ -1055,6 +1070,9 @@ combat.setOwn(myOwnHp, myOwnAlive);
     get coliseoFight() { return coliseoFightActive(); },
     get esconditeState() { return esconditeUI ? esconditeUI.getState() : null; },
     get esconditeFrozen() { return esconditeSeekerFrozen(); },
+    get tntState() { return tntUI ? tntUI.getState() : null; },
+    get tntBaseY() { return tntBaseY; },
+    get tntFalling() { return tntFalling; },
     get myId() { return myId; },
     get myRoom() { return myRoom; },
     get myAvatar() { return myAvatar; },
@@ -1133,7 +1151,9 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (remote) {
         remote.targetX = x;
         remote.targetZ = z;
-        if (Number.isFinite(y)) remote.targetY = Math.max(0, Math.min(3, y));
+        if (Number.isFinite(y)) {
+          remote.targetY = tntArena() ? Math.max(0, Math.min(20, y)) : Math.max(0, Math.min(3, y));
+        }
         remote.sprinting = !!sprint;
         remote.sliding = !!slide;
         if (combat) combat.movePuddle(id, x, z);
@@ -1223,6 +1243,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
         } else {
           esconditeUI.hide();
           clearHideOpacity();
+        }
+      }
+      if (tntUI) {
+        if (kind === "mode" && room.modeId === "tnt") {
+          tntUI.show();
+        } else {
+          tntUI.hide();
+          tntBaseY = 0;
+          tntFalling = false;
         }
       }
       updatePortalPrompt();
@@ -1423,6 +1452,18 @@ combat.setOwn(myOwnHp, myOwnAlive);
         }
         return;
       }
+      if (snapshot.modeId === "tnt") {
+        snapshot.myLayer = mine ? mine.layer : null;
+        snapshot.myBlocks = mine ? mine.blocks || 0 : 0;
+        if (tntUI) {
+          if (myRoom && myRoom.modeId === "tnt" && !tntUI.isOpen()) tntUI.show();
+          tntUI.setState(snapshot);
+        }
+        if (mine && Number.isFinite(mine.y)) tntBaseY = mine.y;
+        if (snapshot.phase === "waiting" || snapshot.phase === "countdown") resetTntAvatar();
+        if (world && world.setTntState) world.setTntState(snapshot);
+        return;
+      }
       if (snapshot.modeId === "coliseo") {
         snapshot.mySide = mine ? mine.side : null;
         if (coliseoUI) {
@@ -1447,6 +1488,32 @@ combat.setOwn(myOwnHp, myOwnAlive);
         if (esconditeUI) esconditeUI.event(payload);
         return;
       }
+      if (payload && payload.modeId === "tnt") {
+        if (tntUI) tntUI.event(payload);
+        if (world && world.tntEvent) world.tntEvent(payload);
+        if (payload.type === "fuse") playTntFuse();
+        else if (payload.type === "blockFall") playTntFall();
+        else if (payload.type === "playerFall") {
+          if (payload.eliminated) {
+            playTntEliminated();
+            if (payload.playerId === myId) {
+              tntBaseY = Number.isFinite(payload.y) ? payload.y : tntBaseY;
+              tntFalling = true;
+              tntFallY = 0;
+              tntFallVy = 1.2;
+            }
+          } else {
+            playTntFall();
+            if (payload.playerId === myId && Number.isFinite(payload.y)) {
+              tntBaseY = payload.y;
+              fallToTntLayer();
+            }
+          }
+        } else if (payload.type === "result") {
+          playTntEliminated();
+        }
+        return;
+      }
       if (payload && payload.modeId === "coliseo") {
         if (coliseoUI) coliseoUI.event(payload);
         return;
@@ -1454,12 +1521,21 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (pairsUI) pairsUI.event(payload);
     },
     onModeRejoin: (data) => {
-      if (!data || data.modeId !== "escondite") return;
-      showToast("Reconectando al Escondite…", 2200);
-      joinMode("escondite", null, true);
+      if (!data) return;
+      if (data.modeId === "escondite") {
+        showToast("Reconectando al Escondite…", 2200);
+        joinMode("escondite", null, true);
+        return;
+      }
+      if (data.modeId === "tnt") {
+        showToast("Reconectando al TNT Run…", 2200);
+        joinMode("tnt", null, true);
+      }
     },
-    onModeTeleport: ({ id, x, z, yaw } = {}) => {
+    onModeTeleport: ({ id, x, z, y, yaw } = {}) => {
       if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+      const ground = getTerrainHeightAt(currentMapId, x, z);
+      const height = Number.isFinite(y) ? Math.max(0, y) : 0;
       if (id === myId) {
         // El servidor manda dónde empieza la ronda: se reposiciona el avatar
         // local y se orienta la cámara hacia el centro de la arena.
@@ -1468,8 +1544,12 @@ combat.setOwn(myOwnHp, myOwnAlive);
         jumpQueued = false;
         slideQueued = false;
         lastBlocked = false;
+        if (tntArena()) {
+          tntBaseY = height;
+          resetTntAvatar();
+        }
         if (myAvatar) {
-          myAvatar.position.set(x, getTerrainHeightAt(currentMapId, x, z), z);
+          myAvatar.position.set(x, ground + (tntArena() ? tntBaseY : 0), z);
           if (Number.isFinite(yaw)) {
             myAvatar.rotation.y = yaw;
             cameraYaw = yaw + Math.PI;
@@ -1480,9 +1560,9 @@ combat.setOwn(myOwnHp, myOwnAlive);
         if (remote) {
           remote.targetX = x;
           remote.targetZ = z;
-          remote.targetY = 0;
+          remote.targetY = height;
           if (remote.group) {
-            remote.group.position.set(x, getTerrainHeightAt(currentMapId, x, z), z);
+            remote.group.position.set(x, ground + height, z);
             if (Number.isFinite(yaw)) remote.group.rotation.y = yaw;
           }
         }
@@ -1639,6 +1719,12 @@ function leaveGame() {
     esconditeUI.hide();
     esconditeUI = null;
   }
+  if (tntUI) {
+    tntUI.hide();
+    tntUI = null;
+  }
+  resetTntAvatar();
+  tntBaseY = 0;
   clearHideOpacity();
   closePairsSelect();
   if (zoneFade) zoneFade.classList.remove("is-on");
@@ -1829,7 +1915,10 @@ function loop(now) {
     const blockingNow = !!(combat && combat.isBlocking());
     // En el Coliseo solo se camina durante la ronda activa: en espera, cuenta
     // atrás y fin de ronda el servidor ignora el movimiento.
-    const canMove = (!coliseoArena() || coliseoFightActive()) && !esconditeSeekerFrozen();
+    const tntStateNow = tntUI ? tntUI.getState() : null;
+    const tntCanMove = !tntArena() || !!(tntStateNow && tntStateNow.phase === "playing");
+    const canMove =
+      (!coliseoArena() || coliseoFightActive()) && !esconditeSeekerFrozen() && tntCanMove;
     const wantsMove = !!(mdx || mdz) && myOwnAlive && canMove;
     const sprintKey =
       !uiOpen && (isKeyDown("shift") || !!(touchCtl && touchCtl.sprintHeld));
@@ -1842,7 +1931,7 @@ function loop(now) {
       {
         move: wantsMove,
         sprint: sprintKey && !blockingNow,
-        jump: jumpEdge,
+        jump: jumpEdge && !tntArena(),
         slide: slideQueued && !uiOpen,
         blocked: lastBlocked,
       },
@@ -1883,7 +1972,9 @@ function loop(now) {
       myPosition = next;
       myAvatar.position.set(
         next.x,
-        getTerrainHeightAt(currentMapId, next.x, next.z) + motionStep.y,
+        getTerrainHeightAt(currentMapId, next.x, next.z) +
+          (tntArena() ? tntBaseY + tntFallY : 0) +
+          motionStep.y,
         next.z
       );
       if (!myOwnAlive && combat) combat.movePuddle(myId, next.x, next.z);
@@ -1960,8 +2051,26 @@ function loop(now) {
 
     if (myAvatar && (!combat || !combat.isAnimating(myId))) {
       const bob = moving && motion.grounded ? Math.abs(Math.sin(now * 0.012)) * 0.07 : 0;
+      let tntHeight = 0;
+      if (tntArena()) {
+        const snap = tntUI ? tntUI.getState() : null;
+        const mine = snap ? (snap.players || []).find((p) => p.id === myId) : null;
+        const eliminated = !!(mine && mine.eliminated);
+        if (tntFalling) {
+          tntFallVy -= 18 * dt;
+          tntFallY += tntFallVy * dt;
+          if (!eliminated && tntFallY <= 0) {
+            tntFallY = 0;
+            tntFallVy = 0;
+            tntFalling = false;
+          }
+          if (eliminated && tntFallY < -40) myAvatar.visible = false;
+        }
+        tntHeight = tntBaseY + tntFallY;
+      }
       myAvatar.position.y =
         getTerrainHeightAt(currentMapId, myAvatar.position.x, myAvatar.position.z) +
+        tntHeight +
         motionStep.y +
         bob;
       animateAvatar(myAvatar, now, dt, moving, {
@@ -2167,6 +2276,30 @@ function coliseoArena() {
 function coliseoFightActive() {
   const state = coliseoUI ? coliseoUI.getState() : null;
   return !!state && state.phase === "fight";
+}
+
+// --- TNT Run ----------------------------------------------------------------
+
+function tntArena() {
+  return !!myRoom && myRoom.kind === "mode" && myRoom.modeId === "tnt";
+}
+
+// El servidor manda la nueva capa: se deja que el avatar caiga desde donde
+// estaba hasta la altura autoritativa en vez de teletransportarlo en seco.
+function fallToTntLayer() {
+  if (!myAvatar) return;
+  const ground = getTerrainHeightAt(currentMapId, myPosition.x, myPosition.z);
+  const previousY = myAvatar.position.y - ground;
+  tntFallY = Math.max(0, previousY - tntBaseY);
+  tntFallVy = 0;
+  tntFalling = true;
+}
+
+function resetTntAvatar() {
+  tntFalling = false;
+  tntFallY = 0;
+  tntFallVy = 0;
+  if (myAvatar) myAvatar.visible = true;
 }
 
 // --- Escondite --------------------------------------------------------------

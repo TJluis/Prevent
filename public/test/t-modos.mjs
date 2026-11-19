@@ -48,8 +48,8 @@ run("01 modeDefs: seis modalidades y Pares con dos formatos", () => {
   eq(MODE.MODES.length, 6, "número de modalidades");
   const ids = MODE.MODES.map((m) => m.id);
   eq(new Set(ids).size, 6, "ids únicos");
-  eq(MODE.liveModes().length, 3, "tres modalidades live");
-  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,coliseo,escondite", "Pares, Coliseo y Escondite en vivo");
+  eq(MODE.liveModes().length, 4, "cuatro modalidades live");
+  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,tnt,coliseo,escondite", "Pares, TNT, Coliseo y Escondite en vivo");
   for (const mode of MODE.MODES) {
     if (!mode.name || !mode.icon || !mode.mapId) throw new Error(`modalidad incompleta: ${mode.id}`);
     if (mode.status !== "live" && mode.status !== "soon") throw new Error(`estado inválido: ${mode.id}`);
@@ -67,7 +67,9 @@ run("01 modeDefs: seis modalidades y Pares con dos formatos", () => {
   eq(coliseo.combat, true, "el Coliseo habilita combate");
   eq(coliseo.variants.length, 3, "tres formatos de Coliseo");
   eq(MODE.modeRoomCode("coliseo", "ffa"), "MODO-COLISEO-FFA", "sala FFA del Coliseo");
-  eq(MODE.isModeLive("tnt"), false, "TNT todavía no está en vivo");
+  eq(MODE.isModeLive("tnt"), true, "TNT Run en vivo");
+  eq(MODE.modeRoomCode("tnt"), "MODO-TNT", "sala oculta del TNT");
+  eq(MODE.getMode("tnt").maxPlayers, 16, "hasta 16 jugadores en TNT");
   eq(MODE.getMode("nope"), null, "modo inexistente devuelve null");
 });
 
@@ -96,19 +98,24 @@ run("03 mapas internos: isla, arena, coliseo y escondite fuera del selector", ()
   const pares = MAPS.getMap("pares");
   const coliseo = MAPS.getMap("coliseo");
   const escondite = MAPS.getMap("escondite");
+  const tnt = MAPS.getMap("tnt");
   eq(isla.size, 64, "tamaño de la isla");
   eq(pares.size, 44, "tamaño de la arena de Pares");
   eq(coliseo.size, 52, "tamaño del Coliseo");
   eq(escondite.size, 72, "tamaño de la aldea del Escondite");
+  eq(tnt.size, 48, "tamaño de la isla del TNT");
   eq(isla.room, false, "la isla no es sala privada");
   eq(pares.room, false, "la arena no es sala privada");
   eq(coliseo.room, false, "el Coliseo no es sala privada");
   eq(escondite.room, false, "el Escondite no es sala privada");
+  eq(tnt.room, false, "el TNT no es sala privada");
   const roomIds = MAPS.getRoomMaps().map((m) => m.id);
   eq(roomIds.includes("isla"), false, "getRoomMaps excluye la isla");
   eq(roomIds.includes("pares"), false, "getRoomMaps excluye Pares");
   eq(roomIds.includes("coliseo"), false, "getRoomMaps excluye el Coliseo");
   eq(roomIds.includes("escondite"), false, "getRoomMaps excluye el Escondite");
+  eq(roomIds.includes("tnt"), false, "getRoomMaps excluye el TNT");
+  if (!Array.isArray(OBS.MAP_OBSTACLES.tnt)) throw new Error("falta el layout vacío del TNT");
   if (!OBS.MAP_OBSTACLES.escondite || OBS.MAP_OBSTACLES.escondite.length !== 24) {
     throw new Error("falta el layout de la aldea del Escondite");
   }

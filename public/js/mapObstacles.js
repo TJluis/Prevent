@@ -308,6 +308,10 @@ export const MAP_OBSTACLES = {
   pares,
   coliseo,
   escondite,
+  // El TNT Run no tiene coberturas sólidas: el peligro es el suelo que cae y la
+  // rejilla vive en tntDefs.js. La lista vacía evita que collision.js intente
+  // recorrer un mapa sin layout.
+  tnt: [],
 };
 
 // Devuelve la lista de obstáculos de un mapa de sala (o null si no tiene layout

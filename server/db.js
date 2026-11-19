@@ -54,6 +54,8 @@ db.exec(`
     duel_rounds INTEGER NOT NULL DEFAULT 0,
     hide_wins INTEGER NOT NULL DEFAULT 0,
     seek_wins INTEGER NOT NULL DEFAULT 0,
+    tnt_wins INTEGER NOT NULL DEFAULT 0,
+    tnt_blocks INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
@@ -79,6 +81,13 @@ if (!statColumns.includes("hide_wins")) {
 }
 if (!statColumns.includes("seek_wins")) {
   db.exec("ALTER TABLE user_stats ADD COLUMN seek_wins INTEGER NOT NULL DEFAULT 0");
+}
+// Migración para bases de datos creadas antes del TNT Run.
+if (!statColumns.includes("tnt_wins")) {
+  db.exec("ALTER TABLE user_stats ADD COLUMN tnt_wins INTEGER NOT NULL DEFAULT 0");
+}
+if (!statColumns.includes("tnt_blocks")) {
+  db.exec("ALTER TABLE user_stats ADD COLUMN tnt_blocks INTEGER NOT NULL DEFAULT 0");
 }
 
 export function ensureDefaultSpace() {
@@ -145,7 +154,8 @@ export function getUserStats(userId) {
 
 // Suma el resultado de una partida al historial de la cuenta. `bestStreak` es la
 // racha máxima alcanzada en esta sesión, no un incremento. `duelWins` y
-// `duelRounds` acumulan el Coliseo melee; `hideWins` y `seekWins`, el Escondite.
+// `duelRounds` acumulan el Coliseo melee; `hideWins` y `seekWins`, el Escondite;
+// `tntWins` y `tntBlocks`, el TNT Run.
 export function recordUserStats(
   userId,
   {
@@ -157,14 +167,16 @@ export function recordUserStats(
     duelRounds = 0,
     hideWins = 0,
     seekWins = 0,
+    tntWins = 0,
+    tntBlocks = 0,
   } = {}
 ) {
   if (!userId) return null;
   db.prepare(
     `INSERT INTO user_stats
        (user_id, score_total, kills, deaths, best_streak, duel_wins, duel_rounds,
-        hide_wins, seek_wins, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        hide_wins, seek_wins, tnt_wins, tnt_blocks, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(user_id) DO UPDATE SET
        score_total = score_total + excluded.score_total,
        kills = kills + excluded.kills,
@@ -174,8 +186,22 @@ export function recordUserStats(
        duel_rounds = duel_rounds + excluded.duel_rounds,
        hide_wins = hide_wins + excluded.hide_wins,
        seek_wins = seek_wins + excluded.seek_wins,
+       tnt_wins = tnt_wins + excluded.tnt_wins,
+       tnt_blocks = tnt_blocks + excluded.tnt_blocks,
        updated_at = datetime('now')`
-  ).run(userId, score, kills, deaths, bestStreak, duelWins, duelRounds, hideWins, seekWins);
+  ).run(
+    userId,
+    score,
+    kills,
+    deaths,
+    bestStreak,
+    duelWins,
+    duelRounds,
+    hideWins,
+    seekWins,
+    tntWins,
+    tntBlocks
+  );
   return getUserStats(userId);
 }
 

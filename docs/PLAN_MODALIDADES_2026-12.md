@@ -37,8 +37,9 @@ repartidos entre diciembre de 2026 y febrero de 2027.
 
 ### 0.1 Estado real (19/11/2026)
 
-El usuario pidió adelantar las olas 1, 2 y 3, así que la base de la expansión, el
-primer modo con combate y el primer modo de roles asimétricos ya están en el código
+El usuario pidió adelantar las olas 1, 2 y 3, y después siguió con el TNT Run, así que
+la base de la expansión, el primer modo con combate, el primer modo de roles
+asimétricos y el primer modo con destrucción de escenario ya están en el código
 y probados:
 
 | Entregado | Dónde |
@@ -61,8 +62,14 @@ y probados:
 | Persistencia `hide_wins` y `seek_wins` | `server/db.js` (`user_stats`) |
 | Mapas internos `isla` (64) y `pares` (44) | `public/js/mapDefs.js`, `public/js/mapObstacles.js` |
 | Suites de isla/modos/Pares, Coliseo y Escondite | `public/test/t-modos.mjs`, `public/test/t-coliseo.mjs`, `public/test/t-escondite.mjs` |
+| TNT Run autoritativo a 20 Hz con mecha, caída y rejoin | `server/modes/tnt.js`, `server/game.js` |
+| Rejilla 5×16×16 y reglas de altura compartidas | `public/js/tntDefs.js` |
+| Isla flotante de cinco capas con mechas y caída animadas | `public/js/world.js`, `public/js/tntSound.js` |
+| Mapa interno `tnt` (48) y portal en vivo | `public/js/mapDefs.js`, `public/js/mapObstacles.js`, `public/js/hubDefs.js` |
+| Persistencia `tnt_wins` y `tnt_blocks` | `server/db.js` (`user_stats`) |
+| Suite del TNT Run | `public/test/t-tnt.mjs` |
 
-Las otras tres modalidades siguen en `status:"soon"`: su portal se ve, pero el
+Las otras dos modalidades siguen en `status:"soon"`: su portal se ve, pero el
 servidor responde «todavía no está disponible» sin cambiar de zona. Lo pendiente de
 Pares, Coliseo y Escondite está al final de §3.1, §3.2 y §3.3.
 
@@ -396,6 +403,33 @@ rejilla y limitar el cambio de altura por tick; el salto se desactiva en este mo
 **DoD:** partida de 8 bots termina en < 5 min; no se puede quedar flotando; los bloques
 caen con animación y sonido; test `t-mode-tnt.mjs` sobre la rejilla pura.
 
+**Estado (19/11/2026): entregado.** Se implementó como cuarto modo real, después del
+Escondite y siguiendo el orden real Pares → Coliseo → Escondite → TNT (la tabla del
+calendario lo rotula como «Ola 3»). Se integró en el HUD, la sala oculta, el renderer,
+los guardas del servidor, la persistencia y la batería completa.
+
+Decisiones de implementación que conviene recordar:
+
+| Tema | Cómo quedó |
+|---|---|
+| Contrato | `tntDefs.js` expone la rejilla, índices globales, centro de celda, salidas, ranking y `tntWinnerByHeight`; se usa en cliente y servidor. |
+| Capas | Capa 0 en `y=0`, capa 4 en `y=6`. Por tiempo gana la mayor `layer`; no se mide la altura de la animación de caída. |
+| Fases | `waiting` → `countdown` → `playing` → `result`. Arranca con 4–16 jugadores listos y una cuenta atrás de 3 s. |
+| Movimiento | El cliente envía intenciones de posición; el servidor deduce la celda de `x,z`, exige adyacencia (sin diagonales ni saltos) y limita a 8 bloques/s. El salto está desactivado en el cliente y en el servidor. |
+| Tick | El modo general corre a 200 ms, así que el TNT usa su propio `setInterval(tntTick, 50)`; `modeTick()` no llama al controlador del TNT para no duplicarlo. |
+| Mecha | Se enciende al pisar una celda, incluidas las celdas de salida en `startPlaying()`. `pending[]` lleva `index` y `endsAt`; al vencer caen todas las celdas pendientes y se recalcula el soporte de cada jugador. |
+| Caída | Sin bloque debajo, el jugador baja a la capa inmediatamente inferior si la hay; en la capa 0 queda eliminado. No hay daño ni *respawn*. |
+| Reconexión | Gracia de 45 s con `stableHideKey` y `mode:rejoin`; el nuevo socket recupera capa, bloques y estado sin dejar un jugador flotando. |
+| Render y sonido | Cinco `InstancedMesh` para 1280 bloques, sin suelo ni muros; `world.js` anima mechas y desplomes y `tntSound.js` produce mecha, caída y eliminación con WebAudio. |
+| Sin combate | `combat:false`: se rechazan disparos, bloqueo, curación, lanzables, cristales y tienda. |
+| Suite | `t-tnt.mjs` (16/16), integrada en `scripts\test-all.ps1`; cubre contrato, controlador, persistencia y servidor real con Socket.IO simulado. |
+
+**DoD verificado:** las celdas de salida se encienden al empezar; tras cada mecha los
+jugadores bajan una capa sin quedarse flotando y en la capa 0 quedan eliminados; el
+noveno bloque en el mismo segundo se rechaza; un cliente no puede fijar su altura
+(`y:9` se corrige a `6`); gana el último vivo o quien está más alto a los 5 minutos;
+el rejoin conserva la capa durante 45 s; la batería completa queda en 12/12 suites.
+
 ---
 
 ### 3.5 Karts
@@ -479,7 +513,7 @@ más de 40 m; la cámara no sale de primera persona.
 
 ## 4. Calendario
 
-Hoy es **18/11/2026**.
+Hoy es **19/11/2026**.
 
 | Fecha | Hito | Qué se hace |
 |---|---|---|
@@ -506,8 +540,9 @@ real del proyecto (Pares → Coliseo), aunque la tabla rotule «Ola 1» como Col
 «Ola 2» como Escondite.
 
 **Adelanto del 19/11/2026:** se entregó el **Escondite** (rotulado «Ola 2» en la tabla,
-tercero en el orden real). Quedan en vivo Pares, Coliseo y Escondite; el siguiente
-entregable es **TNT Run**.
+tercero en el orden real) y, a continuación, el **TNT Run** (rotulado «Ola 3» en la
+tabla, cuarto en el orden real). Quedan en vivo Pares, TNT, Coliseo y Escondite; el
+siguiente entregable es **Karts**.
 
 ---
 
@@ -601,14 +636,14 @@ Se añaden, una por modo y una por contrato:
 | `t-mode-pares.mjs` | Barajado con semilla, turnos, parejas, empate | 15 |
 | `t-coliseo.mjs` ✔ | Formatos, loadout melee, rondas, espectador, rechazo de armas de fuego y persistencia | 14 (implementadas) |
 | `t-escondite.mjs` ✔ | Contrato, coberturas y LOS, roles sembrados, fases, etiquetas, esquivas, pulso, gracia, persistencia y servidor real | 15 (implementadas) |
-| `t-mode-tnt.mjs` | Rejilla, caída, último vivo, empate por altura | 14 |
+| `t-tnt.mjs` ✔ | Rejilla 5×16×16, mecha, caída sin flotar, ritmo, último vivo, empate por altura, rejoin, persistencia y servidor real | 16 (implementadas) |
 | `t-mode-karts.mjs` | Checkpoints en orden, vueltas, ranking | 16 |
 | `t-mode-ciudad.mjs` | Interés por celda, persistencia de objetos | 12 |
 
-Las suites `t-modos`, `t-coliseo` y `t-escondite` ya están en `scripts\test-all.ps1`
-(11 suites en verde); las demás se irán añadiendo con cada ola. Todas usan el patrón
-existente: servidor real en proceso con `PORT` y `DB_PATH` temporales, bots de
-`socket.io-client`, sin navegador.
+Las suites `t-modos`, `t-coliseo`, `t-escondite` y `t-tnt` ya están en
+`scripts\test-all.ps1` (12 suites en verde); las de Karts y Ciudad se irán añadiendo
+con cada ola. Todas usan el patrón existente: servidor real en proceso con `PORT` y
+`DB_PATH` temporales, bots de `socket.io-client`, sin navegador.
 
 ### 7.2 Manuales por ola
 
@@ -694,6 +729,7 @@ La expansión se considera terminada cuando:
 | **Assets** | Mixto: procedural para arenas, glTF (Blender → gltf-transform) para karts, muebles y edificios. |
 | **Adelanto de las olas 1 y 2** | **Aprobado (18/11/2026):** se implementaron la isla, Pares y Coliseo antes del 24/11 por petición del usuario, con la versión estable respaldada y las 10 suites en verde. |
 | **Adelanto del Escondite** | **Aprobado (19/11/2026):** se implementó el Escondite como tercer modo, con contratos compartidos, HUD integrado, suite propia y 11 suites en verde. No se tocó el *quick tunnel* ni `pinguidev.corvet.dpdns.org`. |
+| **Adelanto del TNT Run** | **Aprobado (19/11/2026):** se implementó el TNT Run como cuarto modo, con tick propio de 20 Hz, isla de cinco capas, animación y sonido de caída, rejoin de 45 s, suite de 16 aserciones y 12 suites en verde. No se tocó el *quick tunnel* ni `pinguidev.corvet.dpdns.org`. |
 
-Con esto no queda ninguna decisión bloqueante. La isla, Pares, Coliseo y Escondite ya
-están entregados; el siguiente entregable es **TNT Run**.
+Con esto no queda ninguna decisión bloqueante. La isla, Pares, TNT, Coliseo y
+Escondite ya están entregados; el siguiente entregable es **Karts**.

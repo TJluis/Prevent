@@ -72,7 +72,7 @@ run("01 defs: formatos, loadout melee y sala por variante", () => {
   eq(MODE.getMode("coliseo").variants.length, 3, "tres formatos en modeDefs");
   eq(MODE.modeRoomCode("coliseo", "1v1"), "MODO-COLISEO-1V1", "sala 1v1");
   eq(MODE.modeRoomCode("coliseo", "ffa"), "MODO-COLISEO-FFA", "sala FFA");
-  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,coliseo,escondite", "tres modos live");
+  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,tnt,coliseo,escondite", "cuatro modos live");
 });
 
 run("02 mapa: arena circular, obstaculos y limite compartido", () => {

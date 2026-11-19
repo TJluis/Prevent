@@ -18,8 +18,10 @@ import { getMode, getModeVariant, modeRoomCode } from "../public/js/modeDefs.js"
 import { createPairsGame } from "./modes/pairs.js";
 import { createColiseoGame } from "./modes/coliseo.js";
 import { createEsconditeGame } from "./modes/escondite.js";
+import { createTntGame } from "./modes/tnt.js";
 import { COLISEO_MAP_ID, coliseoClamp, isColiseoWeapon } from "../public/js/coliseoDefs.js";
 import { HIDE_MAP_ID } from "../public/js/hideDefs.js";
+import { TNT_MAP_ID, TNT_TICK_MS } from "../public/js/tntDefs.js";
 import {
   computeBlockedDamage,
   getBlockConfig,
@@ -92,6 +94,9 @@ const players = new Map();
 const rooms = new Map();
 // Controladores de minijuegos activos, indexados por id de modo.
 const modeGames = new Map();
+// TNT Run corre a 20 Hz (el resto de modos, a 5 Hz). Se guarda aparte para no
+// llamar dos veces por tick al mismo controlador.
+let tntController = null;
 
 let io;
 let throwSeq = 1;
@@ -803,8 +808,15 @@ function modeTick() {
     return player ? { x: player.x, z: player.z } : null;
   };
   for (const game of modeGames.values()) {
+    if (game === tntController) continue; // Tiene su propio intervalo de 20 Hz.
     game.tick(Date.now(), posOf);
   }
+}
+
+// Tick dedicado de TNT Run: las mechas de 600 ms necesitan 20 Hz para que la
+// animación de caída no se sienta a saltos. El reloj se consulta una sola vez.
+function tntTick() {
+  if (tntController) tntController.tick(Date.now());
 }
 
 function transferOwnership(room) {
@@ -1015,7 +1027,7 @@ function moveSocketToMode(socket, player, room) {
   const spawn = game && game.spawnFor ? game.spawnFor(player.id) : clearRoomSpawn(room.mapId);
   player.x = spawn.x;
   player.z = spawn.z;
-  player.y = 0;
+  player.y = Number.isFinite(spawn.y) ? spawn.y : 0;
   if (Number.isFinite(spawn.yaw)) player.yaw = spawn.yaw;
   ensureAliveForZone(player, socket, roomChannel(room.code));
 
@@ -1238,6 +1250,104 @@ function esconditeRejoinRoomFor(player) {
   return null;
 }
 
+// ---- TNT Run ---------------------------------------------------------------
+
+function isTntRoom(room) {
+  return !!room && room.kind === "mode" && room.modeId === "tnt";
+}
+
+function tntGameFor(room) {
+  return isTntRoom(room) ? modeGames.get(room.code) || null : null;
+}
+
+// Coloca al pingüino en la celda y capa que decide el controlador. El cliente
+// usa `y` para situar al jugador en la altura correcta de la isla flotante.
+function tntPlace(room, game, player) {
+  const spawn = game.spawnFor(player.id);
+  player.x = spawn.x;
+  player.z = spawn.z;
+  player.y = Number.isFinite(spawn.y) ? spawn.y : 0;
+  if (Number.isFinite(spawn.yaw)) player.yaw = spawn.yaw;
+  player.weaponId = null;
+  player.hp = MAX_HP;
+  player.alive = true;
+  player.moveBudget = MOVE_BUDGET_MAX;
+  player.moveBudgetAt = Date.now();
+  resetBlock(player);
+  io.to(roomChannel(room.code)).emit("mode:teleport", {
+    id: player.id,
+    x: player.x,
+    z: player.z,
+    y: player.y,
+    yaw: player.yaw,
+  });
+}
+
+function persistTntResult(game) {
+  if (!game || !game.resultStats) return;
+  const stats = game.resultStats();
+  if (!stats.winner) return;
+  for (const entry of stats.participants || []) {
+    if (!entry.userId) continue;
+    recordUserStats(entry.userId, {
+      tntWins: entry.id === stats.winner ? 1 : 0,
+      tntBlocks: stats.blocks ? stats.blocks[entry.id] || 0 : 0,
+    });
+  }
+}
+
+function applyTntEvent(room, snapshot, event) {
+  if (!event || !snapshot) return;
+  const game = tntGameFor(room);
+  if (!game) return;
+
+  if (event.type === "countdown" || event.type === "start" || event.type === "restart") {
+    for (const player of roomMembers(room)) tntPlace(room, game, player);
+    return;
+  }
+  if (event.type === "join" || event.type === "rejoin") {
+    const player = players.get(event.playerId);
+    if (player) tntPlace(room, game, player);
+    return;
+  }
+  if (event.type === "playerFall") {
+    const player = players.get(event.playerId);
+    if (!player) return;
+    if (event.eliminated) {
+      player.alive = false;
+    } else {
+      player.x = event.x;
+      player.z = event.z;
+      player.y = event.y;
+      player.moveBudget = MOVE_BUDGET_MAX;
+      player.moveBudgetAt = Date.now();
+      io.to(roomChannel(room.code)).emit("mode:teleport", {
+        id: player.id,
+        x: player.x,
+        z: player.z,
+        y: player.y,
+        yaw: player.yaw,
+      });
+    }
+    return;
+  }
+  if (event.type === "result") {
+    persistTntResult(game);
+  }
+}
+
+function tntRejoinRoomFor(player) {
+  if (!player) return null;
+  for (const room of rooms.values()) {
+    if (!isTntRoom(room)) continue;
+    const game = tntGameFor(room);
+    if (game && game.canRejoin && game.canRejoin({ userId: player.userId, name: player.name })) {
+      return room;
+    }
+  }
+  return null;
+}
+
 export function setupGame(ioServer) {
   io = ioServer;
 
@@ -1296,6 +1406,21 @@ export function setupGame(ioServer) {
         },
       })
     );
+  }
+
+  // TNT Run: sala oculta sin combate. La rejilla y las mechas viven en el
+  // controlador; el movimiento autoritativo se le entrega en `player:move`.
+  // El tick propio de 20 Hz se registra al final de setupGame.
+  const tntRoom = ensureModeRoom("tnt");
+  if (tntRoom) {
+    tntController = createTntGame({
+      maxPlayers: getMode("tnt").maxPlayers,
+      onChange: (snapshot, event) => {
+        emitModeState(tntRoom.code, snapshot, event);
+        applyTntEvent(tntRoom, snapshot, event);
+      },
+    });
+    modeGames.set(tntRoom.code, tntController);
   }
 
   io.on("connection", (socket) => {
@@ -1374,11 +1499,14 @@ export function setupGame(ioServer) {
       broadcastRoomList();
       console.log(`[game] ${player.name} entró (${socket.id})${isAccount ? " [cuenta]" : " [invitado]"}`);
 
-      // Si tenía un rol reservado en el Escondite, avisamos al cliente para que
-      // vuelva a entrar automáticamente y recupere buscador/escondido.
-      const rejoinRoom = esconditeRejoinRoomFor(player);
+      // Si tenía una plaza reservada en el Escondite o en TNT Run, avisamos al
+      // cliente para que vuelva a entrar automáticamente y recupere su estado.
+      const rejoinRoom = esconditeRejoinRoomFor(player) || tntRejoinRoomFor(player);
       if (rejoinRoom) {
-        socket.emit("mode:rejoin", { modeId: "escondite", roomCode: rejoinRoom.code });
+        socket.emit("mode:rejoin", {
+          modeId: rejoinRoom.modeId,
+          roomCode: rejoinRoom.code,
+        });
       }
 
       socket.on("player:move", ({ x, z, yaw, y, sprint, slide } = {}) => {
@@ -1392,6 +1520,9 @@ export function setupGame(ioServer) {
         // En el Escondite el buscador queda inmóvil en la jaula durante `hide`.
         const hideGame = esconditeGameFor(moveRoom);
         if (hideGame && !hideGame.canMove(player.id)) return;
+        // En TNT Run solo se mueve quien sigue vivo y con la partida en marcha.
+        const tntGame = tntGameFor(moveRoom);
+        if (tntGame && !tntGame.canMove(player.id)) return;
         if (throttle(socket, "move", 40, 1000)) return;
 
         const now = Date.now();
@@ -1424,11 +1555,24 @@ export function setupGame(ioServer) {
           player.moveBudget = Math.max(0, player.moveBudget - dist);
         }
 
+        // TNT Run: la celda pisada, la mecha y la altura las decide el
+        // controlador a partir de la posición ya presupuestada. Si el cliente
+        // intenta cruzar dos celdas de golpe, devuelve el centro de la actual.
+        let tntLayer = null;
+        if (tntGame) {
+          const result = tntGame.move(player.id, targetX, targetZ);
+          if (result && Number.isFinite(result.x) && Number.isFinite(result.z)) {
+            targetX = result.x;
+            targetZ = result.z;
+          }
+          tntLayer = result && Number.isFinite(result.y) ? result.y : null;
+        }
+
         player.lastMoveAt = now;
         if (Number.isFinite(yaw)) player.yaw = yaw;
-        // Altura del salto (Fase 4): cosmética, acotada a [0, 3] m. El combate
-        // sigue siendo 2D, así que no afecta a los impactos.
-        player.y = Number.isFinite(y) ? Math.max(0, Math.min(3, y)) : 0;
+        // Altura del salto (Fase 4): cosmética, acotada a [0, 3] m. En TNT Run
+        // la altura es autoritativa (capa × 1,5 m) y el salto está desactivado.
+        player.y = tntLayer !== null ? tntLayer : Number.isFinite(y) ? Math.max(0, Math.min(3, y)) : 0;
         player.sprinting = !!sprint;
         player.sliding = !!slide;
         const mapId = mapIdOf(player);
@@ -1775,6 +1919,9 @@ export function setupGame(ioServer) {
         if (player.roomCode && isEsconditeRoom(rooms.get(player.roomCode))) {
           return toast("En el Escondite no se puede curar");
         }
+        if (player.roomCode && isTntRoom(rooms.get(player.roomCode))) {
+          return toast("En TNT Run no se puede curar");
+        }
         if (throttle(socket, "inv", 2, 400)) return;
 
         const idx = Number(slot);
@@ -2017,16 +2164,15 @@ export function setupGame(ioServer) {
           }
         }
 
-        // Reconexión al Escondite: el controlador decide si sigue vigente la
-        // reserva del rol para esta cuenta o nombre de invitado.
+        // Reconexión al Escondite o a TNT Run: el controlador decide si sigue
+        // vigente la reserva para esta cuenta o nombre de invitado.
         const rejoinAvailable =
           !!rejoin &&
-          def.id === "escondite" &&
+          (def.id === "escondite" || def.id === "tnt") &&
           (() => {
             const target = ensureModeRoom(def.id, variantId);
             const targetGame = target ? modeGames.get(target.code) : null;
             return (
-              isEsconditeRoom(target) &&
               !!targetGame &&
               !!targetGame.canRejoin &&
               targetGame.canRejoin({ userId: visitor.userId, name: visitor.name })
@@ -2073,6 +2219,8 @@ export function setupGame(ioServer) {
               "matchEnd", // Coliseo
               "hide",
               "seek", // Escondite
+              "countdown",
+              "playing", // TNT Run
             ].includes(state.phase);
           if (inProgress) {
             return socket.emit("mode:error", {
@@ -2130,6 +2278,9 @@ export function setupGame(ioServer) {
             "bad-position": "No se pudo calcular la distancia.",
             "too-far": "Estás demasiado lejos para etiquetar.",
             blocked: "Hay una cobertura de por medio.",
+            "not-adjacent": "No puedes cruzar más de un bloque a la vez.",
+            "too-fast": "Vas demasiado rápido por la isla.",
+            eliminated: "Ya estás eliminado de esta partida.",
             "unknown-action": "Esa acción no existe.",
           };
           const message = messages[result.reason];
@@ -2337,4 +2488,5 @@ export function setupGame(ioServer) {
   setInterval(tickHockey, HOCKEY_TICK_MS);
   setInterval(crystalTick, 1000);
   setInterval(modeTick, MODE_TICK_MS);
+  if (tntController) setInterval(tntTick, TNT_TICK_MS);
 }
