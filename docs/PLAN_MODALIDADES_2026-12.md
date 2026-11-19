@@ -617,6 +617,7 @@ existente: servidor real en proceso con `PORT` y `DB_PATH` temporales, bots de
 - Cliente manipulado: enviar `mode:action` fuera de turno, índice inválido, acción de
   otro jugador. Todo debe rechazarse sin tumbar la sala.
 - Recarga a mitad de partida → espectador → revancha.
+- Reiniciar `server/index.js` después de cada cambio de modos (Node no recarga `modeDefs.js` ni los controladores en caliente).
 - Salir y volver a entrar → sin estado zombi.
 - 8 pestañas simultáneas → FPS y RTT aceptables.
 
