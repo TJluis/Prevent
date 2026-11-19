@@ -21,6 +21,22 @@ const eq = (a, b, msg) => {
 
 let clock = 1_000_000;
 Date.now = () => clock;
+
+// Los cristales y los códigos de sala salen de Math.random. Sin semilla fija,
+// el disparo previo a la cura de la prueba 18 podía matar al objetivo y la
+// suite fallaba de forma intermitente. El patrón es el mismo de t-coliseo.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let x = Math.imul(a ^ (a >>> 15), 1 | a);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+Math.random = mulberry32(20261119);
+
 const timers = [];
 global.setTimeout = (fn, ms) => {
   const h = { fn, ms, cleared: false, interval: false };

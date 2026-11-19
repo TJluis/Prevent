@@ -17,7 +17,9 @@ import { HUB_CODE, HUB_MAP_ID, HUB_SPAWN, HUB_PORTALS, nearestPortal } from "../
 import { getMode, getModeVariant, modeRoomCode } from "../public/js/modeDefs.js";
 import { createPairsGame } from "./modes/pairs.js";
 import { createColiseoGame } from "./modes/coliseo.js";
+import { createEsconditeGame } from "./modes/escondite.js";
 import { COLISEO_MAP_ID, coliseoClamp, isColiseoWeapon } from "../public/js/coliseoDefs.js";
+import { HIDE_MAP_ID } from "../public/js/hideDefs.js";
 import {
   computeBlockedDamage,
   getBlockConfig,
@@ -427,6 +429,8 @@ function sendScoreProfile(socket, player) {
           bestStreak: lifetime.best_streak,
           duelWins: lifetime.duel_wins || 0,
           duelRounds: lifetime.duel_rounds || 0,
+          hideWins: lifetime.hide_wins || 0,
+          seekWins: lifetime.seek_wins || 0,
         }
       : null,
     top: getTopStats(5),
@@ -816,7 +820,7 @@ function transferOwnership(room) {
   io.to(nextId).emit("room:state", { room: publicRoom(room), hosting: true });
 }
 
-function removeFromRoom(player) {
+function removeFromRoom(player, reason = "manual") {
   const room = rooms.get(player.roomCode);
   if (!room) return;
 
@@ -826,7 +830,7 @@ function removeFromRoom(player) {
   // Los minijuegos necesitan saber que el jugador se fue (turnos, marcador).
   if (room.kind === "mode") {
     const game = modeGames.get(room.code);
-    if (game) game.leave(player.id);
+    if (game) game.leave(player.id, { reason });
   }
 
   if (room.members.size === 0 && !room.persistent) {
@@ -838,13 +842,13 @@ function removeFromRoom(player) {
 
 // Sale del canal de la zona actual sin entrar todavía en otra. Lo usan los
 // cambios de zona y la creación de salas desde la isla.
-function detachFromRoom(socket, player, { notify = true } = {}) {
+function detachFromRoom(socket, player, { notify = true, reason = "manual" } = {}) {
   const oldCode = player.roomCode;
   if (!oldCode) return;
   const channel = roomChannel(oldCode);
   socket.leave(channel);
   if (notify) socket.to(channel).emit("player:left", { id: socket.id });
-  removeFromRoom(player);
+  removeFromRoom(player, reason);
   player.roomCode = null;
 }
 
@@ -991,7 +995,7 @@ function moveSocketToMode(socket, player, room) {
   // (y por tanto el punto de aparición) se asigna al entrar. El socket ya está
   // en el canal para recibir el `mode:state` que difunde `join`.
   if (game) {
-    const result = game.join({ id: player.id, name: player.name });
+    const result = game.join({ id: player.id, name: player.name, userId: player.userId });
     if (!result.ok) {
       const message =
         result.reason === "full"
@@ -1043,13 +1047,18 @@ function emitModeState(roomCode, snapshot, event) {
   if (!room) return;
   const statusChanged = room.status !== snapshot.status;
   room.status = snapshot.status;
-  io.to(roomChannel(room.code)).emit("mode:state", snapshot);
+  const channel = roomChannel(room.code);
+  io.to(channel).emit("mode:state", snapshot);
   if (event) {
-    io.to(roomChannel(room.code)).emit("mode:event", {
-      modeId: snapshot.modeId,
-      variant: snapshot.variant,
-      ...event,
-    });
+    const payload = { modeId: snapshot.modeId, variant: snapshot.variant, ...event };
+    // El pulso del Escondite solo revela a quién detectó al buscador: los
+    // escondidos reciben el evento sin la lista de jugadores detectados.
+    if (event.type === "pulse") {
+      io.to(channel).emit("mode:event", { ...payload, hits: [] });
+      io.to(event.playerId).emit("mode:event", payload);
+    } else {
+      io.to(channel).emit("mode:event", payload);
+    }
   }
   // El panel lateral muestra el estado de la partida; si cambia (empieza,
   // termina o se reinicia) se reenvía room:state para no quedarse en
@@ -1149,6 +1158,86 @@ function applyColiseoEvent(room, snapshot, event) {
   }
 }
 
+// ---- Escondite -------------------------------------------------------------
+
+function isEsconditeRoom(room) {
+  return !!room && room.kind === "mode" && room.modeId === "escondite";
+}
+
+function esconditeGameFor(room) {
+  return isEsconditeRoom(room) ? modeGames.get(room.code) || null : null;
+}
+
+// El servidor decide el punto de llegada de cada fase (jaula para el buscador,
+// anillo interior para los escondidos) y avisa al cliente con `mode:teleport`.
+function esconditePlace(room, game, player) {
+  const spawn = game.spawnFor(player.id);
+  player.x = spawn.x;
+  player.z = spawn.z;
+  player.y = 0;
+  if (Number.isFinite(spawn.yaw)) player.yaw = spawn.yaw;
+  player.weaponId = null;
+  player.hp = MAX_HP;
+  player.alive = true;
+  player.moveBudget = MOVE_BUDGET_MAX;
+  player.moveBudgetAt = Date.now();
+  resetBlock(player);
+  io.to(roomChannel(room.code)).emit("mode:teleport", {
+    id: player.id,
+    x: player.x,
+    z: player.z,
+    yaw: player.yaw,
+  });
+}
+
+function persistEsconditeResult(game) {
+  if (!game || !game.resultStats) return;
+  const stats = game.resultStats();
+  if (!stats.winner) return;
+  const winners = new Set((stats.winners || []).map((entry) => entry.userId));
+  for (const entry of stats.participants || []) {
+    if (!entry.userId) continue;
+    const won = winners.has(entry.userId);
+    recordUserStats(entry.userId, {
+      hideWins: stats.winner === "hider" && won ? 1 : 0,
+      seekWins: stats.winner === "seeker" && won ? 1 : 0,
+    });
+  }
+}
+
+function applyEsconditeEvent(room, snapshot, event) {
+  if (!event || !snapshot) return;
+  const game = esconditeGameFor(room);
+  if (!game) return;
+
+  if (event.type === "hideStart" || event.type === "seekStart") {
+    for (const player of roomMembers(room)) esconditePlace(room, game, player);
+    return;
+  }
+  if (event.type === "join" || event.type === "rejoin") {
+    const player = players.get(event.playerId);
+    if (player) esconditePlace(room, game, player);
+    return;
+  }
+  if (event.type === "result") {
+    persistEsconditeResult(game);
+  }
+}
+
+// Devuelve la sala de Escondite con un rol reservado para este jugador, si la
+// hubiera. Se usa al volver a conectar para avisar al cliente de la reconexión.
+function esconditeRejoinRoomFor(player) {
+  if (!player) return null;
+  for (const room of rooms.values()) {
+    if (!isEsconditeRoom(room)) continue;
+    const game = esconditeGameFor(room);
+    if (game && game.canRejoin && game.canRejoin({ userId: player.userId, name: player.name })) {
+      return room;
+    }
+  }
+  return null;
+}
+
 export function setupGame(ioServer) {
   io = ioServer;
 
@@ -1184,6 +1273,26 @@ export function setupGame(ioServer) {
         onChange: (snapshot, event) => {
           emitModeState(room.code, snapshot, event);
           applyColiseoEvent(room, snapshot, event);
+        },
+      })
+    );
+  }
+
+  // Escondite: una sala oculta sin combate. El buscador se elige con el RNG real
+  // del servidor y las posiciones se leen del estado autoritativo para validar
+  // etiquetas y pulsos.
+  const hideRoom = ensureModeRoom("escondite");
+  if (hideRoom) {
+    modeGames.set(
+      hideRoom.code,
+      createEsconditeGame({
+        onChange: (snapshot, event) => {
+          emitModeState(hideRoom.code, snapshot, event);
+          applyEsconditeEvent(hideRoom, snapshot, event);
+        },
+        positionOf: (id) => {
+          const holder = players.get(id);
+          return holder ? { x: holder.x, z: holder.z } : null;
         },
       })
     );
@@ -1265,6 +1374,13 @@ export function setupGame(ioServer) {
       broadcastRoomList();
       console.log(`[game] ${player.name} entró (${socket.id})${isAccount ? " [cuenta]" : " [invitado]"}`);
 
+      // Si tenía un rol reservado en el Escondite, avisamos al cliente para que
+      // vuelva a entrar automáticamente y recupere buscador/escondido.
+      const rejoinRoom = esconditeRejoinRoomFor(player);
+      if (rejoinRoom) {
+        socket.emit("mode:rejoin", { modeId: "escondite", roomCode: rejoinRoom.code });
+      }
+
       socket.on("player:move", ({ x, z, yaw, y, sprint, slide } = {}) => {
         if (!Number.isFinite(x) || !Number.isFinite(z)) return;
         if (!player.alive) return;
@@ -1273,6 +1389,9 @@ export function setupGame(ioServer) {
         const moveRoom = player.roomCode ? rooms.get(player.roomCode) : null;
         const moveGame = coliseoGameFor(moveRoom);
         if (moveGame && !moveGame.canFight(player.id)) return;
+        // En el Escondite el buscador queda inmóvil en la jaula durante `hide`.
+        const hideGame = esconditeGameFor(moveRoom);
+        if (hideGame && !hideGame.canMove(player.id)) return;
         if (throttle(socket, "move", 40, 1000)) return;
 
         const now = Date.now();
@@ -1380,6 +1499,7 @@ export function setupGame(ioServer) {
         const blockRoom = player.roomCode ? rooms.get(player.roomCode) : null;
         const blockGame = coliseoGameFor(blockRoom);
         if (blockGame && !blockGame.canFight(player.id)) return;
+        if (blockRoom && blockRoom.combat === false) return;
         const cfg = getBlockConfig(player.weaponId);
         const deny = (reason) => {
           player.blocking = false;
@@ -1652,6 +1772,9 @@ export function setupGame(ioServer) {
         if (player.roomCode && isColiseoRoom(rooms.get(player.roomCode))) {
           return toast("En el Coliseo no se puede curar");
         }
+        if (player.roomCode && isEsconditeRoom(rooms.get(player.roomCode))) {
+          return toast("En el Escondite no se puede curar");
+        }
         if (throttle(socket, "inv", 2, 400)) return;
 
         const idx = Number(slot);
@@ -1873,7 +1996,7 @@ export function setupGame(ioServer) {
       // Entrar a un minijuego: hay que estar en la isla y cerca del portal.
       // El radio del servidor (6 m) es mayor que el del aviso (3,2 m) para
       // tolerar el retardo de red sin abrir la puerta a teletransportes.
-      socket.on("mode:join", ({ modeId, variant } = {}) => {
+      socket.on("mode:join", ({ modeId, variant, rejoin } = {}) => {
         const visitor = players.get(socket.id);
         if (!visitor) return;
         if (throttle(socket, "mode", 6, 1000)) {
@@ -1884,7 +2007,6 @@ export function setupGame(ioServer) {
         if (def.status !== "live") {
           return socket.emit("mode:error", { error: `${def.name} todavía no está disponible.` });
         }
-
         // Los modos con formatos exigen una variante válida; si no llega, se
         // usa la primera (1v1) para no romper clientes antiguos.
         let variantId = null;
@@ -1894,6 +2016,22 @@ export function setupGame(ioServer) {
             return socket.emit("mode:error", { error: "Ese formato no existe." });
           }
         }
+
+        // Reconexión al Escondite: el controlador decide si sigue vigente la
+        // reserva del rol para esta cuenta o nombre de invitado.
+        const rejoinAvailable =
+          !!rejoin &&
+          def.id === "escondite" &&
+          (() => {
+            const target = ensureModeRoom(def.id, variantId);
+            const targetGame = target ? modeGames.get(target.code) : null;
+            return (
+              isEsconditeRoom(target) &&
+              !!targetGame &&
+              !!targetGame.canRejoin &&
+              targetGame.canRejoin({ userId: visitor.userId, name: visitor.name })
+            );
+          })();
 
         const current = visitor.roomCode ? rooms.get(visitor.roomCode) : null;
         if (current && current.kind === "room") {
@@ -1911,23 +2049,31 @@ export function setupGame(ioServer) {
                 : "Vuelve a la isla para entrar a otro minijuego.",
           });
         }
-        if (!current || current.kind !== "hub") {
+        if ((!current || current.kind !== "hub") && !rejoinAvailable) {
           return socket.emit("mode:error", { error: "Entra a la isla para elegir un minijuego." });
         }
-        const portal = nearestPortal(visitor.x, visitor.z, HUB_PORTALS, 6);
-        if (!portal || portal.modeId !== def.id) {
-          return socket.emit("mode:error", { error: "Acércate al portal para entrar." });
+        if (!rejoinAvailable) {
+          const portal = nearestPortal(visitor.x, visitor.z, HUB_PORTALS, 6);
+          if (!portal || portal.modeId !== def.id) {
+            return socket.emit("mode:error", { error: "Acércate al portal para entrar." });
+          }
         }
         const room = ensureModeRoom(def.id, variantId);
         if (!room) return socket.emit("mode:error", { error: "Ese minijuego no está listo." });
-        if (!room.members.has(visitor.id)) {
-          // En el Coliseo una partida en curso está cerrada aunque quede aforo:
-          // el aviso lo decide el controlador antes que el recuento de la sala.
+        if (!room.members.has(visitor.id) && !rejoinAvailable) {
+          // Una partida en curso está cerrada aunque quede aforo: el aviso lo
+          // decide el controlador antes que el recuento de la sala.
           const game = modeGames.get(room.code);
           const state = game ? game.snapshot() : null;
           const inProgress =
-            state &&
-            (state.phase === "fight" || state.phase === "roundEnd" || state.phase === "matchEnd");
+            !!state &&
+            [
+              "fight",
+              "roundEnd",
+              "matchEnd", // Coliseo
+              "hide",
+              "seek", // Escondite
+            ].includes(state.phase);
           if (inProgress) {
             return socket.emit("mode:error", {
               error: "La partida ya está en marcha. Espera al reinicio.",
@@ -1976,6 +2122,14 @@ export function setupGame(ioServer) {
             "bad-team": "Equipo no válido.",
             "bad-weapon": "Esa arma no está permitida en el Coliseo.",
             "in-progress": "La partida ya está en marcha.",
+            "wrong-phase": "Ahora mismo no puedes hacer eso.",
+            "wrong-role": "Esa habilidad es solo del buscador o del escondido.",
+            "not-ready": "La habilidad todavía está recargando.",
+            "bad-target": "Ese jugador no puede ser etiquetado.",
+            dodged: "El escondido esquivó la etiqueta.",
+            "bad-position": "No se pudo calcular la distancia.",
+            "too-far": "Estás demasiado lejos para etiquetar.",
+            blocked: "Hay una cobertura de por medio.",
             "unknown-action": "Esa acción no existe.",
           };
           const message = messages[result.reason];
@@ -2076,7 +2230,7 @@ export function setupGame(ioServer) {
           if (room) {
             socket.to(roomChannel(room.code)).emit("player:left", { id: socket.id });
           }
-          removeFromRoom(player);
+          removeFromRoom(player, "disconnect");
         } else {
           socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });
         }

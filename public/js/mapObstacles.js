@@ -13,6 +13,7 @@
 // - Simetría 180°: cada cobertura tiene su pareja opuesta, así ambos lados del
 //   mapa ofrecen las mismas ventajas.
 import { HUB_PORTALS } from "./hubDefs.js";
+import { HIDE_COVERS } from "./hideDefs.js";
 
 const TAU = Math.PI * 2;
 const round = (value) => Math.round(value * 100) / 100;
@@ -279,6 +280,23 @@ const coliseo = [
   { kind: "rock", type: "circle", x: 0, z: -7, r: 1.05 },
 ];
 
+// --- Aldea del Escondite ----------------------------------------------------
+// Las doce coberturas vienen de hideDefs para que el render, la colisión y la
+// línea de visión compartan exactamente la misma geometría. La jaula central
+// queda despejada y el borde exterior lleva pinos y rocas bajas entre escondite
+// y escondite, sin tapar ninguna recta desde el centro.
+const escondite = HIDE_COVERS.map((cover) => ({ ...cover }));
+for (let i = 0; i < 12; i++) {
+  const angle = (i / 12) * TAU + Math.PI / 12;
+  escondite.push({
+    kind: i % 2 === 0 ? "pine" : "rock",
+    type: "circle",
+    x: round(Math.cos(angle) * 33.2),
+    z: round(Math.sin(angle) * 33.2),
+    r: i % 2 === 0 ? 0.9 : 1.0,
+  });
+}
+
 export const MAP_OBSTACLES = {
   selva,
   desierto,
@@ -289,6 +307,7 @@ export const MAP_OBSTACLES = {
   isla,
   pares,
   coliseo,
+  escondite,
 };
 
 // Devuelve la lista de obstáculos de un mapa de sala (o null si no tiene layout

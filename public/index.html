@@ -295,6 +295,28 @@
       <div id="coliseo-hud-countdown" class="coliseo-hud-countdown" hidden></div>
     </div>
 
+    <div id="escondite-hud" hidden>
+      <div class="escondite-hud-head">
+        <span class="escondite-hud-title">🫣 Escondite</span>
+        <span id="escondite-hud-phase" class="escondite-hud-phase"></span>
+        <span id="escondite-hud-timer" class="escondite-hud-timer"></span>
+        <span id="escondite-hud-role" class="escondite-hud-role"></span>
+        <button id="escondite-hud-close" type="button" class="btn-sm">← Isla</button>
+      </div>
+      <div class="escondite-hud-body">
+        <span id="escondite-hud-hiders" class="escondite-hud-hiders"></span>
+        <div class="escondite-hud-actions" role="group" aria-label="Habilidades del Escondite">
+          <button id="escondite-hud-ready" type="button" class="btn-sm">Listo</button>
+          <button id="escondite-hud-dash" type="button" class="btn-sm" hidden>Esquivar (G)</button>
+          <button id="escondite-hud-pulse" type="button" class="btn-sm" hidden>Pulso (G)</button>
+          <button id="escondite-hud-tag" type="button" class="btn-sm" hidden>Etiquetar (F)</button>
+        </div>
+      </div>
+      <p id="escondite-hud-note" class="escondite-hud-note"></p>
+      <p id="escondite-hud-detected" class="escondite-hud-detected" hidden></p>
+      <p id="escondite-hud-result" class="escondite-hud-result" hidden></p>
+    </div>
+
     <div id="coliseo-select" hidden>
       <div class="coliseo-select-panel" role="dialog" aria-label="Elige formato del Coliseo">
         <div class="coliseo-select-head">

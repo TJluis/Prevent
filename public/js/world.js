@@ -8,6 +8,11 @@ import {
   COLISEO_MAP_ID,
   COLISEO_PLAY_RADIUS,
 } from "./coliseoDefs.js";
+import {
+  HIDE_CAGE_RADIUS,
+  HIDE_MAP_ID,
+  HIDE_SPOTS,
+} from "./hideDefs.js";
 
 export { MAPS, getMap, getRoomMaps, getMapBoundary };
 export { makeCordilleraScenery, makeTerrain };
@@ -663,6 +668,77 @@ function makeColiseoArena() {
   return group;
 }
 
+// Aldea del Escondite: jaula central del buscador, anillo de faroles y los doce
+// marcadores de escondite. Las coberturas las añade `populate` desde
+// MAP_OBSTACLES.escondite (misma geometría que la colisión y la línea de visión).
+function makeHideVillage() {
+  const group = new THREE.Group();
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(HIDE_CAGE_RADIUS + 0.45, 48),
+    new THREE.MeshStandardMaterial({ color: 0x3a2c22, roughness: 0.92 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.03;
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  const cageMat = new THREE.MeshStandardMaterial({
+    color: 0xffb066,
+    emissive: 0xff8a3c,
+    emissiveIntensity: 0.85,
+    roughness: 0.5,
+  });
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(HIDE_CAGE_RADIUS - 0.18, HIDE_CAGE_RADIUS + 0.12, 48),
+    cageMat
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.06;
+  group.add(ring);
+
+  // Barrotes bajos: se lee como jaula pero el buscador puede salir al empezar
+  // la fase de búsqueda sin atravesar ninguna malla.
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 0.88 });
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.5, 6), postMat);
+    post.position.set(Math.cos(angle) * HIDE_CAGE_RADIUS, 0.75, Math.sin(angle) * HIDE_CAGE_RADIUS);
+    post.castShadow = true;
+    group.add(post);
+  }
+  const top = new THREE.Mesh(new THREE.TorusGeometry(HIDE_CAGE_RADIUS, 0.06, 6, 48), postMat);
+  top.rotation.x = Math.PI / 2;
+  top.position.y = 1.5;
+  group.add(top);
+
+  // Marcadores de los doce escondites: un aro verde en el suelo.
+  const spotMat = new THREE.MeshStandardMaterial({
+    color: 0x4ade80,
+    emissive: 0x22c55e,
+    emissiveIntensity: 0.7,
+    roughness: 0.6,
+    side: THREE.DoubleSide,
+  });
+  const spotGeo = new THREE.RingGeometry(0.8, 1.25, 24);
+  for (const spot of HIDE_SPOTS) {
+    const marker = new THREE.Mesh(spotGeo, spotMat);
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.set(spot.x, 0.05, spot.z);
+    group.add(marker);
+  }
+
+  // Faroles en el anillo interior para dar calidez de aldea.
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    const lamp = makeLamp();
+    lamp.position.set(Math.cos(angle) * 11, 0, Math.sin(angle) * 11);
+    group.add(lamp);
+  }
+
+  return group;
+}
+
 // ---------------------------------------------------------------- decoración genérica
 
 function pineTree(palette, scale) {
@@ -809,6 +885,137 @@ function crate(o, palette) {
     band.position.y = w * by;
     group.add(band);
   }
+  return group;
+}
+
+// --- Props de la aldea del Escondite ---------------------------------------
+// Cabañas, pajares, vallas y pozos. Se dibujan como mallas individuales (no
+// instanciadas) porque solo hay una docena y cada tipo tiene su silueta.
+
+function cabinMesh(o, palette) {
+  const group = new THREE.Group();
+  const w = o.w || 4.2;
+  const d = o.d || 3.2;
+  const h = o.h || 2.7;
+  const wallMat = new THREE.MeshStandardMaterial({ color: palette.wall || 0x9a6a44, roughness: 0.9 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: palette.roof || 0x6d3f34, roughness: 0.85 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: palette.trim || 0xe8d8b0, roughness: 0.8 });
+
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+  walls.position.y = h / 2;
+  walls.castShadow = true;
+  walls.receiveShadow = true;
+  group.add(walls);
+
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, 1.5, 4), roofMat);
+  roof.rotation.y = Math.PI / 4;
+  roof.scale.set(1, 1, d / w);
+  roof.position.y = h + 0.7;
+  roof.castShadow = true;
+  group.add(roof);
+
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 0.12), roofMat);
+  door.position.set(0, 0.75, d / 2 + 0.02);
+  group.add(door);
+
+  const windowMat = new THREE.MeshStandardMaterial({
+    color: 0xffe9b8,
+    emissive: 0xffc45e,
+    emissiveIntensity: 0.45,
+    roughness: 0.5,
+  });
+  for (const sx of [-1, 1]) {
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.5), windowMat);
+    win.position.set(sx * (w / 3.2), h * 0.62, d / 2 + 0.03);
+    group.add(win);
+  }
+
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, 0.16, 0.16), trimMat);
+  beam.position.set(0, h - 0.1, d / 2 + 0.04);
+  group.add(beam);
+
+  return group;
+}
+
+function haystackMesh(o, palette) {
+  const group = new THREE.Group();
+  const r = o.r || 1.6;
+  const h = r * 1.5;
+  const mat = new THREE.MeshStandardMaterial({ color: palette.body || 0xd9b45c, roughness: 1 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.08, h, 14), mat);
+  body.position.y = h / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+  cap.position.y = h;
+  cap.scale.y = 0.55;
+  cap.castShadow = true;
+  group.add(cap);
+
+  const bandMat = new THREE.MeshStandardMaterial({ color: palette.dark || 0xb08a3a, roughness: 0.95 });
+  for (const by of [0.35, 0.7]) {
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.02, r + 0.04, 0.12, 14), bandMat);
+    band.position.y = h * by;
+    group.add(band);
+  }
+  return group;
+}
+
+function fenceMesh(o, palette) {
+  const group = new THREE.Group();
+  const w = o.w || 4.2;
+  const h = o.h || 1.6;
+  const mat = new THREE.MeshStandardMaterial({ color: palette.body || 0x8a6238, roughness: 0.9 });
+  const posts = 3;
+  for (let i = 0; i < posts; i++) {
+    const x = -w / 2 + (i / (posts - 1)) * w;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, 0.16), mat);
+    post.position.set(x, h / 2, 0);
+    post.castShadow = true;
+    group.add(post);
+  }
+  for (const by of [0.45, 0.8]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, 0.1), mat);
+    rail.position.set(0, h * by, 0);
+    rail.castShadow = true;
+    group.add(rail);
+  }
+  return group;
+}
+
+function wellMesh(o, palette) {
+  const group = new THREE.Group();
+  const r = o.r || 1.35;
+  const stoneMat = new THREE.MeshStandardMaterial({ color: palette.stone || 0x8f8f86, roughness: 1 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: palette.roof || 0x6d3f34, roughness: 0.85 });
+
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, 0.9, 16, 1, true), stoneMat);
+  rim.position.y = 0.45;
+  rim.castShadow = true;
+  rim.receiveShadow = true;
+  group.add(rim);
+
+  const water = new THREE.Mesh(
+    new THREE.CircleGeometry(r * 0.82, 16),
+    new THREE.MeshStandardMaterial({ color: 0x2b5f7a, roughness: 0.25, metalness: 0.3 })
+  );
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = 0.32;
+  group.add(water);
+
+  for (const sx of [-1, 1]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.7, 0.14), roofMat);
+    post.position.set(sx * r * 0.75, 1.2, 0);
+    post.castShadow = true;
+    group.add(post);
+  }
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(r * 1.25, 0.8, 4), roofMat);
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = 2.2;
+  roof.castShadow = true;
+  group.add(roof);
   return group;
 }
 
@@ -1500,6 +1707,19 @@ export const MAP_DEFS = {
       crate: { box: 0x2a2238, bands: [0xf87171, 0xf472b6, 0xfacc15] },
     },
   },
+
+  escondite: {
+    obstacles: MAP_OBSTACLES.escondite,
+    palette: {
+      pine: { trunk: 0x6b4a2c, leaf: 0x2f7a4a, highlight: 0xcfe8d0 },
+      rock: 0x8a8f7a,
+      crate: { box: 0xb08a54, bands: [0x6d4c2a, 0x9a7a3a, 0x4f7a4a] },
+      cabin: { wall: 0x9a6a44, roof: 0x6d3f34, trim: 0xe8d8b0 },
+      haystack: { body: 0xd9b45c, dark: 0xb08a3a },
+      fence: { body: 0x8a6238 },
+      well: { stone: 0x8f8f86, roof: 0x6d3f34 },
+    },
+  },
 };
 
 export const THEMES = {
@@ -1695,6 +1915,25 @@ export const THEMES = {
     sun: { color: 0xffd0c8, intensity: 1.1 },
     particles: { color: 0xffb4a8, count: 140, size: 0.1, opacity: 0.5, rise: true, speed: 0.35 },
   },
+
+  escondite: {
+    sky: { top: 0x2c4a63, mid: 0x8fb0b8, horizon: 0xffe0b0 },
+    fog: { color: 0xd9e4d8, near: 48, far: 135 },
+    ground: {
+      base: "#4d6b3f",
+      light: "rgba(190,220,150,0.35)",
+      dark: "rgba(30,50,25,0.45)",
+      repeat: 5,
+      speckles: 2600,
+      roughness: 1,
+    },
+    wall: 0x4a5a3a,
+    wallTop: 0xd9b45c,
+    hemisphere: 0xd8ecc8,
+    ambient: { color: 0x6a7a5a, intensity: 0.55 },
+    sun: { color: 0xffe6b8, intensity: 1.35 },
+    particles: { color: 0xffe9a8, count: 140, size: 0.1, opacity: 0.5, rise: true, speed: 0.3 },
+  },
 };
 
 function renderObstacle(o, mapId) {
@@ -1730,6 +1969,14 @@ function renderObstacle(o, mapId) {
       return monolith(palette.pillar || {});
     case "monument":
       return monument();
+    case "cabin":
+      return cabinMesh(o, palette.cabin || {});
+    case "haystack":
+      return haystackMesh(o, palette.haystack || {});
+    case "fence":
+      return fenceMesh(o, palette.fence || {});
+    case "well":
+      return wellMesh(o, palette.well || {});
     default:
       return null;
   }
@@ -2253,6 +2500,18 @@ export const GROUND_COVER = {
     flowers: 46,
     tuftColor: [0x5aa85a, 0x76bf6a, 0x8fd07a],
     pebbleColor: 0xd9c79a,
+  },
+  escondite: {
+    seed: 4110,
+    keepOut: [
+      { x: 0, z: 0, r: HIDE_CAGE_RADIUS + 0.6 },
+      ...HIDE_SPOTS.map((spot) => ({ x: spot.x, z: spot.z, r: 1.6 })),
+    ],
+    tufts: 260,
+    pebbles: 80,
+    flowers: 30,
+    tuftColor: [0x5aa85a, 0x76bf6a, 0x8fd07a],
+    pebbleColor: 0xb8ad8a,
   },
 };
 
@@ -2846,6 +3105,8 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     scene.add(makeCave(boundary));
   } else if (mapId === COLISEO_MAP_ID) {
     scene.add(makeColiseoArena());
+  } else if (mapId === HIDE_MAP_ID) {
+    scene.add(makeHideVillage());
   }
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.55 });

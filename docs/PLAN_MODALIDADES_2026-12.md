@@ -35,10 +35,11 @@ La petición no es "añadir seis mapas": es convertir un **lobby con salas PVP**
 **Esfuerzo total estimado:** ~55–65 días de trabajo enfocado (una persona + asistencia IA),
 repartidos entre diciembre de 2026 y febrero de 2027.
 
-### 0.1 Estado real (18/11/2026)
+### 0.1 Estado real (19/11/2026)
 
-El usuario pidió adelantar las olas 1 y 2, así que la base de la expansión y el
-primer modo con combate ya están en el código y probados:
+El usuario pidió adelantar las olas 1, 2 y 3, así que la base de la expansión, el
+primer modo con combate y el primer modo de roles asimétricos ya están en el código
+y probados:
 
 | Entregado | Dónde |
 |---|---|
@@ -53,12 +54,17 @@ primer modo con combate ya están en el código y probados:
 | Arena circular 3D, loadout melee y HUD de rondas | `public/js/coliseoDefs.js`, `public/js/coliseo.js`, `public/js/world.js` |
 | Mapa interno `coliseo` (52) con muro circular | `public/js/mapDefs.js`, `public/js/mapObstacles.js`, `public/js/collision.js` |
 | Persistencia `duel_wins` y `duel_rounds` | `server/db.js` (`user_stats`) |
+| Escondite autoritativo con roles y fases | `server/modes/escondite.js` |
+| Contratos de escondites, LOS y claves de reconexión | `public/js/hideDefs.js`, `public/js/mapObstacles.js` |
+| Aldea 3D con jaula, 12 escondites y HUD de rol | `public/js/world.js`, `public/js/escondite.js` |
+| Mapa interno `escondite` (72) y portal en vivo | `public/js/mapDefs.js`, `public/js/hubDefs.js` |
+| Persistencia `hide_wins` y `seek_wins` | `server/db.js` (`user_stats`) |
 | Mapas internos `isla` (64) y `pares` (44) | `public/js/mapDefs.js`, `public/js/mapObstacles.js` |
-| Suites de isla/modos/Pares y del Coliseo | `public/test/t-modos.mjs`, `public/test/t-coliseo.mjs` |
+| Suites de isla/modos/Pares, Coliseo y Escondite | `public/test/t-modos.mjs`, `public/test/t-coliseo.mjs`, `public/test/t-escondite.mjs` |
 
-Las otras cuatro modalidades siguen en `status:"soon"`: su portal se ve, pero el
+Las otras tres modalidades siguen en `status:"soon"`: su portal se ve, pero el
 servidor responde «todavía no está disponible» sin cambiar de zona. Lo pendiente de
-Pares y Coliseo está al final de §3.1 y §3.2.
+Pares, Coliseo y Escondite está al final de §3.1, §3.2 y §3.3.
 
 ---
 
@@ -322,23 +328,43 @@ persona sin atrapar gana (o el buscador si atrapa a todos).
 |---|---|
 | Jugadores | 3–12 |
 | Roles | 1 buscador, resto escondidos; el buscador se elige al azar con semilla |
-| Fases | `lobby` 20 s → `hide` 90 s (buscador congelado en jaula) → `seek` 180 s → `result` |
-| Arena | Mapas de sala existentes (120 m) con auditoría de escondites; se añaden 12 escondites nuevos |
-| Habilidades | Escondido: 3 esquivas cortas cada 25 s. Buscador: pulso de detección cada 30 s (radio 8 m) |
-| Detección | Distancia < 1,6 m + línea de visión libre (raycast contra obstáculos) |
-| Estado servidor | `roles{}`, `phase`, `phaseEndsAt`, `caught[]`, `pulses{}` |
-| Acciones | `tag {targetId}` (solo buscador) · `dash` |
+| Fases | `waiting` (sin temporizador, arranca cuando todos están listos) → `hide` 90 s (buscador congelado en jaula) → `seek` 180 s → `result` |
+| Arena | Mapa dedicado `escondite` (72 m) con jaula central en (0,0), doce escondites en anillo (radio 29,5) y coberturas a radio 24 que bloquean la LOS desde la jaula |
+| Habilidades | Escondido: 3 esquivas de 0,55 s cada 25 s (`G`). Buscador: pulso de detección de 8 m cada 30 s (`G`) |
+| Detección | Distancia < 1,6 m + línea de visión libre (segmento contra `HIDE_COVERS`) |
+| Estado servidor | `phase`, `round`, `seekerId`, `players[]` (`role`, `tagged`, `dashes`, `dashUntil`, `pulseMs`, `offline`) |
+| Acciones | `ready` · `tag {targetId}` (`F`, solo buscador) · `dash` · `pulse` |
 | Victoria | Escondido: sobrevivir. Buscador: atrapar a todos antes del tiempo |
 | Persistencia | `user_stats` gana `hide_wins`, `seek_wins` |
 | Esfuerzo | **5 días** |
 
 **Riesgo principal:** mapas actuales tienen pasillos rectos y poca verticalidad; sin
-escondites reales el modo muere en 30 s. Mitigación: la auditoría de escondites es una
-tarea previa obligatoria, con captura de las 12 posiciones y prueba de línea de visión.
+escondites reales el modo muere en 30 s. Mitigación: se creó un mapa dedicado con doce
+escondites auditados y prueba de línea de visión desde la jaula para cada uno.
 
-**DoD:** 3 partidas completas con 1 buscador y 2+ escondidos; no se puede etiquetar a
-través de pared; el buscador no puede moverse durante `hide`; reconexión conserva rol
-durante 45 s; test `t-mode-escondite.mjs`.
+**Estado (19/11/2026): entregado.** Se implementó el modo completo sobre el contrato
+de `modeDefs.js`. Se adelantó respecto al calendario de la Ola 2 por petición del
+usuario, después del Coliseo y siguiendo el orden real Pares → Coliseo → Escondite.
+
+Decisiones de implementación que conviene recordar:
+
+| Tema | Cómo quedó |
+|---|---|
+| Fase inicial | El plan preveía 20 s de `lobby`; se implementó `waiting` sin reloj: arranca cuando hay ≥3 jugadores y todos pulsan «Listo». |
+| Arena | En vez de reutilizar mapas de sala (120 m), se añadió `escondite` (72 m) con jaula central y aldea procedural, para garantizar cobertura real. |
+| Buscador | Elegido con RNG sembrado e inyectable en tests; teletransportado a (0,0) durante `hide`, con `player:move` ignorado por el servidor y bloqueo local en el cliente. |
+| Etiqueta | `F` elige al escondido más cercano del que haya recibido actualizaciones; el servidor valida distancia < 1,6 m, rol, fase y línea de visión libre. |
+| Pulso | `G` llama a `pulse`; el evento público de sala lleva `hits: []` y solo el buscador recibe los aciertos por `emit` individual. |
+| Esquivas | Se agotan de tres en tres y se recargan de golpe a los 25 s del primer uso (`tick()` del controlador). |
+| Reconexión | Gracia de 45 s con `stableHideKey` (`userId` para cuentas, nombre normalizado para invitados); el servidor emite `mode:rejoin` y el cliente reingresa con `mode:join {rejoin:true}`. |
+| Ocultación | Quien está dentro de un escondite se ve atenuado para el resto; al terminar la partida el buscador ve a todos. |
+| Sin combate | `combat:false`: disparos, bloqueo, cristales, tienda, curación y lanzables se rechazan dentro del modo. |
+| Suite | `t-escondite.mjs` (15/15), integrada en `scripts/test-all.ps1`; cubre contrato, LOS, controlador, persistencia y servidor real con Socket.IO simulado. |
+
+**DoD verificado:** 3 partidas completas con semillas distintas (victoria del buscador
+y victoria de los escondidos por tiempo); las coberturas bloquean la etiqueta a 1,4 m;
+el buscador no se mueve durante `hide`; la reconexión conserva el rol 45 s y expira
+después; la batería completa queda en 11/11.
 
 ---
 
@@ -477,8 +503,11 @@ del mínimo: tablero 3D físico, 1v1 y 2v2 por equipos y atriles.
 
 **Adelanto del 18/11/2026:** también se entregó la **Ola 2 (Coliseo melee)** en el orden
 real del proyecto (Pares → Coliseo), aunque la tabla rotule «Ola 1» como Coliseo y
-«Ola 2» como Escondite. Con esto quedan en vivo Pares y Coliseo; el siguiente
-entregable es el **Escondite**.
+«Ola 2» como Escondite.
+
+**Adelanto del 19/11/2026:** se entregó el **Escondite** (rotulado «Ola 2» en la tabla,
+tercero en el orden real). Quedan en vivo Pares, Coliseo y Escondite; el siguiente
+entregable es **TNT Run**.
 
 ---
 
@@ -571,14 +600,15 @@ Se añaden, una por modo y una por contrato:
 | `t-modos.mjs` ✔ | Registro y portales, mapas `isla`/`pares`/`coliseo`, obstáculos, partida determinista y flujo real isla → portal → partida → isla | 13 (implementadas) |
 | `t-mode-pares.mjs` | Barajado con semilla, turnos, parejas, empate | 15 |
 | `t-coliseo.mjs` ✔ | Formatos, loadout melee, rondas, espectador, rechazo de armas de fuego y persistencia | 14 (implementadas) |
-| `t-mode-escondite.mjs` | Roles, fases, etiquetado con LOS, tiempo | 16 |
+| `t-escondite.mjs` ✔ | Contrato, coberturas y LOS, roles sembrados, fases, etiquetas, esquivas, pulso, gracia, persistencia y servidor real | 15 (implementadas) |
 | `t-mode-tnt.mjs` | Rejilla, caída, último vivo, empate por altura | 14 |
 | `t-mode-karts.mjs` | Checkpoints en orden, vueltas, ranking | 16 |
 | `t-mode-ciudad.mjs` | Interés por celda, persistencia de objetos | 12 |
 
-La suite `t-modos` y la suite `t-coliseo` ya están en `scripts\test-all.ps1`; las demás
-se irán añadiendo con cada ola. Todas usan el patrón existente: servidor real en proceso
-con `PORT` y `DB_PATH` temporales, bots de `socket.io-client`, sin navegador.
+Las suites `t-modos`, `t-coliseo` y `t-escondite` ya están en `scripts\test-all.ps1`
+(11 suites en verde); las demás se irán añadiendo con cada ola. Todas usan el patrón
+existente: servidor real en proceso con `PORT` y `DB_PATH` temporales, bots de
+`socket.io-client`, sin navegador.
 
 ### 7.2 Manuales por ola
 
@@ -661,7 +691,8 @@ La expansión se considera terminada cuando:
 | **Karts** | *Spike* de 3 días con Colyseus 0.18 antes de comprometerse; si falla, predicción manual sobre Socket.IO. |
 | **Ciudad** | Empieza por distrito + coleccionables (C1–C2); casas y trabajos después. |
 | **Assets** | Mixto: procedural para arenas, glTF (Blender → gltf-transform) para karts, muebles y edificios. |
-| **Adelanto de las olas 1 y 2** | **Aprobado (18/11/2026):** se implementaron la isla, Pares y Coliseo antes del 24/11 por petición del usuario, con la versión estable respaldada y las 10 suites en verde. Las demás olas mantienen el calendario. |
+| **Adelanto de las olas 1 y 2** | **Aprobado (18/11/2026):** se implementaron la isla, Pares y Coliseo antes del 24/11 por petición del usuario, con la versión estable respaldada y las 10 suites en verde. |
+| **Adelanto del Escondite** | **Aprobado (19/11/2026):** se implementó el Escondite como tercer modo, con contratos compartidos, HUD integrado, suite propia y 11 suites en verde. No se tocó el *quick tunnel* ni `pinguidev.corvet.dpdns.org`. |
 
-Con esto no queda ninguna decisión bloqueante. Las olas 1 y 2 (isla + Pares + Coliseo)
-ya están entregadas; el siguiente entregable es la **Ola 3** (Escondite).
+Con esto no queda ninguna decisión bloqueante. La isla, Pares, Coliseo y Escondite ya
+están entregados; el siguiente entregable es **TNT Run**.

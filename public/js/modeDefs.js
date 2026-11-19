@@ -107,7 +107,7 @@ export const MODES = [
     name: "Escondite",
     short: "Escondite",
     icon: "🫣",
-    status: "soon",
+    status: "live",
     mapId: "escondite",
     maxPlayers: 12,
     color: "#4ade80",

@@ -18,6 +18,9 @@ export const MAPS = [
   // El Coliseo es circular: el tamaño reserva el recinto y el muro de la arena
   // se dibuja aparte con radio 17 (34 m de diámetro).
   { id: "coliseo", name: "Coliseo Melee", room: false, size: 52 },
+  // La aldea del Escondite: jaula central, doce escondites en un anillo de
+  // 29,5 m y muro cuadrado a 36 m (72 de lado).
+  { id: "escondite", name: "Aldea del Escondite", room: false, size: 72 },
 ];
 
 export function getMap(id) {

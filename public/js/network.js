@@ -42,6 +42,7 @@ export function connectToGame({
   onModeState,
   onModeEvent,
   onModeTeleport,
+  onModeRejoin,
   onModeError,
   onGameFull,
   onDisconnect,
@@ -104,6 +105,7 @@ export function connectToGame({
   socket.on("mode:state", (data) => onModeState && onModeState(data));
   socket.on("mode:event", (data) => onModeEvent && onModeEvent(data));
   socket.on("mode:teleport", (data) => onModeTeleport && onModeTeleport(data));
+  socket.on("mode:rejoin", (data) => onModeRejoin && onModeRejoin(data));
   socket.on("mode:error", (data) => onModeError && onModeError(data));
 }
 
@@ -216,8 +218,10 @@ export function enterHub() {
   if (socket) socket.emit("hub:enter");
 }
 
-export function joinMode(modeId, variant) {
-  if (socket) socket.emit("mode:join", variant ? { modeId, variant } : { modeId });
+export function joinMode(modeId, variant, rejoin = false) {
+  if (socket) {
+    socket.emit("mode:join", variant ? { modeId, variant, rejoin } : { modeId, rejoin });
+  }
 }
 
 export function leaveMode() {

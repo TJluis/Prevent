@@ -40,6 +40,8 @@ import { createShop } from "./shop.js";
 import { createPairsHud } from "./pairs.js";
 import { createPairsBoard } from "./pairsBoard.js";
 import { createColiseoHud } from "./coliseo.js";
+import { createEsconditeHud } from "./escondite.js";
+import { hideSpotAt } from "./hideDefs.js";
 import {
   resolvePairsVariant,
   teamPadAt,
@@ -456,6 +458,7 @@ let shop = null;
 let pairsUI = null;
 let pairsBoard = null;
 let coliseoUI = null;
+let esconditeUI = null;
 
 // Zoom del tablero en la arena de Pares. 1 es la vista por defecto; los valores
 // menores acercan la cámara al centro del tablero y los mayores la alejan. Los
@@ -953,6 +956,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onLeave: () => leaveMode(),
   });
 
+  esconditeUI = createEsconditeHud({
+    getMyId: () => myId,
+    onReady: () => sendModeAction({ type: "ready" }),
+    onLeave: () => leaveMode(),
+    onDash: () => sendModeAction({ type: "dash" }),
+    onPulse: () => sendModeAction({ type: "pulse" }),
+    onTag: () => esconditeTagNearest(),
+  });
+
   if (TOUCH_MODE) {
     const needRoom = () => {
       if (!inCombatZone()) {
@@ -1022,6 +1034,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
     pairsUI,
     pairsBoard,
     coliseoUI,
+    esconditeUI,
     remotes,
     walkTo,
     // Ganchos de prueba para la isla y los minijuegos: el servidor valida
@@ -1040,6 +1053,8 @@ combat.setOwn(myOwnHp, myOwnAlive);
     get pairsState() { return pairsUI ? pairsUI.getState() : null; },
     get coliseoState() { return coliseoUI ? coliseoUI.getState() : null; },
     get coliseoFight() { return coliseoFightActive(); },
+    get esconditeState() { return esconditeUI ? esconditeUI.getState() : null; },
+    get esconditeFrozen() { return esconditeSeekerFrozen(); },
     get myId() { return myId; },
     get myRoom() { return myRoom; },
     get myAvatar() { return myAvatar; },
@@ -1200,6 +1215,14 @@ combat.setOwn(myOwnHp, myOwnAlive);
           coliseoUI.show(room.variant || "1v1");
         } else {
           coliseoUI.hide();
+        }
+      }
+      if (esconditeUI) {
+        if (kind === "mode" && room.modeId === "escondite") {
+          esconditeUI.show();
+        } else {
+          esconditeUI.hide();
+          clearHideOpacity();
         }
       }
       updatePortalPrompt();
@@ -1389,6 +1412,17 @@ combat.setOwn(myOwnHp, myOwnAlive);
       // El servidor no manda el equipo propio: se deduce del id local para que
       // el HUD y el resaltado del tablero sepan a quién pertenece el turno.
       const mine = (snapshot.players || []).find((player) => player.id === myId);
+      if (snapshot.modeId === "escondite") {
+        snapshot.myRole = mine ? mine.role : null;
+        if (esconditeUI) {
+          if (myRoom && myRoom.modeId === "escondite" && !esconditeUI.isOpen()) {
+            esconditeUI.show();
+          }
+          esconditeUI.setState(snapshot);
+          applyHideOpacity(snapshot);
+        }
+        return;
+      }
       if (snapshot.modeId === "coliseo") {
         snapshot.mySide = mine ? mine.side : null;
         if (coliseoUI) {
@@ -1409,11 +1443,20 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (pairsBoard) pairsBoard.setState(snapshot);
     },
     onModeEvent: (payload) => {
+      if (payload && payload.modeId === "escondite") {
+        if (esconditeUI) esconditeUI.event(payload);
+        return;
+      }
       if (payload && payload.modeId === "coliseo") {
         if (coliseoUI) coliseoUI.event(payload);
         return;
       }
       if (pairsUI) pairsUI.event(payload);
+    },
+    onModeRejoin: (data) => {
+      if (!data || data.modeId !== "escondite") return;
+      showToast("Reconectando al Escondite…", 2200);
+      joinMode("escondite", null, true);
     },
     onModeTeleport: ({ id, x, z, yaw } = {}) => {
       if (!Number.isFinite(x) || !Number.isFinite(z)) return;
@@ -1508,6 +1551,21 @@ async function handleLogout() {
 function handleGameKey(event) {
   if (isTyping() || !inventoryBar) return;
   const key = event.key.toLowerCase();
+  // En el Escondite F etiqueta y G usa la habilidad del rol (esquiva o pulso).
+  // El servidor valida fase, distancia y línea de visión antes de aplicarlas.
+  if (esconditeArena()) {
+    if (key === "f") {
+      esconditeTagNearest();
+      return;
+    }
+    if (key === "g") {
+      const state = esconditeUI ? esconditeUI.getState() : null;
+      const mine = state && (state.players || []).find((player) => player.id === myId);
+      if (mine && mine.role === "seeker") sendModeAction({ type: "pulse" });
+      else if (mine && mine.role === "hider") sendModeAction({ type: "dash" });
+      return;
+    }
+  }
   if (key >= "1" && key <= "5") {
     inventoryBar.select(Number(key) - 1);
   } else if (key === "f") {
@@ -1577,6 +1635,11 @@ function leaveGame() {
     pairsBoard.dispose();
     pairsBoard = null;
   }
+  if (esconditeUI) {
+    esconditeUI.hide();
+    esconditeUI = null;
+  }
+  clearHideOpacity();
   closePairsSelect();
   if (zoneFade) zoneFade.classList.remove("is-on");
   clearTimeout(zoneFadeTimer);
@@ -1646,6 +1709,7 @@ function spawnRemote(player) {
     targetZ: player.z,
     targetY: Number.isFinite(player.y) ? player.y : 0,
     y: 0,
+    hideOpacity: 1,
     sprinting: false,
     sliding: false,
     color: player.color,
@@ -1765,7 +1829,7 @@ function loop(now) {
     const blockingNow = !!(combat && combat.isBlocking());
     // En el Coliseo solo se camina durante la ronda activa: en espera, cuenta
     // atrás y fin de ronda el servidor ignora el movimiento.
-    const canMove = !coliseoArena() || coliseoFightActive();
+    const canMove = (!coliseoArena() || coliseoFightActive()) && !esconditeSeekerFrozen();
     const wantsMove = !!(mdx || mdz) && myOwnAlive && canMove;
     const sprintKey =
       !uiOpen && (isKeyDown("shift") || !!(touchCtl && touchCtl.sprintHeld));
@@ -2103,6 +2167,85 @@ function coliseoArena() {
 function coliseoFightActive() {
   const state = coliseoUI ? coliseoUI.getState() : null;
   return !!state && state.phase === "fight";
+}
+
+// --- Escondite --------------------------------------------------------------
+
+function esconditeArena() {
+  return !!myRoom && myRoom.kind === "mode" && myRoom.modeId === "escondite";
+}
+
+function esconditeSeekerFrozen() {
+  if (!esconditeArena()) return false;
+  const state = esconditeUI ? esconditeUI.getState() : null;
+  if (!state || state.phase !== "hide") return false;
+  const mine = (state.players || []).find((player) => player.id === myId);
+  return !!mine && mine.role === "seeker";
+}
+
+function esconditeTagNearest() {
+  const state = esconditeUI ? esconditeUI.getState() : null;
+  if (!state || state.phase !== "seek") return;
+  const mine = (state.players || []).find((player) => player.id === myId);
+  if (!mine || mine.role !== "seeker") return;
+  let target = null;
+  let best = Infinity;
+  for (const player of state.players || []) {
+    if (player.role !== "hider" || player.tagged || player.offline) continue;
+    const remote = remotes.get(player.id);
+    if (!remote) continue;
+    const dist = Math.hypot(remote.targetX - myPosition.x, remote.targetZ - myPosition.z);
+    if (dist < best) {
+      best = dist;
+      target = player.id;
+    }
+  }
+  if (target) sendModeAction({ type: "tag", targetId: target });
+}
+
+// Los escondidos dentro de un escondite se ven atenuados para quien no es su
+// compañero de bando; el buscador solo los distingue si están expuestos.
+function applyHideOpacity(snapshot) {
+  if (!esconditeArena() || !snapshot) return;
+  const mine = (snapshot.players || []).find((player) => player.id === myId);
+  const showAll = mine && mine.role === "seeker" && snapshot.phase === "result";
+  remotes.forEach((remote, id) => {
+    const entry = (snapshot.players || []).find((player) => player.id === id);
+    const hidden =
+      !!entry &&
+      !showAll &&
+      entry.role === "hider" &&
+      !entry.tagged &&
+      !!hideSpotAt(remote.targetX, remote.targetZ, 1.5);
+    const opacity = hidden ? 0.28 : 1;
+    if (remote.hideOpacity === opacity) return;
+    remote.hideOpacity = opacity;
+    if (!remote.group) return;
+    remote.group.traverse((node) => {
+      const materials = node.material ? (Array.isArray(node.material) ? node.material : [node.material]) : [];
+      for (const material of materials) {
+        material.transparent = opacity < 1;
+        material.opacity = opacity;
+        material.depthWrite = opacity >= 1;
+      }
+    });
+  });
+}
+
+function clearHideOpacity() {
+  remotes.forEach((remote) => {
+    if (remote.hideOpacity === undefined || remote.hideOpacity === 1) return;
+    remote.hideOpacity = 1;
+    if (!remote.group) return;
+    remote.group.traverse((node) => {
+      const materials = node.material ? (Array.isArray(node.material) ? node.material : [node.material]) : [];
+      for (const material of materials) {
+        material.transparent = false;
+        material.opacity = 1;
+        material.depthWrite = true;
+      }
+    });
+  });
 }
 
 // Zonas donde el combate está permitido: salas privadas y el Coliseo melee.
