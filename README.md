@@ -119,7 +119,7 @@ Notas:
   - **7.3** ✔ Skins: selector de trajes al final del módulo de personalización — traje, playero, programador, sencillo, táctico, voleibol, sombrero de paja, pirata, ninja y fiesta — con variantes visuales en el avatar (cliente y servidor validan el mismo set).
 - **Fase 8** Expansión de modalidades (plan en `docs/PLAN_MODALIDADES_2026-12.md`).
   - **8.0** ✔ Isla de Minijuegos: portal en el lobby, sala persistente oculta `ISLA` con mapa propio y seis portales (uno por modalidad). Los portales «próximamente» avisan sin cambiar de zona.
-  - **8.1** ✔ Encuentra los pares: minijuego 3D con dos formatos (1v1 · 16 cartas · 4×4 y 2v2 · 36 cartas · 6×6, cada uno en su sala oculta). Se elige equipo pisando una plataforma, la partida arranca con cuenta atrás, el jugador pisa una carta y salta para voltearla, y la pareja acertada vuela al atril del equipo. Servidor autoritativo en `server/modes/pairs.js`, render en `pairsBoard.js`, HUD no modal y cámara elevada sobre el tablero.
+  - **8.1** ✔ Encuentra los pares: minijuego 3D con dos formatos (1v1 · 16 cartas · 4×4 y 2v2 · 36 cartas · 6×6, cada uno en su sala oculta). Se elige equipo pisando una plataforma, la partida arranca con cuenta atrás, el jugador pisa una carta y salta para voltearla, y la pareja acertada vuela al atril del equipo. La cámara elevada tiene zoom con la rueda, las teclas `+`/`-` o los botones del HUD. Servidor autoritativo en `server/modes/pairs.js`, render en `pairsBoard.js` y HUD no modal.
   - **8.2** Coliseo melee · **8.3** Escondite · **8.4** TNT Run · **8.5** Karts · **8.6** Ciudad rol — pendientes.
 
 Criterio de "hecho" de cada fase: definido en cada commit de planificación.

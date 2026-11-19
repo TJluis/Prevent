@@ -136,6 +136,13 @@ run("05 pairsDefs: cartas, plataformas, atriles y llegada neutra", () => {
   eq(new Set(DEF.PAIRS_EMOJIS).size, 24, "sin emojis repetidos");
   eq(DEF.PAIRS_TEAMS.length, 2, "dos equipos");
 
+  // Zoom de la cámara: la vista por defecto es 1 y los límites se respetan.
+  eq(DEF.clampPairsZoom(1), 1, "zoom por defecto");
+  eq(DEF.clampPairsZoom(0.1), DEF.PAIRS_ZOOM_MIN, "zoom mínimo");
+  eq(DEF.clampPairsZoom(5), DEF.PAIRS_ZOOM_MAX, "zoom máximo");
+  eq(DEF.clampPairsZoom("0.8"), 0.8, "zoom acepta texto numérico");
+  eq(DEF.clampPairsZoom(NaN), 1, "zoom inválido vuelve a la vista por defecto");
+
   for (const variantId of ["1v1", "2v2"]) {
     const def = DEF.getPairsVariant(variantId);
     eq(def.cardCount, def.grid * def.grid, `cartas de ${variantId}`);

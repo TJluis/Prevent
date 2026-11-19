@@ -227,6 +227,22 @@
         <span class="pairs-hud-title">🃏 Encuentra los pares</span>
         <span id="pairs-hud-variant" class="pairs-hud-variant"></span>
         <span id="pairs-hud-turn" class="pairs-hud-turn"></span>
+        <div class="pairs-hud-zoom" role="group" aria-label="Zoom del tablero">
+          <button
+            id="pairs-hud-zoom-out"
+            type="button"
+            class="btn-sm"
+            title="Alejar el tablero (-)"
+            aria-label="Alejar el tablero"
+          >−</button>
+          <button
+            id="pairs-hud-zoom-in"
+            type="button"
+            class="btn-sm"
+            title="Acercar el tablero (+)"
+            aria-label="Acercar el tablero"
+          >+</button>
+        </div>
         <button id="pairs-hud-close" type="button" class="btn-sm">← Isla</button>
       </div>
       <div id="pairs-hud-teams" class="pairs-hud-teams"></div>
@@ -242,6 +258,7 @@
         </div>
         <p class="pairs-select-note">
           Camina sobre una carta y salta para voltearla. Las parejas que aciertes vuelan al atril de tu equipo.
+          Dentro de la arena, usa la rueda del ratón o los botones − / + para acercar el tablero.
         </p>
         <div class="pairs-select-list">
           <button type="button" class="pairs-select-btn" data-variant="1v1">

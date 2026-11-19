@@ -44,6 +44,8 @@ import {
   teamPadAt,
   cardIndexAt,
   getPairsTeam,
+  clampPairsZoom,
+  PAIRS_ZOOM_STEP,
 } from "./pairsDefs.js";
 import { HUB_CODE, LOBBY_PORTAL, PORTAL_TRIGGER_RADIUS, nearestPortal } from "./hubDefs.js";
 import { getWeapon } from "./weaponDefs.js";
@@ -263,6 +265,25 @@ addEventListener("keydown", (event) => {
       return;
     }
   }
+  // Zoom del tablero en la arena de Pares: +/- acercan y alejan.
+  if (
+    pairsArena() &&
+    !typing &&
+    (event.key === "+" ||
+      event.key === "=" ||
+      event.key === "-" ||
+      event.key === "_" ||
+      event.code === "NumpadAdd" ||
+      event.code === "NumpadSubtract")
+  ) {
+    event.preventDefault();
+    if (!event.repeat) {
+      const zoomIn =
+        event.key === "+" || event.key === "=" || event.code === "NumpadAdd";
+      nudgePairsZoom(zoomIn ? -PAIRS_ZOOM_STEP : PAIRS_ZOOM_STEP);
+    }
+    return;
+  }
   if (event.key === "Enter" && !typing) {
     event.preventDefault();
     // Si hay un cristal ofrecido, Enter lo recoge (sin tocar el ratón).
@@ -411,6 +432,20 @@ let scoreboard = null;
 let shop = null;
 let pairsUI = null;
 let pairsBoard = null;
+
+// Zoom del tablero en la arena de Pares. 1 es la vista por defecto; los valores
+// menores acercan la cámara al centro del tablero y los mayores la alejan. Los
+// límites viven en pairsDefs.js para que la suite pueda validarlos.
+let pairsZoom = 1;
+
+function setPairsZoom(value) {
+  // Se redondea a 2 decimales para que la rueda no acumule ruido flotante.
+  pairsZoom = Math.round(clampPairsZoom(value) * 100) / 100;
+}
+
+function nudgePairsZoom(delta) {
+  setPairsZoom(pairsZoom + delta);
+}
 let lastPairsPad = null;
 let lastZoneKey = null;
 let zoneFadeTimer = null;
@@ -762,6 +797,23 @@ function bindPointerUI() {
   });
 }
 
+// Rueda del ratón para acercar/alejar el tablero en la arena de Pares. Se
+// registra aparte de `bindPointerUI` porque en táctil ese flujo no se monta.
+let pairsZoomBound = false;
+function bindPairsZoom() {
+  if (pairsZoomBound) return;
+  pairsZoomBound = true;
+  window.addEventListener(
+    "wheel",
+    (event) => {
+      if (!pairsArena() || pairsSelectOpen()) return;
+      event.preventDefault();
+      nudgePairsZoom(event.deltaY > 0 ? PAIRS_ZOOM_STEP : -PAIRS_ZOOM_STEP);
+    },
+    { passive: false }
+  );
+}
+
 function startGame(user, token) {
   if (started) return;
   started = true;
@@ -863,6 +915,8 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onLeave: () => leaveMode(),
     getMyId: () => myId,
     notify: (text) => showToast(text, 2200),
+    onZoomIn: () => nudgePairsZoom(-PAIRS_ZOOM_STEP),
+    onZoomOut: () => nudgePairsZoom(PAIRS_ZOOM_STEP),
   });
 
   pairsBoard = createPairsBoard();
@@ -947,6 +1001,8 @@ combat.setOwn(myOwnHp, myOwnAlive);
     sendMove,
     openPairsSelect,
     closePairsSelect,
+    setPairsZoom,
+    get pairsZoom() { return pairsZoom; },
     get pairsState() { return pairsUI ? pairsUI.getState() : null; },
     get myId() { return myId; },
     get myRoom() { return myRoom; },
@@ -962,6 +1018,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
   };
 
   bindPointerUI();
+  bindPairsZoom();
 
   connectToGame({
     token,
@@ -1820,7 +1877,11 @@ function loop(now) {
       // Cámara elevada y fija sobre el tablero: se ve la cuadrícula completa,
       // las dos plataformas y los atriles sin girar con el ratón.
       const big = pairsVariantDef().grid >= 6;
-      camera.position.set(0, big ? 20 : 17.5, big ? 26 : 22.5);
+      camera.position.set(
+        0,
+        (big ? 20 : 17.5) * pairsZoom,
+        (big ? 26 : 22.5) * pairsZoom
+      );
       camera.lookAt(0, 0.6, 0);
     } else if (fpMode) {
       if (combat && combat.getWeaponId() !== viewWid) swapViewGun();

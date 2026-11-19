@@ -84,6 +84,18 @@ export function otherPairsTeam(id) {
   return id === "cian" ? "rosa" : id === "rosa" ? "cian" : null;
 }
 
+// Zoom de la cámara elevada sobre el tablero. 1 = vista por defecto; los
+// valores menores acercan. Se comparte con la suite para validar los límites.
+export const PAIRS_ZOOM_MIN = 0.55;
+export const PAIRS_ZOOM_MAX = 1.9;
+export const PAIRS_ZOOM_STEP = 0.08;
+
+export function clampPairsZoom(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(PAIRS_ZOOM_MAX, Math.max(PAIRS_ZOOM_MIN, n));
+}
+
 // Distancia entre centros de dos cartas contiguas (incluye el hueco).
 export function cardStride(variant) {
   const def = resolvePairsVariant(variant);

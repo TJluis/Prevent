@@ -7,7 +7,7 @@
 
 import { getPairsTeam, getPairsVariant } from "./pairsDefs.js";
 
-export function createPairsHud({ onLeave, getMyId, notify } = {}) {
+export function createPairsHud({ onLeave, onZoomIn, onZoomOut, getMyId, notify } = {}) {
   const hud = document.getElementById("pairs-hud");
   const variantEl = document.getElementById("pairs-hud-variant");
   const turnEl = document.getElementById("pairs-hud-turn");
@@ -15,6 +15,8 @@ export function createPairsHud({ onLeave, getMyId, notify } = {}) {
   const noteEl = document.getElementById("pairs-hud-note");
   const countdownEl = document.getElementById("pairs-hud-countdown");
   const closeBtn = document.getElementById("pairs-hud-close");
+  const zoomInBtn = document.getElementById("pairs-hud-zoom-in");
+  const zoomOutBtn = document.getElementById("pairs-hud-zoom-out");
 
   let state = null;
   let visible = false;
@@ -248,9 +250,20 @@ export function createPairsHud({ onLeave, getMyId, notify } = {}) {
   };
   if (closeBtn) closeBtn.addEventListener("click", onCloseClick);
 
+  const onZoomInClick = () => {
+    if (onZoomIn) onZoomIn();
+  };
+  const onZoomOutClick = () => {
+    if (onZoomOut) onZoomOut();
+  };
+  if (zoomInBtn) zoomInBtn.addEventListener("click", onZoomInClick);
+  if (zoomOutBtn) zoomOutBtn.addEventListener("click", onZoomOutClick);
+
   function dispose() {
     hide();
     if (closeBtn) closeBtn.removeEventListener("click", onCloseClick);
+    if (zoomInBtn) zoomInBtn.removeEventListener("click", onZoomInClick);
+    if (zoomOutBtn) zoomOutBtn.removeEventListener("click", onZoomOutClick);
     state = null;
     local = { cardIndex: -1, padTeam: null };
   }

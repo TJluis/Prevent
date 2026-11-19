@@ -235,11 +235,12 @@ el turno. Gana quien más parejas encuentre.
 formato al entrar al portal, elección de equipo pisando la plataforma, cuenta atrás
 cuando ambos equipos están completos, turno por equipo, volteo autoritativo al saltar
 sobre la carta, vuelo de la pareja al atril del equipo ganador y reinicio de la ronda.
-El servidor deduce la carta de la posición autoritativa y valida turno, cooldown y
-proximidad; nunca envía emojis de cartas ocultas. HUD DOM no modal, cámara elevada
-dentro de la arena, fundido de entrada/salida y vuelta a la isla. Suite `t-modos` con
-**13/13** (incluye partida determinista, 2v2 con sala propia y el flujo real
-isla → portal → partida → isla).
+La cámara elevada permite **zoom** con la rueda del ratón, las teclas `+`/`-` o los
+botones del HUD (0,55×–1,9×) para leer mejor las cartas. El servidor deduce la carta de
+la posición autoritativa y valida turno, cooldown y proximidad; nunca envía emojis de
+cartas ocultas. HUD DOM no modal, cámara elevada dentro de la arena, fundido de
+entrada/salida y vuelta a la isla. Suite `t-modos` con **13/13** (incluye partida
+determinista, 2v2 con sala propia y el flujo real isla → portal → partida → isla).
 
 **Pendiente de Pares:** espectadores y reconexión como espectador, estadísticas
 persistentes (`pairs_wins`/`pairs_games`), revancha votada y más variantes de tablero.

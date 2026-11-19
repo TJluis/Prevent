@@ -2413,6 +2413,19 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
 
 #pairs-hud-close { pointer-events: auto; }
 
+.pairs-hud-zoom {
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.pairs-hud-zoom .btn-sm {
+  min-width: 30px;
+  padding: 2px 8px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 .pairs-hud-teams {
   display: flex;
   gap: 8px;
