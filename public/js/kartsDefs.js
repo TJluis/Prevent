@@ -26,6 +26,11 @@ export const KARTS_RESULT_MS = 14000;
 export const KARTS_MATCH_MS = 900000; // 15 min de límite por carrera.
 export const KARTS_PHASES = ["waiting", "countdown", "racing", "finished"];
 export const KARTS_TRACK_WIDTH = 14; // m; suficiente para 8 karts en paralelo.
+// Graderíos: uno cada ~125 m, alternando lados y siempre fuera del ancho de
+// calzada. La distancia es de arco, así que se reparten por igual aunque la
+// spline tenga curvas cerradas o tramos de hielo.
+export const KARTS_GRANDSTAND_SPACING = 125;
+export const KARTS_GRANDSTAND_OFFSET = KARTS_TRACK_WIDTH / 2 + 9;
 // El paddock se aparta del trazado: la spline pasa por (0,0) y se abre hacia el
 // noreste, así que un centro en (0,-100) deja ~99 m de margen incluso a la
 // curva más cercana. Pedestales y portales se sitúan alrededor de este punto.
@@ -364,6 +369,9 @@ function buildTrack(blueprint) {
         bank: raw.bank,
       };
     }),
+    // Graderíos fuera de la pista, con el mismo marco de referencia que los
+    // obstáculos para que el renderer solo tenga que colocar las mallas.
+    grandstands: buildGrandstands(blueprint, frames, arc, length),
   };
 }
 
@@ -397,6 +405,39 @@ function kartsPointAtRaw(frames, arc, length, distance) {
     nz: a.nz,
     bank: a.bank,
   };
+}
+
+// Graderíos con público: se calculan sobre la misma spline que la pista para
+// que queden alineados con el peralte y la pendiente, pero desplazados lo
+// suficiente para no invadir la calzada ni los obstáculos.
+function buildGrandstands(blueprint, frames, arc, length) {
+  const count = Math.max(4, Math.round(length / KARTS_GRANDSTAND_SPACING));
+  const list = [];
+  for (let i = 0; i < count; i++) {
+    const distance = ((i + 0.5) * length) / count;
+    const t = distance / length;
+    const side = i % 2 === 0 ? -1 : 1;
+    const raw = kartsPointAtRaw(frames, arc, length, distance);
+    const prev = kartsPointAtRaw(frames, arc, length, distance - 3);
+    const next = kartsPointAtRaw(frames, arc, length, distance + 3);
+    const lateral = side * KARTS_GRANDSTAND_OFFSET;
+    list.push({
+      id: `${blueprint.id}-gs-${i + 1}`,
+      distance: round(distance),
+      t: round(t),
+      side,
+      lateral: round(lateral),
+      x: round(raw.x + raw.nx * lateral),
+      y: round(raw.y + Math.sin(raw.bank) * lateral),
+      z: round(raw.z + raw.nz * lateral),
+      yaw: raw.yaw,
+      bank: round(raw.bank),
+      pitch: round(Math.atan2(next.y - prev.y, 6)),
+      rows: 4,
+      seatsPerRow: 7,
+    });
+  }
+  return list;
 }
 
 export const KARTS_TRACKS = TRACK_BLUEPRINTS.map(buildTrack);

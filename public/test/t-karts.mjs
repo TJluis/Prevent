@@ -155,6 +155,45 @@ run("04 defs: puntos por posición y vuelta, y paddock separado de la pista", ()
   eq(DEF.KARTS_PORTAL_TRIGGER, 6, "radio de activación");
 });
 
+run("04b defs: gradas de público repartidas fuera del trazado", () => {
+  eq(DEF.KARTS_GRANDSTAND_SPACING, 125, "una grada cada 125 m");
+  for (const track of DEF.KARTS_TRACKS) {
+    const expected = Math.max(4, Math.round(track.length / DEF.KARTS_GRANDSTAND_SPACING));
+    eq(track.grandstands.length, expected, `${track.id}: número de gradas`);
+    ok(
+      track.grandstands.every((g, i) => g.side === (i % 2 === 0 ? -1 : 1)),
+      `${track.id}: lados alternados`
+    );
+    ok(
+      track.grandstands.every((g) => Math.abs(g.lateral) > track.width / 2 + 5),
+      `${track.id}: margen lateral fuera de la calzada`
+    );
+    ok(
+      track.grandstands.every((g) =>
+        [g.x, g.y, g.z, g.yaw, g.bank, g.pitch].every(Number.isFinite)
+      ),
+      `${track.id}: posiciones y orientación válidas`
+    );
+    for (const stand of track.grandstands) {
+      const near = DEF.kartsNearest(track.id, stand.x, stand.z);
+      ok(near.distance > track.width / 2 + 5, `${stand.id}: grada fuera de pista`);
+      ok(
+        Math.hypot(
+          stand.x - DEF.KARTS_PADDOCK_CENTER.x,
+          stand.z - DEF.KARTS_PADDOCK_CENTER.z
+        ) > 50,
+        `${stand.id}: lejos del paddock`
+      );
+    }
+    const gaps = track.grandstands.slice(1).map((g, i) => g.distance - track.grandstands[i].distance);
+    const expectedGap = track.length / track.grandstands.length;
+    ok(
+      gaps.every((gap) => Math.abs(gap - expectedGap) < 2),
+      `${track.id}: reparto uniforme`
+    );
+  }
+});
+
 run("05 registro: mapa interno, modalidad activa y sala oculta", () => {
   const map = MAPS.getMap("karts");
   eq(map.size, 1400, "recinto grande");

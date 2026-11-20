@@ -44,6 +44,7 @@ import { createColiseoHud } from "./coliseo.js";
 import { createEsconditeHud } from "./escondite.js";
 import { createTntHud } from "./tnt.js";
 import { createKartsHud } from "./kartsHud.js";
+import { createKartModel } from "./kartModels.js";
 import {
   KARTS_MAP_ID,
   KARTS_PORTALS,
@@ -2189,7 +2190,7 @@ function loop(now) {
     }
 
     updatePortalPrompt();
-    applyKartsSnapshot();
+    applyKartsSnapshot(dt);
 
     // Arena de Pares: equipo al pisar plataforma, carta bajo los pies y salto
     // como intención de voltear. El servidor valida turno, carta y posición.
@@ -2553,10 +2554,68 @@ function activateKart(kartId) {
 }
 
 // Durante la carrera el avatar NO se mueve con el teclado: el servidor manda la
-// posición 20 veces por segundo y aquí solo se interpola hacia ella.
-function applyKartsSnapshot() {
-  if (!kartsRacing() || !kartsState) return;
+// posición 20 veces por segundo y aquí solo se interpola hacia ella. Encima del
+// pingüino se monta el kart 3D que tenga equipado cada jugador.
+function attachKartModel(avatar, kartId) {
+  if (!avatar) return;
+  const current = avatar.userData.kartModel;
+  if (current && current.userData.kartId === kartId) return;
+  if (current) {
+    avatar.remove(current);
+    avatar.userData.kartModel = null;
+  }
+  if (!avatar.userData.kartHiddenMeshes) {
+    const hidden = [];
+    avatar.traverse((child) => {
+      if (child.isMesh && child.visible) hidden.push(child);
+    });
+    hidden.forEach((mesh) => {
+      mesh.visible = false;
+    });
+    avatar.userData.kartHiddenMeshes = hidden;
+
+    const labels = [];
+    avatar.traverse((child) => {
+      if (child.isSprite) {
+        labels.push({ sprite: child, y: child.position.y });
+        child.position.y = 2.95;
+      }
+    });
+    avatar.userData.kartLabels = labels;
+  }
+  const model = createKartModel(kartId);
+  avatar.add(model);
+  avatar.userData.kartModel = model;
+}
+
+function detachKartModel(avatar) {
+  if (!avatar || !avatar.userData.kartModel) return;
+  avatar.remove(avatar.userData.kartModel);
+  avatar.userData.kartModel = null;
+  for (const mesh of avatar.userData.kartHiddenMeshes || []) mesh.visible = true;
+  for (const label of avatar.userData.kartLabels || []) label.sprite.position.y = label.y;
+  avatar.userData.kartHiddenMeshes = null;
+  avatar.userData.kartLabels = null;
+}
+
+function spinKartWheels(avatar, speed, dt) {
+  const model = avatar && avatar.userData.kartModel;
+  if (!model || !model.userData.wheels || !Number.isFinite(speed)) return;
+  const spin = (speed / 0.39) * Math.max(0, Math.min(dt, 0.1));
+  for (const wheel of model.userData.wheels) wheel.rotation.x -= spin;
+}
+
+function applyKartsSnapshot(dt = 0) {
+  if (!kartsRacing() || !kartsState) {
+    if (myAvatar) detachKartModel(myAvatar);
+    for (const remote of remotes.values()) detachKartModel(remote.group);
+    return;
+  }
+
+  const active = new Set();
   for (const entry of kartsState.players || []) {
+    active.add(entry.id);
+    const kartId = entry.kartId || KART_START_ID;
     const height = Number.isFinite(entry.y) ? entry.y : 0;
     if (entry.id === myId) {
       if (!myAvatar) continue;
@@ -2564,6 +2623,8 @@ function applyKartsSnapshot() {
       myAvatar.position.set(entry.x, height, entry.z);
       if (Number.isFinite(entry.yaw)) myAvatar.rotation.y = entry.yaw;
       cameraYaw = entry.yaw + Math.PI;
+      attachKartModel(myAvatar, kartId);
+      spinKartWheels(myAvatar, entry.speed, dt);
       continue;
     }
     const remote = remotes.get(entry.id);
@@ -2574,7 +2635,13 @@ function applyKartsSnapshot() {
     if (remote.group) {
       remote.group.position.set(entry.x, height, entry.z);
       if (Number.isFinite(entry.yaw)) remote.group.rotation.y = entry.yaw;
+      attachKartModel(remote.group, kartId);
+      spinKartWheels(remote.group, entry.speed, dt);
     }
+  }
+  if (myAvatar && !active.has(myId)) detachKartModel(myAvatar);
+  for (const [id, remote] of remotes) {
+    if (!active.has(id)) detachKartModel(remote.group);
   }
 }
 

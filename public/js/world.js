@@ -1174,6 +1174,117 @@ function makeKartsObstaclesMesh(track) {
   return group;
 }
 
+// Graderíos con público pingüino. Cada grada se ancla al mismo punto de la
+// spline que su tramo de pista, pero se desplaza lateralmente fuera del ancho
+// de calzada; las filas suben hacia el exterior y miran al asfalto.
+function makeKartsGrandstandsMesh(track) {
+  const group = new THREE.Group();
+  const spectators = [];
+  const concrete = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.95 });
+  const stepMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9 });
+  const benchMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x273449, roughness: 0.85 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+  const teamColors = [0xf472b6, 0x38bdf8, 0x4ade80, 0xfacc15, 0xa78bfa];
+
+  track.grandstands.forEach((stand, index) => {
+    const side = stand.side;
+    const standGroup = new THREE.Group();
+    standGroup.position.set(stand.x, stand.y, stand.z);
+    standGroup.rotation.y = stand.yaw;
+    standGroup.rotation.z = -stand.bank * 0.5;
+    standGroup.rotation.x = stand.pitch * 0.4;
+
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.34, 15), concrete);
+    slab.position.set(side * 4.75, 0.17, 0);
+    slab.receiveShadow = true;
+    standGroup.add(slab);
+
+    // Puntales hasta el suelo: la pista tiene desnivel y las gradas no deben
+    // parecer que flotan cuando el tramo está elevado.
+    const supportHeight = Math.max(0.8, stand.y + 0.4);
+    for (const x of [2, 7]) {
+      for (const z of [-5, 5]) {
+        const pillar = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, supportHeight, 0.5),
+          wallMat
+        );
+        pillar.position.set(side * x, -supportHeight / 2, z);
+        pillar.castShadow = true;
+        standGroup.add(pillar);
+      }
+    }
+
+    for (let row = 0; row < stand.rows; row++) {
+      const x = side * (1.15 + row * 1.85);
+      const height = 0.55 + row * 0.6;
+      const riser = new THREE.Mesh(new THREE.BoxGeometry(1.85, height, 14), stepMat);
+      riser.position.set(x, 0.34 + height / 2, 0);
+      riser.receiveShadow = true;
+      standGroup.add(riser);
+
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.14, 13), benchMat);
+      bench.position.set(x - side * 0.35, 0.34 + height + 0.07, 0);
+      standGroup.add(bench);
+
+      for (let seat = 0; seat < stand.seatsPerRow; seat++) {
+        const seatZ = -5.6 + (seat * 11.2) / Math.max(1, stand.seatsPerRow - 1);
+        const penguin = makePenguin();
+        penguin.scale.setScalar(0.48);
+        penguin.position.set(x - side * 0.15, 0.34 + height + 0.08, seatZ);
+        penguin.rotation.y = -side * Math.PI / 2 + (Math.random() - 0.5) * 0.22;
+        const scarf = new THREE.Mesh(
+          new THREE.TorusGeometry(0.33, 0.07, 6, 12),
+          new THREE.MeshStandardMaterial({
+            color: teamColors[(index + row + seat) % teamColors.length],
+            roughness: 0.75,
+          })
+        );
+        scarf.rotation.x = Math.PI / 2;
+        scarf.position.set(0, 1.02, 0.03);
+        penguin.add(scarf);
+        standGroup.add(penguin);
+        spectators.push({
+          mesh: penguin,
+          baseY: penguin.position.y,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.6, 15), wallMat);
+    back.position.set(side * 9.4, 1.95, 0);
+    back.castShadow = true;
+    standGroup.add(back);
+
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 15), railMat);
+    rail.position.set(side * 0.15, 0.85, 0);
+    standGroup.add(rail);
+
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.28, 16), roofMat);
+    canopy.position.set(side * 4.8, 4.35, 0);
+    canopy.rotation.z = side * 0.07;
+    canopy.castShadow = true;
+    standGroup.add(canopy);
+    for (const z of [-7, 0, 7]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.4, 0.25), wallMat);
+      post.position.set(side * 9.2, 2.2, z);
+      post.castShadow = true;
+      standGroup.add(post);
+    }
+
+    const tag = makeLabelSprite(`GRADA ${index + 1}`, "#fef08a", 320);
+    tag.scale.set(4.4, 1.1, 1);
+    tag.position.set(side * 4.8, 5.15, 0);
+    standGroup.add(tag);
+
+    group.add(standGroup);
+  });
+
+  return { group, spectators };
+}
+
 function makeKartsWorld() {
   const group = new THREE.Group();
   const center = KARTS_PADDOCK_CENTER;
@@ -1235,6 +1346,8 @@ function makeKartsWorld() {
   const track = KARTS_TRACKS.find((item) => item.status === "live") || KARTS_TRACKS[0];
   group.add(makeKartsTrackMesh(track));
   group.add(makeKartsObstaclesMesh(track));
+  const grandstands = makeKartsGrandstandsMesh(track);
+  group.add(grandstands.group);
 
   // Pedestales de la tienda. Cada malla lleva userData.kartId para el clic.
   const pedestals = [];
@@ -1300,6 +1413,12 @@ function makeKartsWorld() {
       pedestals.forEach((view, index) => {
         view.ring.rotation.z = t * (index % 2 ? -0.5 : 0.5);
         view.kartModel.rotation.y = Math.sin(t * 0.35 + index) * 0.22;
+      });
+      // El público saluda y se balancea: las gradas se sienten vivas sin
+      // interferir en la física autoritativa de la carrera.
+      grandstands.spectators.forEach((fan) => {
+        fan.mesh.position.y = fan.baseY + Math.abs(Math.sin(t * 2.1 + fan.phase)) * 0.1;
+        fan.mesh.rotation.z = Math.sin(t * 1.7 + fan.phase) * 0.06;
       });
     },
   };
@@ -2597,7 +2716,14 @@ function populate(scene, mapId) {
   // En la cordillera la escena procedural la añade createWorld aparte, así que
   // aquí solo entran sus props editables; el resto de mapas (incluidos los que
   // crean los jugadores) entran completos.
-  const obstacles = mapId === "cordillera" ? def.obstacles || [] : getMapObstacles(mapId) || [];
+  // Karts dibuja su propio trazado, obstáculos y graderíos. Si cae aquí el
+  // fallback de nevado, aparecen pinos e iglús genéricos encima de la pista.
+  const obstacles =
+    mapId === KARTS_MAP_ID
+      ? []
+      : mapId === "cordillera"
+      ? def.obstacles || []
+      : getMapObstacles(mapId) || [];
   const groupInst = makeSceneryGroup(obstacles, mapId);
   if (groupInst.children.length > 0) {
     scene.add(groupInst);
