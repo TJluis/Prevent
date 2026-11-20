@@ -53,6 +53,7 @@ import {
   PAIRS_ZOOM_STEP,
 } from "./pairsDefs.js";
 import { HUB_CODE, LOBBY_PORTAL, PORTAL_TRIGGER_RADIUS, nearestPortal } from "./hubDefs.js";
+import { clampColiseoZoom, COLISEO_ZOOM_STEP } from "./coliseoDefs.js";
 import { getWeapon } from "./weaponDefs.js";
 import { isTouchMode, initTouchControls } from "./touch.js";
 import {
@@ -310,6 +311,25 @@ addEventListener("keydown", (event) => {
     }
     return;
   }
+  // Zoom de cámara en el Coliseo: mismas teclas que Pares, sin tocar el HUD.
+  if (
+    coliseoArena() &&
+    !typing &&
+    (event.key === "+" ||
+      event.key === "=" ||
+      event.key === "-" ||
+      event.key === "_" ||
+      event.code === "NumpadAdd" ||
+      event.code === "NumpadSubtract")
+  ) {
+    event.preventDefault();
+    if (!event.repeat) {
+      const zoomIn =
+        event.key === "+" || event.key === "=" || event.code === "NumpadAdd";
+      nudgeColiseoZoom(zoomIn ? -COLISEO_ZOOM_STEP : COLISEO_ZOOM_STEP);
+    }
+    return;
+  }
   if (event.key === "Enter" && !typing) {
     event.preventDefault();
     // Si hay un cristal ofrecido, Enter lo recoge (sin tocar el ratón).
@@ -450,6 +470,14 @@ let myRoom = null;
 let hosting = false;
 let lastRoomPanelCode = null;
 let currentPlayers = [];
+
+// Mantiene el HP del listado local alineado con los eventos de combate. Sin
+// esto, un `room:state` posterior vuelve a pasar el HP viejo a `setFriends` y
+// el avatar revivido se derrite otra vez para los demás jugadores.
+function patchCurrentPlayer(id, patch) {
+  const player = currentPlayers.find((entry) => entry.id === id);
+  if (player) Object.assign(player, patch);
+}
 let voice = null;
 let voiceRunning = false;
 let combat = null;
@@ -480,6 +508,18 @@ function setPairsZoom(value) {
 
 function nudgePairsZoom(delta) {
   setPairsZoom(pairsZoom + delta);
+}
+
+// Zoom de cámara del Coliseo. 1 es la vista por defecto; los valores menores
+// acercan al pingüino y los mayores alejan para ver toda la arena.
+let coliseoZoom = 1;
+
+function setColiseoZoom(value) {
+  coliseoZoom = clampColiseoZoom(value);
+}
+
+function nudgeColiseoZoom(delta) {
+  setColiseoZoom(coliseoZoom + delta);
 }
 let lastPairsPad = null;
 let lastZoneKey = null;
@@ -832,7 +872,7 @@ function bindPointerUI() {
   });
 }
 
-// Rueda del ratón para acercar/alejar el tablero en la arena de Pares. Se
+// Rueda del ratón para acercar/alejar la vista en Pares y en el Coliseo. Se
 // registra aparte de `bindPointerUI` porque en táctil ese flujo no se monta.
 let pairsZoomBound = false;
 function bindPairsZoom() {
@@ -841,9 +881,16 @@ function bindPairsZoom() {
   window.addEventListener(
     "wheel",
     (event) => {
-      if (!pairsArena() || pairsSelectOpen()) return;
-      event.preventDefault();
-      nudgePairsZoom(event.deltaY > 0 ? PAIRS_ZOOM_STEP : -PAIRS_ZOOM_STEP);
+      const delta = event.deltaY > 0 ? 1 : -1;
+      if (pairsArena() && !pairsSelectOpen()) {
+        event.preventDefault();
+        nudgePairsZoom(delta * PAIRS_ZOOM_STEP);
+        return;
+      }
+      if (coliseoArena()) {
+        event.preventDefault();
+        nudgeColiseoZoom(delta * COLISEO_ZOOM_STEP);
+      }
     },
     { passive: false }
   );
@@ -962,6 +1009,8 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onWeapon: (weaponId) => sendModeAction({ type: "weapon", weaponId }),
     onReady: () => sendModeAction({ type: "ready" }),
     onLeave: () => leaveMode(),
+    onZoomIn: () => nudgeColiseoZoom(-COLISEO_ZOOM_STEP),
+    onZoomOut: () => nudgeColiseoZoom(COLISEO_ZOOM_STEP),
   });
 
   esconditeUI = createEsconditeHud({
@@ -1065,6 +1114,8 @@ combat.setOwn(myOwnHp, myOwnAlive);
     openColiseoSelect,
     closeColiseoSelect,
     get pairsZoom() { return pairsZoom; },
+    get coliseoZoom() { return coliseoZoom; },
+    setColiseoZoom,
     get pairsState() { return pairsUI ? pairsUI.getState() : null; },
     get coliseoState() { return coliseoUI ? coliseoUI.getState() : null; },
     get coliseoFight() { return coliseoFightActive(); },
@@ -1203,6 +1254,11 @@ combat.setOwn(myOwnHp, myOwnAlive);
       const isPrivateRoom = kind === "room";
       const hasCombat = !!(room && room.combat !== false);
       applyMap(room && room.mapId ? room.mapId : "nevado");
+      if (world && world.setColiseoVariant) {
+        world.setColiseoVariant(
+          kind === "mode" && room.modeId === "coliseo" ? room.variant || "1v1" : "1v1"
+        );
+      }
       if (!hasCombat && fpMode) {
         setFPMode(false);
       }
@@ -1353,6 +1409,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
       }
     },
     onCombatEliminated: ({ targetId }) => {
+      patchCurrentPlayer(targetId, { hp: 0, alive: false });
       if (targetId === myId) {
         myOwnAlive = false;
         myOwnHp = 0;
@@ -1378,6 +1435,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
       }
     },
     onCombatRevived: ({ targetId }) => {
+      patchCurrentPlayer(targetId, { hp: 100, alive: true });
       if (targetId === myId) {
         myOwnAlive = true;
         myOwnHp = 100;
@@ -1398,6 +1456,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
       }
     },
     onCombatRegen: ({ targetId, targetHp }) => {
+      patchCurrentPlayer(targetId, { hp: targetHp, alive: targetHp > 0 });
       if (targetId === myId) {
         myOwnHp = targetHp;
         if (combat) combat.setOwn(targetHp, myOwnAlive);
@@ -2174,11 +2233,13 @@ function loop(now) {
     } else {
       const cameraTarget = myAvatar ? myAvatar.position : { x: 0, y: 0, z: 0 };
       const big = currentMapId === "cordillera";
-      const camDist = big ? 55 : 16;
-      const camHeight = (big ? 34 : 12) + Math.sin(cameraPitch) * (big ? 18 : 6);
+      const zoom = coliseoArena() ? coliseoZoom : 1;
+      const camDist = (big ? 55 : 16) * zoom;
+      const camHeight =
+        ((big ? 34 : 12) + Math.sin(cameraPitch) * (big ? 18 : 6)) * zoom;
       camera.position.set(
         cameraTarget.x + Math.sin(cameraYaw) * camDist,
-        Math.max(big ? 12 : 4, camHeight),
+        Math.max((big ? 12 : 4) * zoom, camHeight),
         cameraTarget.z + Math.cos(cameraYaw) * camDist
       );
       camera.lookAt(

@@ -780,8 +780,13 @@ export function createCombat({
   }
 
   function startRise(id, root) {
+    // Si la baja y el respawn se encadenan, la animación de melt todavía podría
+    // ocultar el avatar justo después de empezar el rise. La cancelamos primero.
+    stopFx(id);
     const puddle = puddles.get(id);
     if (!puddle) {
+      root.visible = true;
+      rootBody(root, { scale: 1, opacity: 1 });
       root.scale.y = root.userData.initScale || 1;
       root.position.y = root.userData.initY || 0;
       return;
@@ -794,7 +799,7 @@ export function createCombat({
       start: performance.now(),
       dur: RISE_DUR * 1000,
       storeY: root.position.y,
-      storeScale: root.scale.y,
+      storeScale: Math.max(0.02, root.scale.y || 0.02),
       puddle,
     });
   }
@@ -828,6 +833,7 @@ export function createCombat({
         f.puddle.liquid.material.opacity = 0.9 * (1 - e);
         f.puddle.glossy.material.opacity = 0.4 * (1 - e);
         if (k >= 1) {
+          f.root.visible = true;
           rootBody(f.root, { scale: 1, opacity: 1 });
           f.root.position.y = 0;
           clearPuddle(f);

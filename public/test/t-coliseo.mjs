@@ -105,7 +105,8 @@ run("03 spawns: dentro del circulo y mirando al centro", () => {
       const member = variant.mode === "ffa" ? 0 : Math.floor(i / 2);
       const spawn = DEF.coliseoSpawn(def, side, member);
       const dist = Math.hypot(spawn.x, spawn.z);
-      if (dist > DEF.COLISEO_PLAY_RADIUS) {
+      const radii = DEF.getColiseoRadii(variant.id);
+      if (dist > radii.play) {
         throw new Error(`spawn fuera del circulo (${variant.id}): ${dist}`);
       }
       if (dist > 0.5) {
@@ -118,6 +119,12 @@ run("03 spawns: dentro del circulo y mirando al centro", () => {
   }
   eq(DEF.coliseoSideForIndex(DEF.getColiseoVariant("1v1"), 0), "cian", "primer lado cian");
   eq(DEF.coliseoSideForIndex(DEF.getColiseoVariant("1v1"), 1), "rosa", "segundo lado rosa");
+  const teams = DEF.getColiseoRadii("2v2");
+  for (let i = 0; i < 4; i++) {
+    const spawn = DEF.coliseoSpawn(DEF.getColiseoVariant("2v2"), i % 2, Math.floor(i / 2));
+    const dist = Math.hypot(spawn.x, spawn.z);
+    eq(dist <= teams.play, true, `spawn 2v2 ${i} dentro del anillo ampliado`);
+  }
   eq(DEF.coliseoSideForIndex(DEF.getColiseoVariant("ffa"), 0), null, "FFA sin bandos");
 });
 
@@ -130,6 +137,16 @@ run("04 clamp: el borde circular no se atraviesa", () => {
   eq(DEF.coliseoInside(0, 0), true, "el centro esta dentro");
   eq(DEF.coliseoInside(30, 0), false, "fuera del muro");
   eq(DEF.coliseoClamp(0, 0).x, 0, "el origen no se mueve");
+
+  const duel = DEF.getColiseoRadii("1v1");
+  const teams = DEF.getColiseoRadii("2v2");
+  eq(`${duel.arena}/${duel.play}/${duel.spawn}`, "17/16.35/13", "radios del duelo");
+  eq(`${teams.arena}/${teams.play}/${teams.spawn}`, "22/21.35/17.5", "anillo ampliado del 2v2");
+  const clamped = DEF.coliseoClamp(30, 0, teams.play);
+  eq(Math.round(clamped.x * 100) / 100, 21.35, "el 2v2 permite llegar mas lejos");
+  eq(DEF.clampColiseoZoom(0.1), DEF.COLISEO_ZOOM_MIN, "zoom minimo");
+  eq(DEF.clampColiseoZoom(9), DEF.COLISEO_ZOOM_MAX, "zoom maximo");
+  eq(DEF.clampColiseoZoom(1.07), 1.07, "zoom intermedio");
 });
 
 // ------------------------------------------------------- controlador puro
@@ -259,6 +276,38 @@ run("08 controlador: no se entra a una partida en curso", () => {
   eq(game.join({ id: "C", name: "Gamma" }).reason, "in-progress", "join rechazado");
   game.leave("B");
   eq(game.snapshot().phase, "roundEnd", "el abandono cierra la ronda");
+});
+
+run("08b controlador 2v2: solo termina al caer los dos de un equipo", () => {
+  const clock = { value: 4500 };
+  const game = controller(clock, "2v2");
+  for (const id of ["A", "B", "C", "D"]) game.join({ id, name: id });
+  let snap = game.snapshot();
+  eq(snap.players.map((p) => p.side).join(","), "cian,rosa,cian,rosa", "bandos alternos");
+  for (const id of ["A", "B", "C", "D"]) game.action(id, { type: "ready" });
+  clock.value += 100;
+  game.tick();
+  clock.value += 3300;
+  game.tick();
+  eq(game.snapshot().phase, "fight", "2v2 en marcha");
+
+  eq(game.eliminate("A"), false, "primera baja del equipo cian no cierra la ronda");
+  snap = game.snapshot();
+  eq(snap.phase, "fight", "la ronda sigue con un cian vivo");
+  eq(snap.scores.find((s) => s.id === "rosa").score, 0, "aun no hay punto");
+  eq(snap.players.find((p) => p.id === "A").alive, false, "A queda como espectador");
+  eq(snap.players.find((p) => p.id === "C").alive, true, "C sigue peleando");
+
+  eq(game.eliminate("C"), true, "segunda baja del equipo cian cierra la ronda");
+  snap = game.snapshot();
+  eq(snap.phase, "roundEnd", "fin de ronda");
+  eq(snap.scores.find((s) => s.id === "rosa").score, 1, "rosa suma la ronda");
+
+  clock.value += 3300;
+  game.tick();
+  snap = game.snapshot();
+  eq(snap.phase, "countdown", "siguiente ronda");
+  eq(snap.players.every((p) => p.alive), true, "los cuatro reviven juntos");
 });
 
 run("09 db: duel_wins y duel_rounds se acumulan", () => {
@@ -598,6 +647,55 @@ run("14 servidor: sin curacion ni lanzables dentro del Coliseo", () => {
   const shop = find("shop:result", (x) => x.ch === "#A", beforeShop);
   eq(!!shop, true, "la tienda responde");
   eq(shop.d.ok, false, "la tienda no vende en el Coliseo");
+});
+
+run("15 servidor: el 2v2 respeta el anillo ampliado", () => {
+  const code = MODE.modeRoomCode("coliseo", "2v2");
+  const team = [];
+  for (const [id, name] of [
+    ["D", "Delta"],
+    ["E", "Eco"],
+    ["F", "Foxtrot"],
+    ["G", "Golf"],
+  ]) {
+    const sock = mk(id);
+    io.connect(sock);
+    fire(sock, "player:join", { name });
+    fire(sock, "hub:enter");
+    const spawn = welcomePos(id) || HUB.HUB_SPAWN;
+    eq(moveTo(sock, id, COLISEO_PORTAL, spawn), true, `${id} llega al portal`);
+    fire(sock, "mode:join", { modeId: "coliseo", variant: "2v2" });
+    team.push({ id, sock });
+  }
+
+  const joined = roomEmit("mode:state", code);
+  eq(!!joined, true, "sala 2v2 difunde su estado");
+  eq(joined.d.phase, "waiting", "espera jugadores");
+  for (const entry of team) fire(entry.sock, "mode:action", { type: "ready" });
+  const fromStart = emitted.length;
+  clock += 100;
+  modeTimer.fn();
+  clock += 3300;
+  modeTimer.fn();
+  eq(roomEmit("mode:state", code, fromStart).d.phase, "fight", "2v2 en combate");
+
+  const tpD = find(
+    "mode:teleport",
+    (x) => x.ch === "room:" + code && x.d.id === "D",
+    fromStart
+  );
+  eq(!!tpD, true, "D recibe su spawn ampliado");
+  const angle = Math.atan2(tpD.d.z, tpD.d.x);
+  const target = { x: Math.cos(angle) * 20, z: Math.sin(angle) * 20 };
+  eq(moveTo(team[0].sock, "D", target, { x: tpD.d.x, z: tpD.d.z }), true, "D llega al radio 20");
+  const moved = find(
+    "player:moved",
+    (x) => x.ch === "room:" + code && x.d.id === "D",
+    fromStart
+  );
+  const radius = Math.hypot(moved.d.x, moved.d.z);
+  eq(radius > 18, true, "el servidor permite salir del radio de 17 m");
+  eq(radius <= DEF.getColiseoRadii("2v2").play, true, "pero no atravesar el muro de 21,35 m");
 });
 
 const failed = results.filter((r) => !r.ok);

@@ -7,6 +7,9 @@ import {
   COLISEO_ARENA_RADIUS,
   COLISEO_MAP_ID,
   COLISEO_PLAY_RADIUS,
+  getColiseoRadii,
+  resolveColiseoVariant,
+  setActiveColiseoVariant,
 } from "./coliseoDefs.js";
 import {
   HIDE_CAGE_RADIUS,
@@ -3312,12 +3315,15 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
   }
 
   let tntArena = null;
+  let coliseoArenaGroup = null;
+  let activeColiseoVariantId = "1v1";
   if (mapId === "nevado") {
     scene.add(makeRink());
   } else if (mapId === "gruta") {
     scene.add(makeCave(boundary));
   } else if (mapId === COLISEO_MAP_ID) {
-    scene.add(makeColiseoArena());
+    coliseoArenaGroup = makeColiseoArena();
+    scene.add(coliseoArenaGroup);
   } else if (mapId === HIDE_MAP_ID) {
     scene.add(makeHideVillage());
   } else if (mapId === TNT_MAP_ID) {
@@ -3394,6 +3400,19 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     },
     tntEvent(ev) {
       if (tntArena) tntArena.event(ev);
+    },
+    // El 2v2 usa un anillo mayor: se escala la arena visible y se actualizan
+    // los radios que comparten colisión y validación local.
+    setColiseoVariant(variant) {
+      activeColiseoVariantId = resolveColiseoVariant(variant).id;
+      const radii = setActiveColiseoVariant(activeColiseoVariantId);
+      if (!coliseoArenaGroup) return radii;
+      const scale = radii.arena / COLISEO_ARENA_RADIUS;
+      coliseoArenaGroup.scale.set(scale, 1, scale);
+      return radii;
+    },
+    coliseoRadii() {
+      return getColiseoRadii(activeColiseoVariantId);
     },
     update(dt) {
       elapsed += dt;

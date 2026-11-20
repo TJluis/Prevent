@@ -15,7 +15,14 @@ const PHASE_LABEL = {
   matchEnd: "Partida terminada",
 };
 
-export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
+export function createColiseoHud({
+  getMyId,
+  onWeapon,
+  onReady,
+  onLeave,
+  onZoomIn,
+  onZoomOut,
+}) {
   const root = document.getElementById("coliseo-hud");
   if (!root) return null;
 
@@ -28,6 +35,9 @@ export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
   const noteEl = document.getElementById("coliseo-hud-note");
   const countdownEl = document.getElementById("coliseo-hud-countdown");
   const closeBtn = document.getElementById("coliseo-hud-close");
+  const zoomInBtn = document.getElementById("coliseo-hud-zoom-in");
+  const zoomOutBtn = document.getElementById("coliseo-hud-zoom-out");
+  const minimizeBtn = document.getElementById("coliseo-hud-minimize");
 
   const weaponButtons = new Map();
   for (const weapon of COLISEO_WEAPONS) {
@@ -52,9 +62,14 @@ export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
 
   if (closeBtn) closeBtn.addEventListener("click", () => onLeave && onLeave());
   if (readyBtn) readyBtn.addEventListener("click", () => onReady && onReady());
+  if (zoomInBtn) zoomInBtn.addEventListener("click", () => onZoomIn && onZoomIn());
+  if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => onZoomOut && onZoomOut());
+  if (minimizeBtn) minimizeBtn.addEventListener("click", () => setMinimized(!minimized));
 
   let state = null;
   let selected = COLISEO_DEFAULT_WEAPON;
+  let minimized = false;
+  let autoMinimized = false;
 
   function myEntry() {
     if (!state) return null;
@@ -114,6 +129,19 @@ export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
   function render() {
     if (!state) return;
 
+    // Durante el combate el panel se contrae automáticamente para no tapar a
+    // los jugadores. El botón permite volver a desplegarlo sin perder el estado.
+    const fighting = state.phase === "fight";
+    if (fighting && !autoMinimized) {
+      minimized = true;
+      autoMinimized = true;
+    } else if (!fighting && autoMinimized) {
+      minimized = false;
+      autoMinimized = false;
+    }
+    root.classList.toggle("is-fighting", fighting);
+    applyMinimized();
+
     variantEl.textContent = state.variant || "";
     phaseEl.textContent = PHASE_LABEL[state.phase] || "";
     const secs = remainingSeconds();
@@ -157,8 +185,24 @@ export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
     renderScores();
   }
 
+  function applyMinimized() {
+    root.classList.toggle("is-minimized", minimized);
+    if (!minimizeBtn) return;
+    minimizeBtn.textContent = minimized ? "▸" : "▾";
+    const label = minimized ? "Mostrar el panel" : "Minimizar el panel";
+    minimizeBtn.title = label;
+    minimizeBtn.setAttribute("aria-label", label);
+  }
+
+  function setMinimized(value) {
+    minimized = !!value;
+    applyMinimized();
+  }
+
   function show(variant) {
     root.hidden = false;
+    minimized = false;
+    autoMinimized = false;
     if (variant) variantEl.textContent = variant;
     render();
   }
@@ -166,6 +210,9 @@ export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
   function hide() {
     root.hidden = true;
     state = null;
+    minimized = false;
+    autoMinimized = false;
+    root.classList.remove("is-fighting", "is-minimized");
   }
 
   function isOpen() {
@@ -189,5 +236,7 @@ export function createColiseoHud({ getMyId, onWeapon, onReady, onLeave }) {
     event,
     getState: () => state,
     getSelectedWeapon: () => selected,
+    isMinimized: () => minimized,
+    setMinimized,
   };
 }

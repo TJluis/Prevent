@@ -2634,7 +2634,47 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
 
 .coliseo-hud-timer[hidden] { display: none !important; }
 
-#coliseo-hud-close { pointer-events: auto; }
+#coliseo-hud-close,
+#coliseo-hud-minimize,
+#coliseo-hud-zoom-in,
+#coliseo-hud-zoom-out { pointer-events: auto; }
+
+.coliseo-hud-zoom {
+  display: flex;
+  gap: 3px;
+  pointer-events: auto;
+}
+
+/* En combate el HUD se reduce a una franja: deja ver la arena y sigue
+   mostrando fase, reloj y controles de cámara/panel. */
+#coliseo-hud.is-minimized {
+  width: min(340px, 88vw);
+  gap: 0;
+  padding: 6px 9px;
+  background: rgba(18, 8, 12, 0.58);
+}
+
+#coliseo-hud.is-minimized .coliseo-hud-variant,
+#coliseo-hud.is-minimized .coliseo-hud-scores,
+#coliseo-hud.is-minimized .coliseo-hud-weapons,
+#coliseo-hud.is-minimized .coliseo-hud-foot {
+  display: none;
+}
+
+#coliseo-hud.is-minimized .coliseo-hud-head {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+#coliseo-hud.is-minimized .coliseo-hud-title {
+  font-size: 0.74rem;
+}
+
+#coliseo-hud.is-minimized .coliseo-hud-phase {
+  min-width: 0;
+  font-size: 0.7rem;
+  text-align: left;
+}
 
 .coliseo-hud-scores {
   display: grid;

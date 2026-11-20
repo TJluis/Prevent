@@ -14,6 +14,47 @@ export const COLISEO_ARENA_RADIUS = 17;
 export const COLISEO_PLAY_RADIUS = 16.35;
 export const COLISEO_SPAWN_RADIUS = 13;
 
+// El 2v2 se juega en un anillo más grande para dar espacio a los equipos.
+// El resto de formatos conserva las medidas originales.
+export const COLISEO_VARIANT_RADII = {
+  "2v2": { arena: 22, play: 21.35, spawn: 17.5 },
+};
+
+const DEFAULT_RADII = {
+  arena: COLISEO_ARENA_RADIUS,
+  play: COLISEO_PLAY_RADIUS,
+  spawn: COLISEO_SPAWN_RADIUS,
+};
+
+let activeVariantId = "1v1";
+
+export function getColiseoRadii(variant) {
+  const id = variant && typeof variant === "object" ? variant.id : variant;
+  return COLISEO_VARIANT_RADII[id] || DEFAULT_RADII;
+}
+
+// El cliente mantiene una sola arena cargada a la vez: el módulo de colisión,
+// la cámara y la geometría consultan estos radios activos.
+export function setActiveColiseoVariant(variant) {
+  activeVariantId = resolveColiseoVariant(variant).id;
+  return getColiseoRadii(activeVariantId);
+}
+
+export function coliseoRadii() {
+  return getColiseoRadii(activeVariantId);
+}
+
+// Zoom de cámara del Coliseo, con los mismos límites que validan las pruebas.
+export const COLISEO_ZOOM_MIN = 0.7;
+export const COLISEO_ZOOM_MAX = 1.35;
+export const COLISEO_ZOOM_STEP = 0.1;
+
+export function clampColiseoZoom(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(COLISEO_ZOOM_MAX, Math.max(COLISEO_ZOOM_MIN, Math.round(n * 100) / 100));
+}
+
 export const COLISEO_ROUNDS_TO_WIN = 3;
 export const COLISEO_ROUND_MS = 90000;
 export const COLISEO_COUNTDOWN_MS = 3200;
@@ -118,17 +159,18 @@ const round = (value) => Math.round(value * 100) / 100;
 // rosa el -Z. En FFA cada jugador recibe un vértice del octógono.
 export function coliseoSpawn(def, sideIndex, memberIndex = 0) {
   const variant = resolveColiseoVariant(def);
+  const spawnRadius = getColiseoRadii(variant).spawn;
   if (variant.mode === "ffa") {
     const angle = -Math.PI / 2 + (Math.max(0, sideIndex) / variant.maxPlayers) * TAU;
-    const x = round(Math.cos(angle) * COLISEO_SPAWN_RADIUS);
-    const z = round(Math.sin(angle) * COLISEO_SPAWN_RADIUS);
+    const x = round(Math.cos(angle) * spawnRadius);
+    const z = round(Math.sin(angle) * spawnRadius);
     return { x, z, yaw: round(Math.atan2(-x, -z)) };
   }
 
   const side = sideIndex === 0 ? 1 : -1;
   const offset = (memberIndex - (variant.teamSize - 1) / 2) * 3.4;
   const x = round(offset);
-  const z = round(side * COLISEO_SPAWN_RADIUS);
+  const z = round(side * spawnRadius);
   return { x, z, yaw: round(Math.atan2(-x, -z)) };
 }
 

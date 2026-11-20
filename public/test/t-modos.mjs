@@ -563,6 +563,43 @@ run("09 servidor: la isla es una zona oculta sin combate", () => {
   eq(list.d.rooms.some((r) => r.code === HUB.HUB_CODE), false, "la isla no aparece en room:list");
 });
 
+run("09b servidor: lobby y isla no comparten canal de presencia", () => {
+  const observer = mk("LOBT");
+  io.connect(observer);
+  fire(observer, "player:join", { name: "ObservadorLobby" });
+  const fromLobby = emitted.length;
+
+  const visitor = mk("HUBT");
+  io.connect(visitor);
+  fire(visitor, "player:join", { name: "Visitante" });
+  const joinedLobby = find(
+    "player:joined",
+    (x) => x.ch === "lobby" && x.d.name === "Visitante",
+    fromLobby
+  );
+  eq(!!joinedLobby, true, "el alta aparece en el lobby");
+  eq(
+    find("player:joined", (x) => x.ch === "room:ISLA" && x.d.name === "Visitante", fromLobby),
+    null,
+    "el alta NO aparece en la isla"
+  );
+
+  const fromHub = emitted.length;
+  fire(visitor, "hub:enter");
+  const leftLobby = find(
+    "player:left",
+    (x) => x.ch === "lobby" && x.d.id === "HUBT",
+    fromHub
+  );
+  eq(!!leftLobby, true, "entrar a la isla avisa al lobby");
+  const joinedHub = find(
+    "player:joined",
+    (x) => x.ch === "room:ISLA" && x.d.name === "Visitante",
+    fromHub
+  );
+  eq(!!joinedHub, true, "el alta aparece en la isla");
+});
+
 run("10 servidor: portal, formato obligatorio y sala por variante", () => {
   const before = emitted.length;
   fire(A, "mode:join", { modeId: "pares" });

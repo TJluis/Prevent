@@ -19,7 +19,12 @@ import { createPairsGame } from "./modes/pairs.js";
 import { createColiseoGame } from "./modes/coliseo.js";
 import { createEsconditeGame } from "./modes/escondite.js";
 import { createTntGame } from "./modes/tnt.js";
-import { COLISEO_MAP_ID, coliseoClamp, isColiseoWeapon } from "../public/js/coliseoDefs.js";
+import {
+  COLISEO_MAP_ID,
+  coliseoClamp,
+  getColiseoRadii,
+  isColiseoWeapon,
+} from "../public/js/coliseoDefs.js";
 import { HIDE_MAP_ID } from "../public/js/hideDefs.js";
 import { TNT_MAP_ID, TNT_TICK_MS } from "../public/js/tntDefs.js";
 import {
@@ -954,6 +959,14 @@ function moveSocketToHub(socket, player) {
     return roomError(socket, "La isla está llena. Inténtalo en un momento.");
   }
 
+  // El lobby no es una sala: `player.roomCode` es null mientras se está en él,
+  // así que `detachFromRoom` no lo abandonaría. Sin este leave el socket sigue
+  // suscrito a `lobby` y los jugadores de una zona aparecen en la otra.
+  if (!player.roomCode) {
+    socket.leave(LOBBY_CHANNEL);
+    socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });
+  }
+
   detachFromRoom(socket, player);
   player.roomCode = HUB_CODE;
   player.weaponId = null;
@@ -1579,7 +1592,10 @@ export function setupGame(ioServer) {
         player.x = clampPosition(targetX, mapId);
         player.z = clampPosition(targetZ, mapId);
         if (mapId === COLISEO_MAP_ID) {
-          const inside = coliseoClamp(player.x, player.z);
+          // El 2v2 juega en un anillo mayor; el resto de formatos conserva el
+          // radio original de 17 m.
+          const radii = moveGame ? getColiseoRadii(moveGame.variant) : null;
+          const inside = coliseoClamp(player.x, player.z, radii ? radii.play : undefined);
           player.x = inside.x;
           player.z = inside.z;
         }
