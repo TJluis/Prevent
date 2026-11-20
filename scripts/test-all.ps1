@@ -21,7 +21,7 @@ if (-not (Test-Path $node)) {
 }
 
 $runner = Join-Path $proj "public\test\runner.mjs"
-$suites = @("t-logica", "t-auth", "t-combate", "t-armas", "t-movimiento", "t-servidor", "t-loot", "t-modos", "t-coliseo", "t-escondite", "t-tnt", "t-assets")
+$suites = @("t-logica", "t-auth", "t-combate", "t-armas", "t-movimiento", "t-servidor", "t-loot", "t-modos", "t-coliseo", "t-escondite", "t-tnt", "t-karts", "t-assets")
 
 $summary = @()
 $failed = 0

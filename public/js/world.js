@@ -26,6 +26,16 @@ import {
   tntLayerHeight,
   tntPartsOf,
 } from "./tntDefs.js";
+import {
+  KARTS_MAP_ID,
+  KARTS_PADDOCK_CENTER,
+  KARTS_PORTALS,
+  KARTS_TRACKS,
+  KART_CATALOG,
+  KART_PEDESTALS,
+  kartsPointAt,
+} from "./kartsDefs.js";
+import { createKartPedestal } from "./kartModels.js";
 
 export { MAPS, getMap, getRoomMaps, getMapBoundary };
 export { makeCordilleraScenery, makeTerrain };
@@ -928,6 +938,302 @@ function makeTntArena() {
   }
 
   return { group, setState, event, update };
+}
+
+// ---------------------------------------------------------------- Karts (paddock + pista)
+
+const KARTS_SURFACE_COLORS = {
+  asphalt: 0x3b4356,
+  ice: 0x9fd8f5,
+  gravel: 0x9b8365,
+  sand: 0xd6a45c,
+};
+
+function kartsTrackColor(track, t) {
+  if (track.boosts.some((boost) => Math.abs(t - boost.t) < 0.012)) return 0x22d3ee;
+  const surface = track.surfaces.find((s) => t >= s.from && t <= s.to);
+  const base = new THREE.Color(KARTS_SURFACE_COLORS[surface ? surface.type : "asphalt"]);
+  if (track.tunnels.some((tunnel) => t >= tunnel.fromT && t <= tunnel.toT)) {
+    base.multiplyScalar(0.55);
+  }
+  return base;
+}
+
+function makeKartsTrackMesh(track) {
+  const frames = track.frames;
+  const n = frames.length;
+  const half = track.width / 2;
+  const positions = [];
+  const colors = [];
+  const indices = [];
+
+  for (let i = 0; i <= n; i++) {
+    const f = frames[i % n];
+    const bankY = Math.sin(f.bank) * half;
+    const color = kartsTrackColor(track, i === n ? 1 : f.t);
+    positions.push(f.x - f.nx * half, f.y - bankY, f.z - f.nz * half);
+    positions.push(f.x + f.nx * half, f.y + bankY, f.z + f.nz * half);
+    colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+  }
+  for (let i = 0; i < n; i++) {
+    const a = i * 2;
+    indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.82,
+      side: THREE.DoubleSide,
+    })
+  );
+  mesh.receiveShadow = true;
+
+  const group = new THREE.Group();
+  group.add(mesh);
+
+  // Bordillos rojo/blanco: se leen bien desde la cámara de seguimiento y
+  // delimitan la pista aunque la superficie cambie de color.
+  const curbPos = [];
+  const curbCol = [];
+  const curbIdx = [];
+  const red = new THREE.Color(0xef4444);
+  const white = new THREE.Color(0xf8fafc);
+  for (let i = 0; i < n; i++) {
+    const a = frames[i];
+    const b = frames[(i + 1) % n];
+    const color = Math.floor(i / 9) % 2 === 0 ? red : white;
+    for (const side of [-1, 1]) {
+      const base = curbPos.length / 3;
+      for (const [f, inset] of [
+        [a, 0],
+        [b, 0],
+        [a, 0.9],
+        [b, 0.9],
+      ]) {
+        const offset = side * (half - inset);
+        curbPos.push(
+          f.x + f.nx * offset,
+          f.y + Math.sin(f.bank) * offset + 0.06,
+          f.z + f.nz * offset
+        );
+        curbCol.push(color.r, color.g, color.b);
+      }
+      curbIdx.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+    }
+  }
+  const curbGeo = new THREE.BufferGeometry();
+  curbGeo.setAttribute("position", new THREE.Float32BufferAttribute(curbPos, 3));
+  curbGeo.setAttribute("color", new THREE.Float32BufferAttribute(curbCol, 3));
+  curbGeo.setIndex(curbIdx);
+  curbGeo.computeVertexNormals();
+  group.add(
+    new THREE.Mesh(
+      curbGeo,
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: THREE.DoubleSide })
+    )
+  );
+
+  // Línea de salida ajedrezada.
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 8; col++) {
+      ctx.fillStyle = (row + col) % 2 ? "#111827" : "#f8fafc";
+      ctx.fillRect(col * 16, row * 16, 16, 16);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const start = kartsPointAt(track.id, 0);
+  const line = new THREE.Mesh(
+    new THREE.PlaneGeometry(track.width, 2.2),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })
+  );
+  line.rotation.x = -Math.PI / 2;
+  line.rotation.z = -start.yaw;
+  line.position.set(start.x, start.y + 0.07, start.z);
+  group.add(line);
+
+  // Turbos: placas emisivas con cartel. El servidor aplica el impulso real;
+  // esto solo avisa de dónde está.
+  for (const boost of track.boosts) {
+    const p = kartsPointAt(track.id, boost.distance);
+    const pad = new THREE.Group();
+    pad.position.set(p.x, p.y + 0.06, p.z);
+    pad.rotation.y = p.yaw;
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(track.width * 0.55, 0.08, 4.2),
+      new THREE.MeshStandardMaterial({
+        color: 0x0891b2,
+        emissive: 0x22d3ee,
+        emissiveIntensity: 0.9,
+        roughness: 0.4,
+      })
+    );
+    pad.add(plate);
+    const tag = makeLabelSprite("TURBO", "#a5f3fc", 320);
+    tag.scale.set(4.2, 1.05, 1);
+    tag.position.y = 1.7;
+    pad.add(tag);
+    group.add(pad);
+  }
+
+  // Túneles: arcos espaciados cada ~9 m. No tienen colisión propia; el coche
+  // sigue la spline y el techo es decoración.
+  for (const tunnel of track.tunnels) {
+    for (let t = tunnel.fromT; t <= tunnel.toT + 0.001; t += 0.009) {
+      const p = kartsPointAt(track.id, t * track.length);
+      const arch = new THREE.Group();
+      arch.position.set(p.x, p.y, p.z);
+      arch.rotation.y = p.yaw;
+      const mat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.9 });
+      for (const side of [-1, 1]) {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 6.2, 0.8), mat);
+        pillar.position.set(side * (half + 0.5), 3.1, 0);
+        pillar.castShadow = true;
+        arch.add(pillar);
+      }
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(track.width + 1.8, 0.7, 0.9), mat);
+      beam.position.y = 6.3;
+      beam.castShadow = true;
+      arch.add(beam);
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(track.width + 1.8, 0.12, 0.2),
+        new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+      );
+      strip.position.y = 5.88;
+      strip.position.z = 0.5;
+      arch.add(strip);
+      group.add(arch);
+    }
+  }
+
+  return group;
+}
+
+function makeKartsWorld() {
+  const group = new THREE.Group();
+  const center = KARTS_PADDOCK_CENTER;
+
+  // Paddock cubierto: solera de hormigón, techo, vigas y cuatro pilares.
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(96, 0.3, 78),
+    new THREE.MeshStandardMaterial({ color: 0x596274, roughness: 0.95 })
+  );
+  floor.position.set(center.x, -0.1, center.z);
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  const steel = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.35 });
+  for (const dx of [-42, 42]) {
+    for (const dz of [-32, 32]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 9.5, 1.1), steel);
+      pillar.position.set(center.x + dx, 4.75, center.z + dz);
+      pillar.castShadow = true;
+      group.add(pillar);
+    }
+  }
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(92, 0.5, 72),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 })
+  );
+  roof.position.set(center.x, 9.6, center.z);
+  roof.castShadow = true;
+  group.add(roof);
+  for (const dz of [-24, 0, 24]) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(92, 0.5, 0.7), steel);
+    beam.position.set(center.x, 9.2, center.z + dz);
+    group.add(beam);
+    const light = new THREE.Mesh(
+      new THREE.BoxGeometry(60, 0.12, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xfff7d6 })
+    );
+    light.position.set(center.x, 8.9, center.z + dz);
+    group.add(light);
+  }
+  const backWall = new THREE.Mesh(
+    new THREE.BoxGeometry(92, 8, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x273449, roughness: 0.9 })
+  );
+  backWall.position.set(center.x, 4, center.z - 36);
+  group.add(backWall);
+  const banner = makeLabelSprite("🏁 PADDOCK KARTS", "#fbcfe8", 640);
+  banner.scale.set(16, 4, 1);
+  banner.position.set(center.x, 6.2, center.z - 35.4);
+  group.add(banner);
+
+  // Pista jugable (los otros dos trazados se anuncian solo en los portales).
+  const track = KARTS_TRACKS.find((item) => item.status === "live") || KARTS_TRACKS[0];
+  group.add(makeKartsTrackMesh(track));
+
+  // Pedestales de la tienda. Cada malla lleva userData.kartId para el clic.
+  const pedestals = [];
+  const pickables = [];
+  KART_PEDESTALS.forEach((position, index) => {
+    const view = createKartPedestal(KART_CATALOG[index].id, position);
+    group.add(view.group);
+    pedestals.push(view);
+    view.group.traverse((child) => {
+      if (child.isMesh) pickables.push(child);
+    });
+  });
+
+  // Portales de las tres pistas.
+  const rings = [];
+  KARTS_PORTALS.forEach((portal) => {
+    const yaw = Math.atan2(center.x - portal.x, center.z - portal.z);
+    const view = makePortalGate(
+      {
+        ...portal,
+        icon: portal.status === "live" ? "🏁" : "🚧",
+        short: portal.label,
+      },
+      { yaw }
+    );
+    group.add(view.group);
+    rings.push(view.ring);
+    if (portal.status !== "live") {
+      const tag = makeLabelSprite("En preparación", "#cbd5e1", 420);
+      tag.scale.set(5.2, 1.3, 1);
+      tag.position.set(portal.x, 5.2, portal.z);
+      group.add(tag);
+    }
+  });
+
+  function setKartsState({ owned = [], equipped = null, points = 0 } = {}) {
+    pedestals.forEach((view, index) => {
+      const kart = KART_CATALOG[index];
+      view.setState({
+        owned: owned.includes(kart.id),
+        equipped: equipped === kart.id,
+        affordable: points >= kart.price,
+      });
+    });
+  }
+
+  return {
+    group,
+    pickables,
+    setKartsState,
+    update(t) {
+      rings.forEach((ring, index) => {
+        ring.rotation.z = t * 0.7 + index;
+      });
+      pedestals.forEach((view, index) => {
+        view.ring.rotation.z = t * (index % 2 ? -0.5 : 0.5);
+        view.kartModel.rotation.y = Math.sin(t * 0.35 + index) * 0.22;
+      });
+    },
+  };
 }
 
 // ---------------------------------------------------------------- decoración genérica
@@ -2149,6 +2455,26 @@ export const THEMES = {
     sun: { color: 0xffd2a1, intensity: 1.25 },
     particles: { color: 0xffa54a, count: 160, size: 0.12, opacity: 0.65, rise: true, speed: 0.5 },
   },
+
+  karts: {
+    sky: { top: 0x14213d, mid: 0x36506e, horizon: 0x94a8bd },
+    fog: { color: 0x9fb0c4, near: 90, far: 340 },
+    ground: {
+      base: "#4b5563",
+      light: "rgba(255,255,255,0.12)",
+      dark: "rgba(15,23,42,0.4)",
+      repeat: 12,
+      speckles: 900,
+      roughness: 0.95,
+      grid: "rgba(148,163,184,0.16)",
+    },
+    wall: 0x273449,
+    wallTop: 0xf472b6,
+    hemisphere: 0xcbd5e1,
+    ambient: { color: 0x93a4bd, intensity: 0.65 },
+    sun: { color: 0xfff2d6, intensity: 1.35 },
+    particles: { color: 0xfbcfe8, count: 90, size: 0.09, opacity: 0.35 },
+  },
 };
 
 function renderObstacle(o, mapId) {
@@ -3315,6 +3641,7 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
   }
 
   let tntArena = null;
+  let kartsWorld = null;
   let coliseoArenaGroup = null;
   let activeColiseoVariantId = "1v1";
   if (mapId === "nevado") {
@@ -3331,6 +3658,10 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     // jugadores y los bordes se juzgan con la rejilla del servidor.
     tntArena = makeTntArena();
     scene.add(tntArena.group);
+  } else if (mapId === KARTS_MAP_ID) {
+    // Paddock cubierto, pedestales, portales y la pista de 1.000 m.
+    kartsWorld = makeKartsWorld();
+    scene.add(kartsWorld.group);
   }
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.55 });
@@ -3353,7 +3684,7 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
   }
   // El Coliseo cierra su propio recinto circular: no lleva las cuatro paredes
   // cuadradas del resto de mapas.
-  if (mapId !== COLISEO_MAP_ID && mapId !== TNT_MAP_ID) {
+  if (mapId !== COLISEO_MAP_ID && mapId !== TNT_MAP_ID && mapId !== KARTS_MAP_ID) {
     addWall(0, -boundary, wallLong, 0);
     addWall(0, boundary, wallLong, 0);
     addWall(-boundary, 0, wallShort, 0);
@@ -3401,6 +3732,14 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     tntEvent(ev) {
       if (tntArena) tntArena.event(ev);
     },
+    setKartsState(state) {
+      if (kartsWorld) kartsWorld.setKartsState(state);
+    },
+    // Mallas de los pedestales: el cliente lanza un raycaster sobre ellas para
+    // comprar/equipar haciendo clic en el kart 3D.
+    get kartsPickables() {
+      return kartsWorld ? kartsWorld.pickables : [];
+    },
     // El 2v2 usa un anillo mayor: se escala la arena visible y se actualizan
     // los radios que comparten colisión y validación local.
     setColiseoVariant(variant) {
@@ -3419,6 +3758,7 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
       if (particleUpdate) particleUpdate(dt);
       if (portalUpdate) portalUpdate(elapsed);
       if (tntArena) tntArena.update(dt);
+      if (kartsWorld) kartsWorld.update(elapsed);
       if (isTerrainMap(mapId)) sky.position.copy(camera.position);
     },
   };

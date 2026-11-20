@@ -312,6 +312,9 @@ export const MAP_OBSTACLES = {
   // rejilla vive en tntDefs.js. La lista vacía evita que collision.js intente
   // recorrer un mapa sin layout.
   tnt: [],
+  // El paddock y la pista son decoración 3D; su colisión la resuelve la spline
+  // del controlador, no los obstáculos rígidos del mundo compartido.
+  karts: [],
 };
 
 // Devuelve la lista de obstáculos de un mapa de sala (o null si no tiene layout

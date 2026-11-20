@@ -24,6 +24,9 @@ export const MAPS = [
   // Isla flotante del TNT Run: 16 × 1,5 m de lado en cada capa, con 48 m de
   // recinto para que los muros no estorben a la caída de los bloques.
   { id: "tnt", name: "Isla del TNT Run", room: false, size: 48 },
+  // Paddock cubierto y circuito de 1.000 m. El recinto es grande porque la
+  // pista se dibuja lejos del lobby para que no se pisen las dos escenas.
+  { id: "karts", name: "Paddock de Karts", room: false, size: 1400 },
 ];
 
 export function getMap(id) {

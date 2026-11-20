@@ -48,8 +48,8 @@ run("01 modeDefs: seis modalidades y Pares con dos formatos", () => {
   eq(MODE.MODES.length, 6, "número de modalidades");
   const ids = MODE.MODES.map((m) => m.id);
   eq(new Set(ids).size, 6, "ids únicos");
-  eq(MODE.liveModes().length, 4, "cuatro modalidades live");
-  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,tnt,coliseo,escondite", "Pares, TNT, Coliseo y Escondite en vivo");
+  eq(MODE.liveModes().length, 5, "cinco modalidades live");
+  eq(MODE.liveModes().map((m) => m.id).join(","), "pares,tnt,karts,coliseo,escondite", "Pares, TNT, Karts, Coliseo y Escondite en vivo");
   for (const mode of MODE.MODES) {
     if (!mode.name || !mode.icon || !mode.mapId) throw new Error(`modalidad incompleta: ${mode.id}`);
     if (mode.status !== "live" && mode.status !== "soon") throw new Error(`estado inválido: ${mode.id}`);

@@ -56,7 +56,16 @@ db.exec(`
     seek_wins INTEGER NOT NULL DEFAULT 0,
     tnt_wins INTEGER NOT NULL DEFAULT 0,
     tnt_blocks INTEGER NOT NULL DEFAULT 0,
+    race_points INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS user_karts (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    kart_id TEXT NOT NULL,
+    equipped INTEGER NOT NULL DEFAULT 0,
+    unlocked_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, kart_id)
   );
 `);
 
@@ -88,6 +97,10 @@ if (!statColumns.includes("tnt_wins")) {
 }
 if (!statColumns.includes("tnt_blocks")) {
   db.exec("ALTER TABLE user_stats ADD COLUMN tnt_blocks INTEGER NOT NULL DEFAULT 0");
+}
+// Migración para bases creadas antes de Karts: puntos de carrera y garaje.
+if (!statColumns.includes("race_points")) {
+  db.exec("ALTER TABLE user_stats ADD COLUMN race_points INTEGER NOT NULL DEFAULT 0");
 }
 
 export function ensureDefaultSpace() {
@@ -152,10 +165,48 @@ export function getUserStats(userId) {
   return db.prepare("SELECT * FROM user_stats WHERE user_id = ?").get(userId) || null;
 }
 
+// Garaje de Karts: el kart inicial siempre está disponible, el resto se
+// desbloquea con puntos de carrera. `equipped` permite recordar la selección
+// entre sesiones sin volver a comprar.
+export function getUserKarts(userId) {
+  if (!userId) return [];
+  return db
+    .prepare("SELECT kart_id, equipped FROM user_karts WHERE user_id = ? ORDER BY kart_id")
+    .all(userId)
+    .map((row) => ({ id: row.kart_id, equipped: !!row.equipped }));
+}
+
+export function unlockKart(userId, kartId, equipped = false) {
+  if (!userId || !kartId) return false;
+  db.prepare(
+    `INSERT INTO user_karts (user_id, kart_id, equipped) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, kart_id) DO UPDATE SET equipped = MAX(equipped, excluded.equipped)`
+  ).run(userId, String(kartId).slice(0, 40), equipped ? 1 : 0);
+  return true;
+}
+
+export function setEquippedKart(userId, kartId) {
+  if (!userId || !kartId) return false;
+  db.prepare("UPDATE user_karts SET equipped = 0 WHERE user_id = ?").run(userId);
+  db.prepare(
+    `INSERT INTO user_karts (user_id, kart_id, equipped) VALUES (?, ?, 1)
+     ON CONFLICT(user_id, kart_id) DO UPDATE SET equipped = 1`
+  ).run(userId, String(kartId).slice(0, 40));
+  return true;
+}
+
+export function getEquippedKart(userId) {
+  if (!userId) return null;
+  const row = db
+    .prepare("SELECT kart_id FROM user_karts WHERE user_id = ? AND equipped = 1 LIMIT 1")
+    .get(userId);
+  return row ? row.kart_id : null;
+}
+
 // Suma el resultado de una partida al historial de la cuenta. `bestStreak` es la
 // racha máxima alcanzada en esta sesión, no un incremento. `duelWins` y
 // `duelRounds` acumulan el Coliseo melee; `hideWins` y `seekWins`, el Escondite;
-// `tntWins` y `tntBlocks`, el TNT Run.
+// `tntWins` y `tntBlocks`, el TNT Run; `racePoints`, las carreras de Karts.
 export function recordUserStats(
   userId,
   {
@@ -169,14 +220,15 @@ export function recordUserStats(
     seekWins = 0,
     tntWins = 0,
     tntBlocks = 0,
+    racePoints = 0,
   } = {}
 ) {
   if (!userId) return null;
   db.prepare(
     `INSERT INTO user_stats
        (user_id, score_total, kills, deaths, best_streak, duel_wins, duel_rounds,
-        hide_wins, seek_wins, tnt_wins, tnt_blocks, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        hide_wins, seek_wins, tnt_wins, tnt_blocks, race_points, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(user_id) DO UPDATE SET
        score_total = score_total + excluded.score_total,
        kills = kills + excluded.kills,
@@ -188,6 +240,7 @@ export function recordUserStats(
        seek_wins = seek_wins + excluded.seek_wins,
        tnt_wins = tnt_wins + excluded.tnt_wins,
        tnt_blocks = tnt_blocks + excluded.tnt_blocks,
+       race_points = race_points + excluded.race_points,
        updated_at = datetime('now')`
   ).run(
     userId,
@@ -200,7 +253,8 @@ export function recordUserStats(
     hideWins,
     seekWins,
     tntWins,
-    tntBlocks
+    tntBlocks,
+    racePoints
   );
   return getUserStats(userId);
 }

@@ -1,4 +1,16 @@
-import { getUserById, saveUserPosition, insertMessage, getRecentMessages, getUserStats, recordUserStats, getTopStats } from "./db.js";
+import {
+  getUserById,
+  saveUserPosition,
+  insertMessage,
+  getRecentMessages,
+  getUserStats,
+  recordUserStats,
+  getTopStats,
+  getUserKarts,
+  unlockKart,
+  setEquippedKart,
+  getEquippedKart,
+} from "./db.js";
 import { normalizeAppearance, DEFAULT_APPEARANCE } from "./appearance.js";
 import { WEAPONS, getWeapon, isCrystalWeapon } from "../public/js/weaponDefs.js";
 import {
@@ -19,6 +31,7 @@ import { createPairsGame } from "./modes/pairs.js";
 import { createColiseoGame } from "./modes/coliseo.js";
 import { createEsconditeGame } from "./modes/escondite.js";
 import { createTntGame } from "./modes/tnt.js";
+import { createKartsGame } from "./modes/karts.js";
 import {
   COLISEO_MAP_ID,
   coliseoClamp,
@@ -27,6 +40,13 @@ import {
 } from "../public/js/coliseoDefs.js";
 import { HIDE_MAP_ID } from "../public/js/hideDefs.js";
 import { TNT_MAP_ID, TNT_TICK_MS } from "../public/js/tntDefs.js";
+import {
+  KARTS_MAP_ID,
+  KARTS_PORTALS,
+  KARTS_PORTAL_TRIGGER,
+  KARTS_TICK_MS,
+  KART_START_ID,
+} from "../public/js/kartsDefs.js";
 import {
   computeBlockedDamage,
   getBlockConfig,
@@ -102,6 +122,9 @@ const modeGames = new Map();
 // TNT Run corre a 20 Hz (el resto de modos, a 5 Hz). Se guarda aparte para no
 // llamar dos veces por tick al mismo controlador.
 let tntController = null;
+// Karts corre a 20 Hz para que la física autoritativa no vaya a saltos. Igual
+// que TNT, se guarda aparte para no llamarlo dos veces desde `modeTick`.
+let kartsController = null;
 
 let io;
 let throwSeq = 1;
@@ -441,8 +464,20 @@ function sendScoreProfile(socket, player) {
           duelRounds: lifetime.duel_rounds || 0,
           hideWins: lifetime.hide_wins || 0,
           seekWins: lifetime.seek_wins || 0,
+          racePoints: lifetime.race_points || 0,
         }
       : null,
+    // Karts: las cuentas leen el garaje de la DB; los invitados conservan sus
+    // puntos y desbloqueos solo mientras dura su sesión en este servidor.
+    karts: player.userId
+      ? getUserKarts(player.userId).map((kart) => kart.id)
+      : [...(player.ownedKarts || [KART_START_ID])],
+    equippedKart: player.userId
+      ? getEquippedKart(player.userId) || KART_START_ID
+      : player.equippedKart || KART_START_ID,
+    racePoints: player.userId
+      ? (getUserStats(player.userId) || {}).race_points || 0
+      : player.racePoints || 0,
     top: getTopStats(5),
   });
 }
@@ -813,7 +848,8 @@ function modeTick() {
     return player ? { x: player.x, z: player.z } : null;
   };
   for (const game of modeGames.values()) {
-    if (game === tntController) continue; // Tiene su propio intervalo de 20 Hz.
+    // TNT y Karts tienen su propio intervalo de 20 Hz.
+    if (game === tntController || game === kartsController) continue;
     game.tick(Date.now(), posOf);
   }
 }
@@ -822,6 +858,12 @@ function modeTick() {
 // animación de caída no se sienta a saltos. El reloj se consulta una sola vez.
 function tntTick() {
   if (tntController) tntController.tick(Date.now());
+}
+
+// Tick dedicado de Karts: integra la física autoritativa y difunde un snapshot
+// por tick con la posición de los ocho karts.
+function kartsTick() {
+  if (kartsController) kartsController.tick(Date.now());
 }
 
 function transferOwnership(room) {
@@ -1020,7 +1062,14 @@ function moveSocketToMode(socket, player, room) {
   // (y por tanto el punto de aparición) se asigna al entrar. El socket ya está
   // en el canal para recibir el `mode:state` que difunde `join`.
   if (game) {
-    const result = game.join({ id: player.id, name: player.name, userId: player.userId });
+    const result = game.join({
+      id: player.id,
+      name: player.name,
+      userId: player.userId,
+      points: player.racePoints,
+      owned: player.ownedKarts,
+      equipped: player.equippedKart,
+    });
     if (!result.ok) {
       const message =
         result.reason === "full"
@@ -1361,6 +1410,120 @@ function tntRejoinRoomFor(player) {
   return null;
 }
 
+// ---- Karts -----------------------------------------------------------------
+
+function isKartsRoom(room) {
+  return !!room && room.kind === "mode" && room.modeId === "karts";
+}
+
+function kartsGameFor(room) {
+  return isKartsRoom(room) ? modeGames.get(room.code) || null : null;
+}
+
+// Coloca al pingüino en el paddock o en la parrilla que decide el controlador.
+// Durante la carrera el snapshot a 20 Hz es la fuente de posición; este aviso
+// solo se usa al entrar, al empezar y al reiniciar.
+function kartsPlace(room, game, player) {
+  const spawn = game.spawnFor(player.id);
+  player.x = spawn.x;
+  player.z = spawn.z;
+  player.y = Number.isFinite(spawn.y) ? spawn.y : 0;
+  if (Number.isFinite(spawn.yaw)) player.yaw = spawn.yaw;
+  player.weaponId = null;
+  player.hp = MAX_HP;
+  player.alive = true;
+  player.moveBudget = MOVE_BUDGET_MAX;
+  player.moveBudgetAt = Date.now();
+  resetBlock(player);
+  io.to(roomChannel(room.code)).emit("mode:teleport", {
+    id: player.id,
+    x: player.x,
+    z: player.z,
+    y: player.y,
+    yaw: player.yaw,
+  });
+}
+
+function persistKartsResult(game) {
+  if (!game || !game.resultStats) return;
+  const stats = game.resultStats();
+  for (const entry of stats.participants || []) {
+    const player = players.get(entry.id);
+    if (player) {
+      player.racePoints = entry.points;
+      if (!player.userId) {
+        player.ownedKarts = [...new Set(player.ownedKarts || [KART_START_ID])];
+        player.equippedKart = player.equippedKart || KART_START_ID;
+      }
+    }
+    if (!entry.userId) continue;
+    if (entry.earned) recordUserStats(entry.userId, { racePoints: entry.earned });
+    const lifetime = getUserStats(entry.userId);
+    if (player) player.racePoints = lifetime ? lifetime.race_points || 0 : entry.points;
+  }
+}
+
+function applyKartsEvent(room, snapshot, event) {
+  if (!event || !snapshot) return;
+  const game = kartsGameFor(room);
+  if (!game) return;
+
+  if (event.type === "countdown" || event.type === "start" || event.type === "restart") {
+    for (const player of roomMembers(room)) kartsPlace(room, game, player);
+    return;
+  }
+  if (event.type === "join" || event.type === "rejoin") {
+    const player = players.get(event.playerId);
+    if (player) kartsPlace(room, game, player);
+    return;
+  }
+  if (event.type === "purchase") {
+    const player = players.get(event.playerId);
+    if (!player) return;
+    if (player.userId) {
+      recordUserStats(player.userId, { racePoints: -event.price });
+      unlockKart(player.userId, event.kartId);
+      const lifetime = getUserStats(player.userId);
+      player.racePoints = lifetime ? lifetime.race_points || 0 : event.points;
+      player.ownedKarts = [KART_START_ID, ...getUserKarts(player.userId).map((kart) => kart.id)];
+    } else {
+      player.racePoints = event.points;
+      player.ownedKarts = [...new Set([...(player.ownedKarts || [KART_START_ID]), event.kartId])];
+    }
+    io.to(player.id).emit("score:profile", {
+      playerId: player.id,
+      lifetime: player.userId
+        ? { racePoints: player.racePoints }
+        : null,
+      karts: player.ownedKarts,
+      equippedKart: player.equippedKart,
+      racePoints: player.racePoints,
+      top: getTopStats(5),
+    });
+    return;
+  }
+  if (event.type === "equip") {
+    const player = players.get(event.playerId);
+    if (!player) return;
+    player.equippedKart = event.kartId;
+    if (player.userId) setEquippedKart(player.userId, event.kartId);
+    return;
+  }
+  if (event.type === "result") persistKartsResult(game);
+}
+
+function kartsRejoinRoomFor(player) {
+  if (!player) return null;
+  for (const room of rooms.values()) {
+    if (!isKartsRoom(room)) continue;
+    const game = kartsGameFor(room);
+    if (game && game.canRejoin && game.canRejoin({ userId: player.userId, name: player.name })) {
+      return room;
+    }
+  }
+  return null;
+}
+
 export function setupGame(ioServer) {
   io = ioServer;
 
@@ -1436,6 +1599,20 @@ export function setupGame(ioServer) {
     modeGames.set(tntRoom.code, tntController);
   }
 
+  // Karts: paddock, tienda física y portales en una sala oculta sin combate.
+  // La física corre en el controlador a 20 Hz con su propio intervalo.
+  const kartsRoom = ensureModeRoom("karts");
+  if (kartsRoom) {
+    kartsController = createKartsGame({
+      maxPlayers: getMode("karts").maxPlayers,
+      onChange: (snapshot, event) => {
+        emitModeState(kartsRoom.code, snapshot, event);
+        applyKartsEvent(kartsRoom, snapshot, event);
+      },
+    });
+    modeGames.set(kartsRoom.code, kartsController);
+  }
+
   io.on("connection", (socket) => {
     socket.on("player:join", (payload = {}) => {
       if (players.has(socket.id)) return;
@@ -1496,7 +1673,14 @@ export function setupGame(ioServer) {
         bestStreak: 0,
         lastHitBy: new Map(),
         recentKills: new Map(),
+        // Karts: espejo local de la DB para cuentas y cartera de invitados.
+        racePoints: isAccount ? (getUserStats(socket.data.userId) || {}).race_points || 0 : 0,
+        ownedKarts: isAccount
+          ? [KART_START_ID, ...getUserKarts(socket.data.userId).map((kart) => kart.id)]
+          : [KART_START_ID],
+        equippedKart: isAccount ? getEquippedKart(socket.data.userId) || KART_START_ID : KART_START_ID,
       };
+      player.ownedKarts = [...new Set(player.ownedKarts)];
 
       players.set(socket.id, player);
       socket.join(LOBBY_CHANNEL);
@@ -1514,7 +1698,8 @@ export function setupGame(ioServer) {
 
       // Si tenía una plaza reservada en el Escondite o en TNT Run, avisamos al
       // cliente para que vuelva a entrar automáticamente y recupere su estado.
-      const rejoinRoom = esconditeRejoinRoomFor(player) || tntRejoinRoomFor(player);
+      const rejoinRoom =
+        esconditeRejoinRoomFor(player) || tntRejoinRoomFor(player) || kartsRejoinRoomFor(player);
       if (rejoinRoom) {
         socket.emit("mode:rejoin", {
           modeId: rejoinRoom.modeId,
@@ -1536,6 +1721,13 @@ export function setupGame(ioServer) {
         // En TNT Run solo se mueve quien sigue vivo y con la partida en marcha.
         const tntGame = tntGameFor(moveRoom);
         if (tntGame && !tntGame.canMove(player.id)) return;
+        // En Karts el paddock se recorre andando, pero en cuenta atrás y en
+        // carrera la posición la decide la física del controlador.
+        const kartsGame = kartsGameFor(moveRoom);
+        if (kartsGame && !kartsGame.canMove(player.id)) return;
+        // En carrera los karts envían intenciones a `mode:action` a 20 Hz; el
+        // canal genérico de movimiento queda cerrado para no falsificar giros.
+        if (kartsGame && kartsGame.phase === "racing") return;
         if (throttle(socket, "move", 40, 1000)) return;
 
         const now = Date.now();
@@ -2237,6 +2429,7 @@ export function setupGame(ioServer) {
               "seek", // Escondite
               "countdown",
               "playing", // TNT Run
+              "racing", // Karts
             ].includes(state.phase);
           if (inProgress) {
             return socket.emit("mode:error", {
@@ -2266,7 +2459,10 @@ export function setupGame(ioServer) {
         if (!visitor || !visitor.roomCode) return;
         const room = rooms.get(visitor.roomCode);
         if (!room || room.kind !== "mode") return;
-        if (throttle(socket, "modeact", 12, 1000)) return;
+        // Karts necesita hasta 20 intentos de conducción por segundo; el resto
+        // de minijuegos conserva el límite de 12 acciones/s.
+        const actionLimit = room.modeId === "karts" ? 50 : 12;
+        if (throttle(socket, "modeact", actionLimit, 1000)) return;
         const game = modeGames.get(room.code);
         if (!game) return;
 
@@ -2297,6 +2493,12 @@ export function setupGame(ioServer) {
             "not-adjacent": "No puedes cruzar más de un bloque a la vez.",
             "too-fast": "Vas demasiado rápido por la isla.",
             eliminated: "Ya estás eliminado de esta partida.",
+            "in-preparation": "Esa pista está en preparación.",
+            "bad-kart": "Ese kart no existe.",
+            "already-owned": "Ya tienes ese kart en el garaje.",
+            "not-enough-points": "Te faltan puntos de carrera para ese kart.",
+            "not-owned": "Primero tienes que comprar ese kart.",
+            "bad-position": "No se pudo leer tu posición.",
             "unknown-action": "Esa acción no existe.",
           };
           const message = messages[result.reason];
@@ -2505,4 +2707,5 @@ export function setupGame(ioServer) {
   setInterval(crystalTick, 1000);
   setInterval(modeTick, MODE_TICK_MS);
   if (tntController) setInterval(tntTick, TNT_TICK_MS);
+  if (kartsController) setInterval(kartsTick, KARTS_TICK_MS);
 }

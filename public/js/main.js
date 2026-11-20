@@ -1,3 +1,4 @@
+import * as THREE from "/vendor/three/three.module.js";
 import { createWorld, getRoomMaps, getMap, getTerrainHeightAt } from "./world.js";
 import { createAvatar, animateAvatar } from "./avatar.js";
 import { moveWithCollisions } from "./collision.js";
@@ -42,6 +43,15 @@ import { createPairsBoard } from "./pairsBoard.js";
 import { createColiseoHud } from "./coliseo.js";
 import { createEsconditeHud } from "./escondite.js";
 import { createTntHud } from "./tnt.js";
+import { createKartsHud } from "./kartsHud.js";
+import {
+  KARTS_MAP_ID,
+  KARTS_PORTALS,
+  KARTS_PORTAL_TRIGGER,
+  KART_START_ID,
+  KART_PEDESTALS,
+  kartById,
+} from "./kartsDefs.js";
 import { playTntEliminated, playTntFall, playTntFuse } from "./tntSound.js";
 import { hideSpotAt } from "./hideDefs.js";
 import {
@@ -490,6 +500,13 @@ let pairsBoard = null;
 let coliseoUI = null;
 let esconditeUI = null;
 let tntUI = null;
+let kartsUI = null;
+// Último snapshot del controlador de Karts. La física la decide el servidor;
+// aquí solo se usa para colocar avatares, pintar el HUD y detectar proximidad.
+let kartsState = null;
+let lastKartsDriveSend = 0;
+const kartsRaycaster = new THREE.Raycaster();
+const kartsPointer = new THREE.Vector2();
 // Altura autoritativa de la capa del TNT y estado local de la caída del avatar.
 let tntBaseY = 0;
 let tntFalling = false;
@@ -832,8 +849,29 @@ function bindPointerUI() {
         lastMouseX = event.clientX;
         lastMouseY = event.clientY;
       }
-    } else if (event.button === 0 && combat && canUseCombat()) {
-      combat.tryShoot();
+    } else if (event.button === 0) {
+      // En el paddock, clic sobre un pedestal 3D compra o equipa ese kart.
+      const uiBlocks =
+        dressingOpen() ||
+        !!(shop && shop.isOpen()) ||
+        !!(scoreboard && scoreboard.isOpen()) ||
+        pairsSelectOpen() ||
+        coliseoSelectOpen();
+      if (kartsArena() && !uiBlocks && renderer && camera && world && world.kartsPickables.length) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        kartsPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        kartsPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        kartsRaycaster.setFromCamera(kartsPointer, camera);
+        const hit = kartsRaycaster
+          .intersectObjects(world.kartsPickables, false)
+          .find((entry) => !!entry.object.userData.kartId);
+        if (hit) {
+          activateKart(hit.object.userData.kartId);
+          event.preventDefault();
+          return;
+        }
+      }
+      if (combat && canUseCombat()) combat.tryShoot();
     }
   });
   document.addEventListener("mousemove", (event) => {
@@ -1028,6 +1066,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onLeave: () => leaveMode(),
   });
 
+  kartsUI = createKartsHud({
+    getMyId: () => myId,
+    onBuy: (kartId) => sendModeAction({ type: "buy", kartId }),
+    onEquip: (kartId) => sendModeAction({ type: "equip", kartId }),
+    onTrack: (trackId) => sendModeAction({ type: "track", trackId }),
+    onReady: () => sendModeAction({ type: "ready" }),
+    onLeave: () => leaveMode(),
+  });
+
   if (TOUCH_MODE) {
     const needRoom = () => {
       if (!inCombatZone()) {
@@ -1099,6 +1146,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
     coliseoUI,
     esconditeUI,
     tntUI,
+    kartsUI,
     remotes,
     walkTo,
     // Ganchos de prueba para la isla y los minijuegos: el servidor valida
@@ -1122,6 +1170,8 @@ combat.setOwn(myOwnHp, myOwnAlive);
     get esconditeState() { return esconditeUI ? esconditeUI.getState() : null; },
     get esconditeFrozen() { return esconditeSeekerFrozen(); },
     get tntState() { return tntUI ? tntUI.getState() : null; },
+    get kartsState() { return kartsState; },
+    get kartsTarget() { return portalTarget && portalTarget.kind ? portalTarget : null; },
     get tntBaseY() { return tntBaseY; },
     get tntFalling() { return tntFalling; },
     get myId() { return myId; },
@@ -1308,6 +1358,13 @@ combat.setOwn(myOwnHp, myOwnAlive);
           tntUI.hide();
           tntBaseY = 0;
           tntFalling = false;
+        }
+      }
+      if (kartsUI) {
+        if (kind === "mode" && room.modeId === "karts") kartsUI.show();
+        else {
+          kartsUI.hide();
+          kartsState = null;
         }
       }
       updatePortalPrompt();
@@ -1500,6 +1557,21 @@ combat.setOwn(myOwnHp, myOwnAlive);
       // El servidor no manda el equipo propio: se deduce del id local para que
       // el HUD y el resaltado del tablero sepan a quién pertenece el turno.
       const mine = (snapshot.players || []).find((player) => player.id === myId);
+      if (snapshot.modeId === "karts") {
+        kartsState = snapshot;
+        if (kartsUI) {
+          if (myRoom && myRoom.modeId === "karts" && !kartsUI.isOpen()) kartsUI.show();
+          kartsUI.setState(snapshot);
+        }
+        if (world && world.setKartsState) {
+          world.setKartsState({
+            owned: mine ? mine.owned : [KART_START_ID],
+            equipped: mine ? mine.kartId : KART_START_ID,
+            points: mine ? mine.points : 0,
+          });
+        }
+        return;
+      }
       if (snapshot.modeId === "escondite") {
         snapshot.myRole = mine ? mine.role : null;
         if (esconditeUI) {
@@ -1543,6 +1615,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (pairsBoard) pairsBoard.setState(snapshot);
     },
     onModeEvent: (payload) => {
+      if (payload && payload.modeId === "karts") {
+        if (kartsUI) kartsUI.event(payload);
+        if (payload.type === "purchase" && payload.playerId === myId) {
+          showToast("Kart añadido al garaje", 1800);
+        } else if (payload.type === "result" && payload.winnerId === myId) {
+          showToast("¡Victoria en la carrera!", 2200);
+        }
+        return;
+      }
       if (payload && payload.modeId === "escondite") {
         if (esconditeUI) esconditeUI.event(payload);
         return;
@@ -1589,6 +1670,10 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (data.modeId === "tnt") {
         showToast("Reconectando al TNT Run…", 2200);
         joinMode("tnt", null, true);
+      }
+      if (data.modeId === "karts") {
+        showToast("Reconectando al paddock…", 2200);
+        joinMode("karts", null, true);
       }
     },
     onModeTeleport: ({ id, x, z, y, yaw } = {}) => {
@@ -1782,6 +1867,11 @@ function leaveGame() {
     tntUI.hide();
     tntUI = null;
   }
+  if (kartsUI) {
+    kartsUI.hide();
+    kartsUI = null;
+  }
+  kartsState = null;
   resetTntAvatar();
   tntBaseY = 0;
   clearHideOpacity();
@@ -1963,6 +2053,25 @@ function loop(now) {
         dz /= mag;
       }
     }
+    // Karts: intenciones de conducción a 20 Hz. Se usan las teclas sin girar
+    // por la cámara porque A/D siempre son giro del volante, no del mundo.
+    if (kartsArena() && kartsState && kartsState.phase === "racing" && now - lastKartsDriveSend >= 50) {
+      let kartX = input.dx;
+      let kartZ = input.dz;
+      if (touchCtl && !uiOpen) {
+        const tdKart = touchCtl.getDir();
+        kartX += tdKart.x;
+        kartZ += tdKart.z;
+      }
+      sendModeAction({
+        type: "drive",
+        throttle: kartZ < 0 ? 1 : kartZ > 0 ? -1 : 0,
+        steer: kartX > 0.1 ? 1 : kartX < -0.1 ? -1 : 0,
+        drift: isKeyDown(" ") || isKeyDown("shift"),
+      });
+      lastKartsDriveSend = now;
+    }
+
     // En la arena de Pares la cámara está fija: el movimiento se hace relativo
     // a la pantalla (W hacia el fondo del tablero) para no depender del ratón.
     const arena = pairsArena();
@@ -1977,7 +2086,10 @@ function loop(now) {
     const tntStateNow = tntUI ? tntUI.getState() : null;
     const tntCanMove = !tntArena() || !!(tntStateNow && tntStateNow.phase === "playing");
     const canMove =
-      (!coliseoArena() || coliseoFightActive()) && !esconditeSeekerFrozen() && tntCanMove;
+      (!coliseoArena() || coliseoFightActive()) &&
+      !esconditeSeekerFrozen() &&
+      tntCanMove &&
+      (!kartsArena() || !kartsRacing());
     const wantsMove = !!(mdx || mdz) && myOwnAlive && canMove;
     const sprintKey =
       !uiOpen && (isKeyDown("shift") || !!(touchCtl && touchCtl.sprintHeld));
@@ -2062,6 +2174,7 @@ function loop(now) {
     }
 
     updatePortalPrompt();
+    applyKartsSnapshot();
 
     // Arena de Pares: equipo al pisar plataforma, carta bajo los pies y salto
     // como intención de voltear. El servidor valida turno, carta y posición.
@@ -2127,11 +2240,12 @@ function loop(now) {
         }
         tntHeight = tntBaseY + tntFallY;
       }
-      myAvatar.position.y =
-        getTerrainHeightAt(currentMapId, myAvatar.position.x, myAvatar.position.z) +
-        tntHeight +
-        motionStep.y +
-        bob;
+      myAvatar.position.y = kartsRacing()
+        ? myAvatar.position.y
+        : getTerrainHeightAt(currentMapId, myAvatar.position.x, myAvatar.position.z) +
+          tntHeight +
+          motionStep.y +
+          bob;
       animateAvatar(myAvatar, now, dt, moving, {
         jumping: motionStep.jumping,
         sprinting: motionStep.sprinting,
@@ -2145,7 +2259,7 @@ function loop(now) {
       const headX = remote.targetX - group.position.x;
       const headZ = remote.targetZ - group.position.z;
       const moved = Math.hypot(headX, headZ) > 0.001 && !animating;
-      if (moved) {
+      if (moved && !kartsRacing()) {
         group.rotation.y += angleStep(group.rotation.y, Math.atan2(headX, headZ)) * Math.min(1, dt * 12);
       }
       group.position.x += headX * Math.min(1, dt * 12);
@@ -2203,7 +2317,17 @@ function loop(now) {
 
   if (pairsUI) pairsUI.update(dt);
 
-    if (arena) {
+    if (kartsRacing() && myAvatar) {
+      // Cámara de seguimiento baja, justo detrás del kart. El yaw lo manda el
+      // snapshot autoritativo, así que el coche siempre se ve de espaldas.
+      const target = myAvatar.position;
+      camera.position.set(
+        target.x + Math.sin(cameraYaw) * 12,
+        target.y + 5.4,
+        target.z + Math.cos(cameraYaw) * 12
+      );
+      camera.lookAt(target.x, target.y + 1.3, target.z);
+    } else if (arena) {
       // Cámara elevada y fija sobre el tablero: se ve la cuadrícula completa,
       // las dos plataformas y los atriles sin girar con el ratón.
       const big = pairsVariantDef().grid >= 6;
@@ -2363,6 +2487,61 @@ function resetTntAvatar() {
   if (myAvatar) myAvatar.visible = true;
 }
 
+// --- Karts ------------------------------------------------------------------
+
+function kartsArena() {
+  return !!myRoom && myRoom.kind === "mode" && myRoom.modeId === KARTS_MAP_ID;
+}
+
+function kartsRacing() {
+  return (
+    kartsArena() &&
+    !!kartsState &&
+    (kartsState.phase === "countdown" || kartsState.phase === "racing")
+  );
+}
+
+// Comprar o equipar desde el pedestal 3D, desde el aviso de proximidad o desde
+// el HUD. El controlador decide si la compra es válida.
+function activateKart(kartId) {
+  const mine = kartsState && (kartsState.players || []).find((p) => p.id === myId);
+  if (!mine) return;
+  const kart = kartById(kartId);
+  if (mine.owned.includes(kartId)) {
+    sendModeAction({ type: "equip", kartId });
+  } else if (mine.points >= (kart ? kart.price : 0)) {
+    sendModeAction({ type: "buy", kartId });
+  } else {
+    showToast(`Te faltan ${Math.max(0, (kart ? kart.price : 0) - mine.points)} puntos de carrera.`, 2200);
+  }
+}
+
+// Durante la carrera el avatar NO se mueve con el teclado: el servidor manda la
+// posición 20 veces por segundo y aquí solo se interpola hacia ella.
+function applyKartsSnapshot() {
+  if (!kartsRacing() || !kartsState) return;
+  for (const entry of kartsState.players || []) {
+    const height = Number.isFinite(entry.y) ? entry.y : 0;
+    if (entry.id === myId) {
+      if (!myAvatar) continue;
+      myPosition = { x: entry.x, z: entry.z };
+      myAvatar.position.set(entry.x, height, entry.z);
+      if (Number.isFinite(entry.yaw)) myAvatar.rotation.y = entry.yaw;
+      cameraYaw = entry.yaw + Math.PI;
+      continue;
+    }
+    const remote = remotes.get(entry.id);
+    if (!remote) continue;
+    remote.targetX = entry.x;
+    remote.targetZ = entry.z;
+    remote.targetY = height;
+    if (remote.group) {
+      remote.group.position.set(entry.x, height, entry.z);
+      if (Number.isFinite(entry.yaw)) remote.group.rotation.y = entry.yaw;
+    }
+  }
+}
+
 // --- Escondite --------------------------------------------------------------
 
 function esconditeArena() {
@@ -2512,7 +2691,52 @@ function updatePortalPrompt() {
   if (!portalPrompt) return;
   let target = null;
 
-  if (inHub()) {
+  // Paddock: los pedestales y los portales se detectan por proximidad, igual
+  // que los portales de la isla. El servidor valida la acción de todos modos.
+  if (kartsArena() && (!kartsState || kartsState.phase === "waiting" || kartsState.phase === "finished")) {
+    const mine = kartsState && (kartsState.players || []).find((p) => p.id === myId);
+    let best = null;
+    for (const pedestal of KART_PEDESTALS) {
+      const dist = Math.hypot(myPosition.x - pedestal.x, myPosition.z - pedestal.z);
+      if (dist > 4.8 || (best && dist >= best.dist)) continue;
+      const kart = kartById(pedestal.kartId);
+      const owned = !!(mine && mine.owned.includes(pedestal.kartId));
+      const equipped = !!(mine && mine.kartId === pedestal.kartId);
+      best = {
+        dist,
+        target: {
+          kind: "kart",
+          kartId: pedestal.kartId,
+          label: kart ? kart.name : "Kart",
+          icon: equipped ? "✅" : owned ? "🏎️" : "🛒",
+          live: true,
+          action: equipped
+            ? "Equipado"
+            : owned
+              ? "Equipar (E)"
+              : mine && mine.points >= (kart ? kart.price : 0)
+                ? `Comprar ${kart ? kart.price : 0} pts (E)`
+                : `Faltan ${Math.max(0, (kart ? kart.price : 0) - (mine ? mine.points : 0))} pts`,
+        },
+      };
+    }
+    for (const portal of KARTS_PORTALS) {
+      const dist = Math.hypot(myPosition.x - portal.x, myPosition.z - portal.z);
+      if (dist > KARTS_PORTAL_TRIGGER || (best && dist >= best.dist)) continue;
+      best = {
+        dist,
+        target: {
+          kind: "track",
+          trackId: portal.trackId,
+          label: portal.label,
+          icon: portal.status === "live" ? "🏁" : "🚧",
+          live: portal.status === "live",
+          action: portal.status === "live" ? "Entrar (E)" : "En preparación",
+        },
+      };
+    }
+    if (best) target = best.target;
+  } else if (inHub()) {
     const near = nearestPortal(myPosition.x, myPosition.z);
     if (near) {
       target = {
@@ -2536,7 +2760,7 @@ function updatePortalPrompt() {
   }
 
   portalPromptText.textContent = `${target.icon} ${target.label}`;
-  portalPromptBtn.textContent = target.live ? "Entrar (E)" : "Próximamente";
+  portalPromptBtn.textContent = target.action || (target.live ? "Entrar (E)" : "Próximamente");
   portalPromptBtn.disabled = !target.live;
   portalPrompt.hidden = false;
 }
@@ -2545,6 +2769,19 @@ function activatePortal() {
   if (!portalTarget) return false;
   if (!portalTarget.live) {
     showToast(`${portalTarget.label} todavía no está disponible.`, 2200);
+    return true;
+  }
+  if (portalTarget.kind === "kart") {
+    activateKart(portalTarget.kartId);
+    return true;
+  }
+  if (portalTarget.kind === "track") {
+    if (!portalTarget.live) {
+      showToast("Esa pista está en preparación.", 2200);
+      return true;
+    }
+    sendModeAction({ type: "track", trackId: portalTarget.trackId });
+    showToast("Pista seleccionada. Pulsa «Listo» cuando estés preparado.", 2000);
     return true;
   }
   if (portalTarget.modeId === "hub") enterHub();

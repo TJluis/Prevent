@@ -459,9 +459,12 @@ const { setupGame } = await import(url("server/game.js"));
 setupGame(io);
 
 const modeTimer = timers.find((h) => h.interval && h.ms === 200);
-// El hockey también corre a 50 Hz: el tick del TNT es el último que se registra.
-const fiftyMsTimers = timers.filter((h) => h.interval && h.ms === DEF.TNT_TICK_MS);
-const tntTimer = fiftyMsTimers[fiftyMsTimers.length - 1];
+// Hockey, TNT y Karts comparten los 50 Hz. El tick del TNT es el primero que se
+// registra DESPUÉS del tick general de 200 ms (el de Karts va justo detrás).
+const modeTimerIndex = timers.indexOf(modeTimer);
+const tntTimer = timers.find(
+  (h, index) => index > modeTimerIndex && h.interval && h.ms === DEF.TNT_TICK_MS
+);
 ok(modeTimer, "no se registró el tick general de minijuegos");
 ok(tntTimer, "no se registró el tick de 20 Hz del TNT");
 
