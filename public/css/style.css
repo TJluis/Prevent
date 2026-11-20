@@ -3404,6 +3404,64 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
 .karts-hud-flash { color: #67e8f9; font-weight: 800; }
 .karts-hud-result { font-size: 0.86rem; font-weight: 900; color: #fff; }
 
+/* En carrera el panel se reduce a una columna lateral: solo el podio de los
+   cinco primeros (más la fila del jugador si queda más atrás) y los datos de
+   conducción. No tapa el centro de la pantalla. */
+#karts-hud.karts-hud--race {
+  top: 84px;
+  left: auto;
+  right: 16px;
+  transform: none;
+  width: min(252px, 66vw);
+  max-height: calc(100vh - 110px);
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.74);
+  border-color: rgba(103, 232, 249, 0.35);
+}
+
+#karts-hud.karts-hud--race .karts-hud-title,
+#karts-hud.karts-hud--race .karts-hud-shop,
+#karts-hud.karts-hud--race .karts-hud-note,
+#karts-hud.karts-hud--race .karts-hud-result,
+#karts-hud.karts-hud--race #karts-hud-ready { display: none !important; }
+
+#karts-hud.karts-hud--race .karts-hud-head { gap: 6px; }
+#karts-hud.karts-hud--race .karts-hud-phase {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 0.72rem;
+}
+#karts-hud.karts-hud--race .karts-hud-race {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+#karts-hud.karts-hud--race .karts-hud-race > span {
+  padding: 5px 6px;
+  font-size: 0.72rem;
+}
+#karts-hud.karts-hud--race .karts-hud-countdown { font-size: 1.8rem; }
+#karts-hud.karts-hud--race .karts-hud-flash { font-size: 0.68rem; }
+#karts-hud.karts-hud--race .karts-hud-board { padding: 5px 6px; }
+#karts-hud.karts-hud--race .karts-board-row {
+  grid-template-columns: 38px 1fr 44px;
+  font-size: 0.7rem;
+}
+
+.karts-board-head {
+  margin-bottom: 3px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #fde68a;
+  letter-spacing: 0.02em;
+}
+.karts-board-divider {
+  padding: 1px 0 1px 38px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 @media (max-width: 620px) {
   .karts-hud-race { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .karts-hud-tracks { grid-template-columns: 1fr; }

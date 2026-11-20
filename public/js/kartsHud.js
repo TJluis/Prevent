@@ -139,21 +139,38 @@ export function createKartsHud({ getMyId, onBuy, onEquip, onTrack, onReady, onLe
       return;
     }
     boardEl.hidden = false;
-    boardEl.innerHTML = standings
-      .map((entry, index) => {
-        const me = entry.id === (getMyId ? getMyId() : null);
-        return `<div class="karts-board-row${me ? " is-me" : ""}">` +
-          `<span class="karts-board-pos">${ORDINAL[index] || index + 1}</span>` +
-          `<span class="karts-board-name">${entry.name}</span>` +
-          `<span class="karts-board-lap">${entry.laps || 0}/${state.laps || 3}</span>` +
-          `</div>`;
-      })
-      .join("");
+    const myId = getMyId ? getMyId() : null;
+    const raceView = state.phase === "countdown" || state.phase === "racing";
+    const visible = raceView ? standings.slice(0, 5) : standings;
+    const myIndex = standings.findIndex((entry) => entry.id === myId);
+    const row = (entry, index, forceMe = false) => {
+      const me = forceMe || entry.id === myId;
+      return (
+        `<div class="karts-board-row${me ? " is-me" : ""}">` +
+        `<span class="karts-board-pos">${ORDINAL[index] || `${index + 1}.º`}</span>` +
+        `<span class="karts-board-name">${entry.name}</span>` +
+        `<span class="karts-board-lap">${entry.laps || 0}/${state.laps || 3}</span>` +
+        `</div>`
+      );
+    };
+    let html = raceView ? `<div class="karts-board-head">🏆 Podio · primeros 5</div>` : "";
+    html += visible.map((entry, index) => row(entry, index)).join("");
+    // Si el jugador está más allá del quinto puesto, se añade su posición real
+    // en una fila separada para no tapar la vista con la tabla completa.
+    if (raceView && myIndex >= 5) {
+      html += `<div class="karts-board-divider">⋯</div>`;
+      html += row(standings[myIndex], myIndex, true);
+    }
+    boardEl.innerHTML = html;
   }
 
   function render() {
     if (!state) return;
     buildShop();
+    root.classList.toggle(
+      "karts-hud--race",
+      state.phase === "countdown" || state.phase === "racing"
+    );
 
     if (phaseEl) phaseEl.textContent = PHASE_LABEL[state.phase] || "";
     const ms =
@@ -263,6 +280,10 @@ export function createKartsHud({ getMyId, onBuy, onEquip, onTrack, onReady, onLe
       flash = `🏁 Has terminado en ${ev.position}.º`;
     } else if (ev.type === "purchase" && ev.playerId === (getMyId ? getMyId() : null)) {
       flash = "🛒 Kart comprado";
+    } else if (ev.type === "obstacle" && ev.playerId === (getMyId ? getMyId() : null)) {
+      flash = "💥 ¡Golpe! Cuidado con los obstáculos";
+    } else if (ev.type === "kart-hit" && ev.playerId === (getMyId ? getMyId() : null)) {
+      flash = "💥 Contacto con otro kart";
     } else if (ev.type === "result") {
       flash = "🏁 Carrera terminada";
     } else {

@@ -857,7 +857,17 @@ function bindPointerUI() {
         !!(scoreboard && scoreboard.isOpen()) ||
         pairsSelectOpen() ||
         coliseoSelectOpen();
-      if (kartsArena() && !uiBlocks && renderer && camera && world && world.kartsPickables.length) {
+      const kartsPaddockOpen =
+        !!kartsState && (kartsState.phase === "waiting" || kartsState.phase === "finished");
+      if (
+        kartsArena() &&
+        kartsPaddockOpen &&
+        !uiBlocks &&
+        renderer &&
+        camera &&
+        world &&
+        world.kartsPickables.length
+      ) {
         const rect = renderer.domElement.getBoundingClientRect();
         kartsPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         kartsPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1316,7 +1326,11 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (!hasCombat) stopBlocking();
       syncShieldButton();
       if (hockey) hockey.setActive(!room);
-      if (inventoryBar) inventoryBar.setEnabled(true);
+      // En Karts no hay inventario: la mochila estorba en la pista y no aplica
+      // a este modo. Se restaura al salir a cualquier otra zona.
+      if (inventoryBar) {
+        inventoryBar.setEnabled(!(kind === "mode" && room && room.modeId === "karts"));
+      }
       if (loot) loot.setEnabled(isPrivateRoom);
       if (scoreboard) scoreboard.setRoom(isPrivateRoom);
       if (shop) {
@@ -1570,6 +1584,7 @@ combat.setOwn(myOwnHp, myOwnAlive);
             points: mine ? mine.points : 0,
           });
         }
+        if (world && world.setKartsPhase) world.setKartsPhase(snapshot.phase);
         return;
       }
       if (snapshot.modeId === "escondite") {
@@ -2251,6 +2266,17 @@ function loop(now) {
         sprinting: motionStep.sprinting,
         sliding: motionStep.sliding,
       });
+      // animateAvatar controla el balanceo al caminar; en carrera el peralte y
+      // la pendiente del trazado mandan, así que se aplican después.
+      if (kartsRacing()) {
+        const mineSnap = kartsState && (kartsState.players || []).find((p) => p.id === myId);
+        if (mineSnap) {
+          myAvatar.rotation.z = -(Number(mineSnap.bank) || 0);
+          myAvatar.rotation.x = Number(mineSnap.pitch) || 0;
+        }
+      } else {
+        myAvatar.rotation.x = 0;
+      }
     }
 
     remotes.forEach((remote, remoteId) => {
@@ -2276,6 +2302,16 @@ function loop(now) {
           sprinting: remote.sprinting,
           sliding: remote.sliding,
         });
+        if (kartsRacing()) {
+          const entry =
+            kartsState && (kartsState.players || []).find((p) => p.id === remoteId);
+          if (entry) {
+            group.rotation.z = -(Number(entry.bank) || 0);
+            group.rotation.x = Number(entry.pitch) || 0;
+          }
+        } else {
+          group.rotation.x = 0;
+        }
       }
     });
 

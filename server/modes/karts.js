@@ -29,6 +29,7 @@ import {
   kartRacePoints,
   kartStats,
   kartsBoostAt,
+  kartsObstacleHits,
   kartsPointAt,
   kartsSectorOf,
   kartsShortcutAt,
@@ -128,12 +129,15 @@ export function createKartsGame({
 
   function snapshotPlayer(p) {
     const track = getTrack(trackId);
-    const position =
-      phase === "racing"
-        ? kartsPointAt(trackId, p.distance, p.lateral)
-        : phase === "countdown"
-          ? kartsSpawnFor(trackId, p.order, Math.max(players.size, minimum))
-          : paddleSpawn(p.order, players.size);
+    let position;
+    if (phase === "racing") {
+      position = kartsPointAt(trackId, p.distance, p.lateral);
+    } else if (phase === "countdown") {
+      const spawn = kartsSpawnFor(trackId, p.order, Math.max(players.size, minimum));
+      position = { ...spawn, ...kartsPointAt(trackId, spawn.distance, spawn.lateral) };
+    } else {
+      position = paddleSpawn(p.order, players.size);
+    }
     return {
       id: p.id,
       name: p.name,
@@ -152,6 +156,8 @@ export function createKartsGame({
       y: round2(position.y),
       z: round2(position.z),
       yaw: round2(position.yaw),
+      bank: round2(position.bank || 0),
+      pitch: round2(position.pitch || 0),
       speed: round2(p.speed),
       boosting: now() < p.boostUntil,
       finished: !!p.finished,
@@ -220,6 +226,8 @@ export function createKartsGame({
       p.speed = 0;
       p.boostUntil = 0;
       p.boostReadyAt = 0;
+      p.obstacleCooldownUntil = 0;
+      p.kartCooldownUntil = 0;
       p.input = { throttle: 0, steer: 0, drift: false };
     }
   }
@@ -299,6 +307,8 @@ export function createKartsGame({
       speed: 0,
       boostUntil: 0,
       boostReadyAt: 0,
+      obstacleCooldownUntil: 0,
+      kartCooldownUntil: 0,
       finished: false,
       finishOrder: 0,
       finishAt: 0,
@@ -485,10 +495,15 @@ export function createKartsGame({
     const surface = kartsSurfaceAt(trackId, p.t);
     const boosting = t < p.boostUntil;
     const maxSpeed = cfg.speed * surface.grip * (boosting ? 1.45 : 1) * (p.input.drift ? 0.97 : 1);
+    const current = kartsPointAt(trackId, p.distance, p.lateral);
 
     if (throttle > 0) p.speed += cfg.acceleration * throttle * dt;
     else if (throttle < 0) p.speed += cfg.acceleration * 1.6 * throttle * dt;
     p.speed -= p.speed * 0.32 * dt;
+    // Desnivel real: cuesta arriba frena, cuesta abajo empuja. La y y el
+    // peralte ya salían del snapshot; ahora la pendiente también afecta al
+    // comportamiento del kart.
+    p.speed -= Math.sin(current.pitch || 0) * 4.5 * dt;
     p.speed = clamp(p.speed, -6, maxSpeed);
     if (Math.abs(p.speed) < 0.04) p.speed = 0;
 
@@ -506,6 +521,20 @@ export function createKartsGame({
       p.lateral = Math.sign(p.lateral) * half;
       p.speed *= 0.85;
       offTrack = true;
+    }
+
+    // Obstáculos rígidos: frenazo, desplazamiento lateral hacia el hueco libre
+    // y evento para el HUD. El enfriamiento evita repetir el golpe cada tick.
+    const hit = kartsObstacleHits(trackId, p.distance, p.lateral);
+    if (hit) {
+      const offset = p.lateral - hit.lateral;
+      const pushSide = Math.abs(offset) < 0.05 ? (p.order % 2 ? 1 : -1) : Math.sign(offset);
+      p.lateral = clamp(hit.lateral + pushSide * (hit.radius + 1.15), -half, half);
+      if (t >= p.obstacleCooldownUntil) {
+        p.speed *= 0.42;
+        p.obstacleCooldownUntil = t + 700;
+        bump({ type: "obstacle", playerId: p.id, obstacleId: hit.id, trackId });
+      }
     }
 
     const point = kartsPointAt(trackId, p.distance, p.lateral);
@@ -544,6 +573,39 @@ export function createKartsGame({
     }
   }
 
+  // Contacto entre karts en coordenadas de pista: separa lateralmente y quita un
+  // poco de velocidad a ambos. Es autoritativo, igual que el resto de la física.
+  function resolveKartCollisions(t) {
+    const track = getTrack(trackId);
+    if (!track) return;
+    const active = list().filter((p) => !p.offline && !p.finished);
+    const half = track.width / 2 - 1.2;
+    for (let i = 0; i < active.length; i++) {
+      for (let j = i + 1; j < active.length; j++) {
+        const a = active[i];
+        const b = active[j];
+        let delta = Math.abs(a.distance - b.distance);
+        delta = Math.min(delta, track.length - delta);
+        const lateralDelta = a.lateral - b.lateral;
+        if (delta >= 2.8 || Math.abs(lateralDelta) >= 2) continue;
+        const sign = Math.abs(lateralDelta) < 0.05 ? (a.order % 2 ? 1 : -1) : Math.sign(lateralDelta);
+        const push = (2 - Math.abs(lateralDelta)) / 2 + 0.05;
+        a.lateral = clamp(a.lateral + sign * push, -half, half);
+        b.lateral = clamp(b.lateral - sign * push, -half, half);
+        a.speed *= 0.94;
+        b.speed *= 0.94;
+        if (t >= a.kartCooldownUntil) {
+          a.kartCooldownUntil = t + 600;
+          bump({ type: "kart-hit", playerId: a.id, otherId: b.id, trackId });
+        }
+        if (t >= b.kartCooldownUntil) {
+          b.kartCooldownUntil = t + 600;
+          bump({ type: "kart-hit", playerId: b.id, otherId: a.id, trackId });
+        }
+      }
+    }
+  }
+
   function tick(t = now()) {
     expireReservations(t);
     if (phase === "waiting") {
@@ -561,6 +623,7 @@ export function createKartsGame({
         if (p.offline || p.finished) continue;
         integrate(p, t);
       }
+      resolveKartCollisions(t);
       const ranked = standings();
       ranked.forEach((p, index) => {
         p.position = index + 1;

@@ -77,6 +77,11 @@ run("02 defs: tres pistas con la longitud pedida y sus diferenciadores", () => {
     ok(track.boosts.length >= 2, `${track.id}: turbos`);
     ok(track.tunnels.length >= 1, `${track.id}: túneles`);
     ok(track.shortcuts.length >= 1, `${track.id}: atajos`);
+    ok(track.obstacles.length >= 5, `${track.id}: obstáculos con colisión`);
+    ok(
+      track.obstacles.every((o) => Math.abs(o.lateral) + o.radius < track.width / 2),
+      `${track.id}: los obstáculos dejan hueco para pasar`
+    );
   }
   eq(DEF.KARTS_TRACKS.map((t) => t.targetLength).join(","), "1000,1600,2400", "longitudes objetivo");
   eq(DEF.isTrackPlayable("paddock"), true, "paddock jugable");
@@ -102,6 +107,29 @@ run("03 defs: spline, proyección, sectores y ayudas por parámetro", () => {
   eq(DEF.kartsShortcutAt("paddock", 0.15, 1), null, "el atajo tiene lado");
   eq(DEF.kartsTunnelAt("paddock", 0.5), true, "túnel a media pista");
   eq(DEF.kartsTunnelAt("paddock", 0.9), false, "sin túnel al final");
+  const relief = DEF.kartsPointAt("paddock", 200, 2);
+  ok(Number.isFinite(relief.bank) && Math.abs(relief.bank) > 0, "peralte en la spline");
+  ok(Number.isFinite(relief.pitch), "pendiente en la spline");
+  ok(
+    Math.abs(DEF.kartsPointAt("paddock", 0).y - DEF.kartsPointAt("paddock", 450).y) > 1,
+    "desnivel real entre dos puntos de la pista"
+  );
+  const firstObstacle = DEF.getTrack("paddock").obstacles[0];
+  eq(
+    DEF.kartsObstacleHits("paddock", firstObstacle.distance, firstObstacle.lateral).id,
+    firstObstacle.id,
+    "colisión sobre el obstáculo"
+  );
+  eq(
+    DEF.kartsObstacleHits("paddock", firstObstacle.distance + 40, firstObstacle.lateral),
+    null,
+    "sin colisión lejos del obstáculo"
+  );
+  eq(
+    DEF.kartsObstacleHits("paddock", firstObstacle.distance, firstObstacle.lateral + 5),
+    null,
+    "se puede esquivar por el lateral"
+  );
   const spawns = [];
   for (let i = 0; i < 8; i++) spawns.push(DEF.kartsSpawnFor("paddock", i, 8));
   eq(new Set(spawns.map((s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}`)).size, 8, "ocho salidas distintas");
@@ -133,7 +161,7 @@ run("05 registro: mapa interno, modalidad activa y sala oculta", () => {
   eq(map.room, false, "no es sala privada");
   eq(MAPS.getRoomMaps().some((m) => m.id === "karts"), false, "fuera del selector");
   eq(Array.isArray(OBS.MAP_OBSTACLES.karts), true, "colisión compartida");
-  eq(OBS.MAP_OBSTACLES.karts.length, 0, "sin obstáculos rígidos");
+  eq(OBS.MAP_OBSTACLES.karts.length, 0, "sin obstáculos de mapa en el paddock (los de pista van en kartsDefs)");
   eq(OBS.isInsideObstacle("karts", 0, -100), false, "paddock despejado");
   const mode = MODE.getMode("karts");
   eq(mode.status, "live", "modalidad activa");
@@ -202,11 +230,16 @@ run("07 controlador: cuenta atrás, física autoritativa y tres vueltas", () => 
   eq(game.action("A", { type: "drive", throttle: 1 }).ok, true, "intención de conducción");
 
   let ticks = 0;
+  const heights = [];
   while (game.phase === "racing" && ticks < 20000) {
     game.action("A", { type: "drive", throttle: 1, steer: 0 });
     game.action("B", { type: "drive", throttle: 1, steer: 0 });
     clock.value += DEF.KARTS_TICK_MS;
     game.tick();
+    if (ticks % 20 === 0) {
+      const leader = game.snapshot().players.find((p) => p.id === "A");
+      heights.push(leader.y);
+    }
     ticks++;
   }
   ok(ticks < 20000, "la carrera termina por vueltas");
@@ -217,6 +250,11 @@ run("07 controlador: cuenta atrás, física autoritativa y tres vueltas", () => 
   eq(done.players.find((p) => p.id === "A").points, 150, "puntos del ganador");
   eq(done.players.find((p) => p.id === "B").points, 125, "puntos del segundo");
   ok(events.includes("lap") && events.includes("finish") && events.includes("result"), "eventos de vuelta y resultado");
+  ok(events.includes("obstacle"), "los obstáculos generan colisión en carrera");
+  ok(events.includes("kart-hit"), "los karts también colisionan entre sí");
+  ok(Math.max(...heights) - Math.min(...heights) > 1, "el kart sigue el desnivel de la pista");
+  const leader = done.players.find((p) => p.id === "A");
+  ok(Number.isFinite(leader.bank) && Number.isFinite(leader.pitch), "el snapshot incluye peralte y pendiente");
   const stats = game.resultStats();
   eq(stats.participants.length, 2, "dos participantes");
   eq(stats.participants[0].earned, 150, "puntos ganados (no acumulados)");
@@ -459,6 +497,7 @@ run("12 servidor: movimiento bloqueado y conducción autoritativa", () => {
   const posAAfter = after.d.players.find((p) => p.id === "A");
   ok(posAAfter.distance > posA.distance + 5, "el kart avanza por la spline");
   ok(posAAfter.speed > 5, "velocidad autoritativa");
+  ok(Number.isFinite(posAAfter.bank) && Number.isFinite(posAAfter.pitch), "relieve en el snapshot del servidor");
 });
 
 run("13 servidor: resultado, puntos y vueltas en la DB", () => {

@@ -1120,9 +1120,69 @@ function makeKartsTrackMesh(track) {
   return group;
 }
 
+// Obstáculos visibles del trazado. Usan exactamente el mismo punto de la
+// spline y el mismo lateral que la colisión autoritativa del servidor.
+function makeKartsObstaclesMesh(track) {
+  const group = new THREE.Group();
+  const coneMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.75 });
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+  const barrelMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.7, metalness: 0.15 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.95 });
+
+  for (const obstacle of track.obstacles) {
+    const p = kartsPointAt(track.id, obstacle.distance, obstacle.lateral);
+    const item = new THREE.Group();
+    item.position.set(p.x, p.y, p.z);
+    item.rotation.y = p.yaw;
+
+    if (obstacle.type === "cones") {
+      for (const [dx, dz] of [[-0.85, 0], [0.85, 0], [0, 1.1]]) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.15, 10), coneMat);
+        cone.position.set(dx, 0.58, dz);
+        cone.castShadow = true;
+        item.add(cone);
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.12, 10), stripeMat);
+        band.position.set(dx, 0.62, dz);
+        item.add(band);
+      }
+    } else if (obstacle.type === "barril") {
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 1.5, 14), barrelMat);
+      barrel.position.y = 0.75;
+      barrel.castShadow = true;
+      item.add(barrel);
+      for (const y of [0.45, 1.05]) {
+        const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.18, 14), stripeMat);
+        stripe.position.y = y;
+        item.add(stripe);
+      }
+    } else {
+      for (const [dx, dz] of [[-0.55, 0], [0.55, 0]]) {
+        const tire = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.24, 8, 14), tireMat);
+        tire.rotation.x = -Math.PI / 2;
+        tire.position.set(dx, 0.26, dz);
+        tire.castShadow = true;
+        item.add(tire);
+      }
+    }
+
+    const tag = makeLabelSprite(obstacle.label, "#fecaca");
+    tag.scale.set(3.2, 0.8, 1);
+    tag.position.y = 2.2;
+    item.add(tag);
+    group.add(item);
+  }
+  return group;
+}
+
 function makeKartsWorld() {
   const group = new THREE.Group();
   const center = KARTS_PADDOCK_CENTER;
+  // Durante la carrera se ocultan las estructuras del paddock y la tienda:
+  // solo quedan la pista, los obstáculos y el HUD lateral con el podio.
+  const paddockGroup = new THREE.Group();
+  const shopGroup = new THREE.Group();
+  const portalGroup = new THREE.Group();
+  group.add(paddockGroup, shopGroup, portalGroup);
 
   // Paddock cubierto: solera de hormigón, techo, vigas y cuatro pilares.
   const floor = new THREE.Mesh(
@@ -1131,7 +1191,7 @@ function makeKartsWorld() {
   );
   floor.position.set(center.x, -0.1, center.z);
   floor.receiveShadow = true;
-  group.add(floor);
+  paddockGroup.add(floor);
 
   const steel = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.35 });
   for (const dx of [-42, 42]) {
@@ -1139,7 +1199,7 @@ function makeKartsWorld() {
       const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 9.5, 1.1), steel);
       pillar.position.set(center.x + dx, 4.75, center.z + dz);
       pillar.castShadow = true;
-      group.add(pillar);
+      paddockGroup.add(pillar);
     }
   }
   const roof = new THREE.Mesh(
@@ -1148,39 +1208,40 @@ function makeKartsWorld() {
   );
   roof.position.set(center.x, 9.6, center.z);
   roof.castShadow = true;
-  group.add(roof);
+  paddockGroup.add(roof);
   for (const dz of [-24, 0, 24]) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(92, 0.5, 0.7), steel);
     beam.position.set(center.x, 9.2, center.z + dz);
-    group.add(beam);
+    paddockGroup.add(beam);
     const light = new THREE.Mesh(
       new THREE.BoxGeometry(60, 0.12, 0.5),
       new THREE.MeshBasicMaterial({ color: 0xfff7d6 })
     );
     light.position.set(center.x, 8.9, center.z + dz);
-    group.add(light);
+    paddockGroup.add(light);
   }
   const backWall = new THREE.Mesh(
     new THREE.BoxGeometry(92, 8, 0.6),
     new THREE.MeshStandardMaterial({ color: 0x273449, roughness: 0.9 })
   );
   backWall.position.set(center.x, 4, center.z - 36);
-  group.add(backWall);
+  paddockGroup.add(backWall);
   const banner = makeLabelSprite("🏁 PADDOCK KARTS", "#fbcfe8", 640);
   banner.scale.set(16, 4, 1);
   banner.position.set(center.x, 6.2, center.z - 35.4);
-  group.add(banner);
+  paddockGroup.add(banner);
 
   // Pista jugable (los otros dos trazados se anuncian solo en los portales).
   const track = KARTS_TRACKS.find((item) => item.status === "live") || KARTS_TRACKS[0];
   group.add(makeKartsTrackMesh(track));
+  group.add(makeKartsObstaclesMesh(track));
 
   // Pedestales de la tienda. Cada malla lleva userData.kartId para el clic.
   const pedestals = [];
   const pickables = [];
   KART_PEDESTALS.forEach((position, index) => {
     const view = createKartPedestal(KART_CATALOG[index].id, position);
-    group.add(view.group);
+    shopGroup.add(view.group);
     pedestals.push(view);
     view.group.traverse((child) => {
       if (child.isMesh) pickables.push(child);
@@ -1199,13 +1260,13 @@ function makeKartsWorld() {
       },
       { yaw }
     );
-    group.add(view.group);
+    portalGroup.add(view.group);
     rings.push(view.ring);
     if (portal.status !== "live") {
       const tag = makeLabelSprite("En preparación", "#cbd5e1", 420);
       tag.scale.set(5.2, 1.3, 1);
       tag.position.set(portal.x, 5.2, portal.z);
-      group.add(tag);
+      portalGroup.add(tag);
     }
   });
 
@@ -1220,10 +1281,18 @@ function makeKartsWorld() {
     });
   }
 
+  function setKartsPhase(phase = "waiting") {
+    const inRace = phase === "countdown" || phase === "racing";
+    paddockGroup.visible = !inRace;
+    shopGroup.visible = !inRace;
+    portalGroup.visible = !inRace;
+  }
+
   return {
     group,
     pickables,
     setKartsState,
+    setKartsPhase,
     update(t) {
       rings.forEach((ring, index) => {
         ring.rotation.z = t * 0.7 + index;

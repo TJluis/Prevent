@@ -149,6 +149,15 @@ const TRACK_BLUEPRINTS = [
     boosts: [{ at: 0.34 }, { at: 0.79 }],
     tunnels: [{ from: 0.47, to: 0.54 }],
     shortcuts: [{ from: 0.10, to: 0.20, gain: 1.16, side: -1 }],
+    obstacles: [
+      { at: 0.105, lateral: 0, radius: 1.25, type: "cones", label: "Conos" },
+      { at: 0.19, lateral: 3.0, radius: 1.15, type: "barril", label: "Barril" },
+      { at: 0.29, lateral: -3.0, radius: 1.2, type: "neumatico", label: "Neumático" },
+      { at: 0.43, lateral: 1.2, radius: 1.3, type: "cones", label: "Conos" },
+      { at: 0.57, lateral: -1.0, radius: 1.35, type: "barril", label: "Barril" },
+      { at: 0.71, lateral: 3.2, radius: 1.15, type: "neumatico", label: "Neumático" },
+      { at: 0.85, lateral: -2.4, radius: 1.25, type: "cones", label: "Conos" },
+    ],
   },
   {
     id: "dunas",
@@ -172,6 +181,15 @@ const TRACK_BLUEPRINTS = [
     boosts: [{ at: 0.30 }, { at: 0.68 }, { at: 0.88 }],
     tunnels: [{ from: 0.40, to: 0.49 }],
     shortcuts: [{ from: 0.74, to: 0.84, gain: 1.2, side: 1 }],
+    obstacles: [
+      { at: 0.11, lateral: 0, radius: 1.3, type: "cones", label: "Conos" },
+      { at: 0.22, lateral: 3.1, radius: 1.2, type: "neumatico", label: "Neumático" },
+      { at: 0.35, lateral: -2.8, radius: 1.25, type: "barril", label: "Barril" },
+      { at: 0.52, lateral: 1.4, radius: 1.3, type: "cones", label: "Conos" },
+      { at: 0.66, lateral: -1.6, radius: 1.2, type: "neumatico", label: "Neumático" },
+      { at: 0.79, lateral: 3.2, radius: 1.2, type: "barril", label: "Barril" },
+      { at: 0.92, lateral: -2.2, radius: 1.25, type: "cones", label: "Conos" },
+    ],
   },
   {
     id: "cordillera",
@@ -199,6 +217,16 @@ const TRACK_BLUEPRINTS = [
       { from: 0.08, to: 0.17, gain: 1.18, side: -1 },
       { from: 0.58, to: 0.68, gain: 1.22, side: 1 },
       { from: 0.90, to: 0.97, gain: 1.14, side: -1 },
+    ],
+    obstacles: [
+      { at: 0.105, lateral: 0, radius: 1.3, type: "cones", label: "Conos" },
+      { at: 0.20, lateral: 3.2, radius: 1.2, type: "barril", label: "Barril" },
+      { at: 0.30, lateral: -3.1, radius: 1.25, type: "neumatico", label: "Neumático" },
+      { at: 0.44, lateral: 1.5, radius: 1.3, type: "cones", label: "Conos" },
+      { at: 0.56, lateral: -1.4, radius: 1.25, type: "barril", label: "Barril" },
+      { at: 0.68, lateral: 3.3, radius: 1.2, type: "neumatico", label: "Neumático" },
+      { at: 0.78, lateral: -2.5, radius: 1.3, type: "cones", label: "Conos" },
+      { at: 0.88, lateral: 2.3, radius: 1.2, type: "barril", label: "Barril" },
     ],
   },
 ];
@@ -319,6 +347,23 @@ function buildTrack(blueprint) {
       ...s,
       ...endpoints(s),
     })),
+    // Obstáculos rígidos dentro del trazado. Se resuelven en coordenadas de
+    // pista (distancia de arco + lateral) para que la colisión sea coherente
+    // con la spline, el peralte y los bucles de vuelta.
+    obstacles: blueprint.obstacles.map((o, index) => {
+      const raw = kartsPointAtRaw(frames, arc, length, o.at * length);
+      return {
+        ...o,
+        id: `${blueprint.id}-ob-${index + 1}`,
+        t: o.at,
+        distance: o.at * length,
+        x: raw.x + raw.nx * o.lateral,
+        y: raw.y + Math.sin(raw.bank) * o.lateral,
+        z: raw.z + raw.nz * o.lateral,
+        yaw: raw.yaw,
+        bank: raw.bank,
+      };
+    }),
   };
 }
 
@@ -376,12 +421,17 @@ export function kartsPointAt(id, distance, lateral = 0) {
   if (!track) return null;
   const p = kartsPointAtRaw(track.frames, track.arc, track.length, distance);
   const side = clamp(Number(lateral) || 0, -track.width, track.width);
+  // Pendiente en la dirección de marcha: se usa para que la física tenga en
+  // cuenta cuestas arriba/abajo y para inclinar el kart en la pantalla.
+  const prev = kartsPointAtRaw(track.frames, track.arc, track.length, distance - 3);
+  const next = kartsPointAtRaw(track.frames, track.arc, track.length, distance + 3);
   return {
     x: round(p.x + p.nx * side),
     y: round(p.y + Math.sin(p.bank) * side),
     z: round(p.z + p.nz * side),
     yaw: p.yaw,
     bank: round(p.bank),
+    pitch: round(Math.atan2(next.y - prev.y, 6)),
     t: round(((distance % track.length) + track.length) % track.length / track.length),
     dx: p.dx,
     dz: p.dz,
@@ -479,6 +529,25 @@ export function kartsShortcutAt(trackId, t, lateral) {
   for (const shortcut of track.shortcuts) {
     if (t >= shortcut.fromT && t <= shortcut.toT && Math.sign(lateral) === shortcut.side) {
       return shortcut;
+    }
+  }
+  return null;
+}
+
+// Colisión con los obstáculos del trazado. Se mide en coordenadas de pista para
+// que funcione igual en curvas, peraltes y al cerrar la vuelta.
+export function kartsObstacleHits(trackId, distance, lateral, kartHalfLength = 1.3, kartHalfWidth = 0.9) {
+  const track = getTrack(trackId);
+  if (!track || !Number.isFinite(distance) || !Number.isFinite(lateral)) return null;
+  const d = ((distance % track.length) + track.length) % track.length;
+  for (const obstacle of track.obstacles) {
+    let delta = Math.abs(d - obstacle.distance);
+    delta = Math.min(delta, track.length - delta);
+    if (
+      delta <= obstacle.radius + kartHalfLength &&
+      Math.abs(lateral - obstacle.lateral) <= obstacle.radius + kartHalfWidth
+    ) {
+      return obstacle;
     }
   }
   return null;
