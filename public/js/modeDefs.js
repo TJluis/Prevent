@@ -71,9 +71,14 @@ export const MODES = [
     name: "Ciudad social",
     short: "Ciudad",
     icon: "🏙️",
-    status: "soon",
+    status: "live",
     mapId: "ciudad-rol",
-    maxPlayers: 24,
+    maxPlayers: 50,
+    // Mundo social: cámara FP estricta y sin combate. `main.js` y `game.js`
+    // leen estas banderas para bloquear la tercera persona y los disparos.
+    camera: "first",
+    allowThirdPerson: false,
+    allowCombat: false,
     color: "#a78bfa",
     tagline: "Rol en primera persona",
     blurb: "Pasea, explora y colecciona objetos en una ciudad pensada para rolear.",

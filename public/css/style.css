@@ -3467,3 +3467,182 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
   .karts-hud-tracks { grid-template-columns: 1fr; }
 }
 
+/* --- Ciudad social: HUD del distrito --------------------------------------- */
+
+#ciudad-hud {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 56;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(760px, 94vw);
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(17, 24, 39, 0.86);
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+#ciudad-hud[hidden] { display: none !important; }
+
+.ciudad-hud-head,
+.ciudad-hud-body,
+.ciudad-hud-wallet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ciudad-hud-title {
+  font-weight: 900;
+  color: #c4b5fd;
+}
+
+.ciudad-hud-mode {
+  flex: 1;
+  min-width: 130px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #ddd6fe;
+}
+
+.ciudad-hud-coins {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #fef9c3;
+  background: rgba(250, 204, 21, 0.2);
+  border: 1px solid rgba(250, 204, 21, 0.5);
+}
+
+#ciudad-hud-close,
+.city-shop-btn { pointer-events: auto; }
+
+.ciudad-hud-body { flex-direction: column; align-items: stretch; gap: 7px; }
+
+.ciudad-hud-wallet { justify-content: space-between; }
+
+.ciudad-hud-collected {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #a7f3d0;
+}
+
+.ciudad-hud-hint,
+.ciudad-hud-flash {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.ciudad-hud-nearby {
+  padding: 6px 10px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #0f172a;
+  background: #fde68a;
+  border: 1px solid #fbbf24;
+}
+.ciudad-hud-nearby.is-unavailable {
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+.ciudad-hud-nearby[hidden],
+.ciudad-hud-flash[hidden] { display: none !important; }
+
+.ciudad-hud-section {
+  width: 100%;
+  padding-top: 6px;
+  border-top: 1px solid rgba(167, 139, 250, 0.25);
+}
+
+.ciudad-hud-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #ddd6fe;
+}
+
+.ciudad-inventory {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 24px;
+}
+
+.ciudad-inventory-empty {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.ciudad-inventory-item {
+  padding: 3px 7px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+.ciudad-inventory-item b { color: #fde68a; }
+
+.ciudad-shop {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 5px;
+}
+
+.city-shop-item {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 9px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.city-shop-icon { font-size: 0.95rem; }
+.city-shop-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.city-shop-btn {
+  padding: 3px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 900;
+  color: #0f172a;
+  background: #fde68a;
+  border: 1px solid #fbbf24;
+}
+.city-shop-btn.is-sell {
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+.city-shop-btn:disabled { opacity: 0.45; cursor: default; }
+
+.ciudad-hud-flash { color: #fde68a; font-weight: 800; }
+
+@media (max-width: 620px) {
+  .ciudad-hud-mode { display: none; }
+  .ciudad-shop { grid-template-columns: 1fr; }
+}
+

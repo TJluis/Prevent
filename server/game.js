@@ -10,6 +10,12 @@ import {
   unlockKart,
   setEquippedKart,
   getEquippedKart,
+  getCityWallet,
+  setCityWallet,
+  getCityInventory,
+  setCityInventory,
+  getCityCollectibles,
+  setCityCollectible,
 } from "./db.js";
 import { normalizeAppearance, DEFAULT_APPEARANCE } from "./appearance.js";
 import { WEAPONS, getWeapon, isCrystalWeapon } from "../public/js/weaponDefs.js";
@@ -32,6 +38,7 @@ import { createColiseoGame } from "./modes/coliseo.js";
 import { createEsconditeGame } from "./modes/escondite.js";
 import { createTntGame } from "./modes/tnt.js";
 import { createKartsGame } from "./modes/karts.js";
+import { createCityGame } from "./modes/ciudad.js";
 import {
   COLISEO_MAP_ID,
   coliseoClamp,
@@ -47,6 +54,11 @@ import {
   KARTS_TICK_MS,
   KART_START_ID,
 } from "../public/js/kartsDefs.js";
+import {
+  CITY_INTEREST_RANGE,
+  CITY_START_COINS,
+  cityWithinInterest,
+} from "../public/js/cityDefs.js";
 import {
   computeBlockedDamage,
   getBlockConfig,
@@ -125,6 +137,9 @@ let tntController = null;
 // Karts corre a 20 Hz para que la física autoritativa no vaya a saltos. Igual
 // que TNT, se guarda aparte para no llamarlo dos veces desde `modeTick`.
 let kartsController = null;
+// Ciudad es un distrito persistente: su controlador corre en el tick genérico
+// de 5 Hz (solo comprueba respawns) y no necesita un intervalo propio.
+let cityController = null;
 
 let io;
 let throwSeq = 1;
@@ -906,7 +921,11 @@ function detachFromRoom(socket, player, { notify = true, reason = "manual" } = {
   if (!oldCode) return;
   const channel = roomChannel(oldCode);
   socket.leave(channel);
-  if (notify) socket.to(channel).emit("player:left", { id: socket.id });
+  if (notify) {
+    const oldRoom = rooms.get(oldCode);
+    if (isCityRoom(oldRoom)) emitCityLeft(oldRoom, player);
+    else socket.to(channel).emit("player:left", { id: socket.id });
+  }
   removeFromRoom(player, reason);
   player.roomCode = null;
 }
@@ -1058,6 +1077,16 @@ function moveSocketToMode(socket, player, room) {
   room.members.add(socket.id);
   socket.join(roomChannel(room.code));
 
+  // Ciudad filtra el primer `mode:state` por distancia, así que su posición de
+  // llegada debe estar lista ANTES de que el controlador difunda el estado. El
+  // spawn se calcula con el mismo índice que usará `join`, así que coinciden.
+  const citySpawn = isCityRoom(room) && game && game.spawnFor ? game.spawnFor(player.id) : null;
+  if (citySpawn && Number.isFinite(citySpawn.x) && Number.isFinite(citySpawn.z)) {
+    player.x = citySpawn.x;
+    player.z = citySpawn.z;
+    if (Number.isFinite(citySpawn.yaw)) player.yaw = citySpawn.yaw;
+  }
+
   // Se une al controlador ANTES de calcular el spawn: en el Coliseo el bando
   // (y por tanto el punto de aparición) se asigna al entrar. El socket ya está
   // en el canal para recibir el `mode:state` que difunde `join`.
@@ -1086,20 +1115,26 @@ function moveSocketToMode(socket, player, room) {
 
   // Los minijuegos 3D tienen un punto de llegada propio (fuera del tablero y de
   // las plataformas de equipo). El resto sigue usando el spawn libre genérico.
-  const spawn = game && game.spawnFor ? game.spawnFor(player.id) : clearRoomSpawn(room.mapId);
+  const spawn = citySpawn || (game && game.spawnFor ? game.spawnFor(player.id) : clearRoomSpawn(room.mapId));
   player.x = spawn.x;
   player.z = spawn.z;
   player.y = Number.isFinite(spawn.y) ? spawn.y : 0;
   if (Number.isFinite(spawn.yaw)) player.yaw = spawn.yaw;
   ensureAliveForZone(player, socket, roomChannel(room.code));
 
-  socket.emit("welcome", { id: socket.id, players: roomMembers(room).map(playerSnapshot) });
+  const joinedSnapshot = playerSnapshot(player);
+  socket.emit("welcome", {
+    id: socket.id,
+    players: isCityRoom(room) ? cityVisiblePlayers(room, player) : roomMembers(room).map(playerSnapshot),
+  });
   socket.emit("chat:history", room.chat);
-  socket.to(roomChannel(room.code)).emit("player:joined", playerSnapshot(player));
+  if (isCityRoom(room)) emitCityJoined(room, player, joinedSnapshot);
+  else socket.to(roomChannel(room.code)).emit("player:joined", joinedSnapshot);
   socket.emit("room:state", { room: publicRoom(room), hosting: false });
   // El estado se reenvía tras room:state para que el cliente ya conozca la zona
-  // cuando pinte el HUD del minijuego.
-  if (game) socket.emit("mode:state", game.snapshot());
+  // cuando pinte el HUD del minijuego. Ciudad ya ha emitido su snapshot filtrado
+  // desde el controlador, así que no repetimos el estado global aquí.
+  if (game && !isCityRoom(room)) socket.emit("mode:state", game.snapshot());
   socket.emit("crystal:equip", { playerId: socket.id, weaponId: null });
   socket.emit("combat:block", {
     playerId: socket.id,
@@ -1524,6 +1559,84 @@ function kartsRejoinRoomFor(player) {
   return null;
 }
 
+// ---- Ciudad social ---------------------------------------------------------
+
+function isCityRoom(room) {
+  return !!room && room.kind === "mode" && room.modeId === "ciudad";
+}
+
+function cityGameFor(room) {
+  return isCityRoom(room) ? modeGames.get(room.code) || null : null;
+}
+
+// Interest management: cada jugador recibe su propio snapshot con solo los
+// vecinos que caen dentro del radio de 40 m (él mismo siempre va incluido).
+function cityVisiblePlayers(room, observer) {
+  return roomMembers(room)
+    .filter((player) => player.id === observer.id || cityWithinInterest(observer, player, CITY_INTEREST_RANGE))
+    .map(playerSnapshot);
+}
+
+function emitCityJoined(room, player, snapshot) {
+  for (const other of roomMembers(room)) {
+    if (other.id === player.id) continue;
+    if (cityWithinInterest(player, other, CITY_INTEREST_RANGE)) {
+      io.to(other.id).emit("player:joined", snapshot);
+    }
+  }
+}
+
+function emitCityLeft(room, player) {
+  for (const other of roomMembers(room)) {
+    if (other.id === player.id) continue;
+    if (cityWithinInterest(player, other, CITY_INTEREST_RANGE)) {
+      io.to(other.id).emit("player:left", { id: player.id });
+    }
+  }
+}
+
+function emitCityState(roomCode, snapshot, event) {
+  const room = rooms.get(roomCode);
+  if (!room) return;
+  const status = snapshot && snapshot.status ? snapshot.status : room.status;
+  const statusChanged = room.status !== status;
+  room.status = status;
+  if (snapshot) {
+    const cityGame = cityGameFor(room);
+    for (const member of roomMembers(room)) {
+      const observer = players.get(member.id);
+      if (!observer) continue;
+      const me = cityGame && cityGame.profileForId ? cityGame.profileForId(member.id) : null;
+      io.to(member.id).emit("mode:state", {
+        ...snapshot,
+        players: cityVisiblePlayers(room, observer),
+        me,
+      });
+    }
+  }
+  if (event) {
+    io.to(roomChannel(room.code)).emit("mode:event", { modeId: "ciudad", ...event });
+  }
+  if (statusChanged) {
+    io.to(roomChannel(room.code)).emit("room:state", {
+      room: publicRoom(room),
+      hosting: false,
+    });
+  }
+}
+
+function cityRejoinRoomFor(player) {
+  if (!player) return null;
+  for (const room of rooms.values()) {
+    if (!isCityRoom(room)) continue;
+    const game = cityGameFor(room);
+    if (game && game.canRejoin && game.canRejoin({ userId: player.userId, name: player.name })) {
+      return room;
+    }
+  }
+  return null;
+}
+
 export function setupGame(ioServer) {
   io = ioServer;
 
@@ -1613,6 +1726,35 @@ export function setupGame(ioServer) {
     modeGames.set(kartsRoom.code, kartsController);
   }
 
+  // Ciudad: distrito persistente y sin combate. Wallet, mochila y coleccionables
+  // se leen de la DB al arrancar y se vuelven a escribir tras cada acción.
+  const cityRoom = ensureModeRoom("ciudad");
+  if (cityRoom) {
+    cityController = createCityGame({
+      maxPlayers: getMode("ciudad").maxPlayers,
+      onChange: (snapshot, event) => emitCityState(cityRoom.code, snapshot, event),
+      loadCollectibles: () => getCityCollectibles(),
+      persistCollectible: (state) =>
+        setCityCollectible(state.id, state.availableAt, state.collectorId),
+      walletOf: ({ userId }) =>
+        userId
+          ? getCityWallet(userId)
+          : { coins: CITY_START_COINS, collected: 0, earned: 0, sold: 0, bought: 0 },
+      inventoryOf: ({ userId }) => (userId ? getCityInventory(userId) : []),
+      persistProfile: (identity, data) => {
+        const player = players.get(identity.id);
+        if (player) {
+          player.cityWallet = data.wallet;
+          player.cityInventory = data.inventory;
+        }
+        if (!identity.userId) return;
+        setCityWallet(identity.userId, data.wallet);
+        setCityInventory(identity.userId, data.inventory);
+      },
+    });
+    modeGames.set(cityRoom.code, cityController);
+  }
+
   io.on("connection", (socket) => {
     socket.on("player:join", (payload = {}) => {
       if (players.has(socket.id)) return;
@@ -1679,6 +1821,9 @@ export function setupGame(ioServer) {
           ? [KART_START_ID, ...getUserKarts(socket.data.userId).map((kart) => kart.id)]
           : [KART_START_ID],
         equippedKart: isAccount ? getEquippedKart(socket.data.userId) || KART_START_ID : KART_START_ID,
+        // Ciudad: espejo local del perfil persistido (o cartera de invitado).
+        cityWallet: isAccount ? getCityWallet(socket.data.userId) : { coins: CITY_START_COINS, collected: 0, earned: 0, sold: 0, bought: 0 },
+        cityInventory: isAccount ? getCityInventory(socket.data.userId) : [],
       };
       player.ownedKarts = [...new Set(player.ownedKarts)];
 
@@ -1699,7 +1844,10 @@ export function setupGame(ioServer) {
       // Si tenía una plaza reservada en el Escondite o en TNT Run, avisamos al
       // cliente para que vuelva a entrar automáticamente y recupere su estado.
       const rejoinRoom =
-        esconditeRejoinRoomFor(player) || tntRejoinRoomFor(player) || kartsRejoinRoomFor(player);
+        esconditeRejoinRoomFor(player) ||
+        tntRejoinRoomFor(player) ||
+        kartsRejoinRoomFor(player) ||
+        cityRejoinRoomFor(player);
       if (rejoinRoom) {
         socket.emit("mode:rejoin", {
           modeId: rejoinRoom.modeId,
@@ -1725,6 +1873,9 @@ export function setupGame(ioServer) {
         // carrera la posición la decide la física del controlador.
         const kartsGame = kartsGameFor(moveRoom);
         if (kartsGame && !kartsGame.canMove(player.id)) return;
+        // Ciudad es un mundo social: solo se mueve quien está dentro del distrito.
+        const cityGame = cityGameFor(moveRoom);
+        if (cityGame && !cityGame.canMove(player.id)) return;
         // En carrera los karts envían intenciones a `mode:action` a 20 Hz; el
         // canal genérico de movimiento queda cerrado para no falsificar giros.
         if (kartsGame && kartsGame.phase === "racing") return;
@@ -1802,7 +1953,18 @@ export function setupGame(ioServer) {
           slide: player.sliding,
         };
         if (player.roomCode) {
-          socket.to(roomChannel(player.roomCode)).emit("player:moved", moved);
+          const targetRoom = rooms.get(player.roomCode);
+          if (isCityRoom(targetRoom)) {
+            // El distrito no inunda el canal: solo avisa a las celdas vecinas.
+            for (const other of roomMembers(targetRoom)) {
+              if (other.id === socket.id) continue;
+              if (cityWithinInterest(player, other, CITY_INTEREST_RANGE)) {
+                io.to(other.id).emit("player:moved", moved);
+              }
+            }
+          } else {
+            socket.to(roomChannel(player.roomCode)).emit("player:moved", moved);
+          }
         } else {
           socket.to(LOBBY_CHANNEL).emit("player:moved", moved);
         }
@@ -2376,7 +2538,7 @@ export function setupGame(ioServer) {
         // vigente la reserva para esta cuenta o nombre de invitado.
         const rejoinAvailable =
           !!rejoin &&
-          (def.id === "escondite" || def.id === "tnt") &&
+          (def.id === "escondite" || def.id === "tnt" || def.id === "ciudad") &&
           (() => {
             const target = ensureModeRoom(def.id, variantId);
             const targetGame = target ? modeGames.get(target.code) : null;
@@ -2498,7 +2660,12 @@ export function setupGame(ioServer) {
             "already-owned": "Ya tienes ese kart en el garaje.",
             "not-enough-points": "Te faltan puntos de carrera para ese kart.",
             "not-owned": "Primero tienes que comprar ese kart.",
-            "bad-position": "No se pudo leer tu posición.",
+            "bad-item": "Ese objeto no existe.",
+            "not-near": "Acércate al objeto para recogerlo.",
+            "already-collected": "Ese objeto ya fue recogido; volverá a aparecer.",
+            "inventory-full": "Tu mochila está llena. Vende algo primero.",
+            "no-item": "No tienes ese objeto en la mochila.",
+            "not-enough-coins": "Te faltan monedas para comprarlo.",
             "unknown-action": "Esa acción no existe.",
           };
           const message = messages[result.reason];
@@ -2596,9 +2763,8 @@ export function setupGame(ioServer) {
         }
         if (player.roomCode) {
           const room = rooms.get(player.roomCode);
-          if (room) {
-            socket.to(roomChannel(room.code)).emit("player:left", { id: socket.id });
-          }
+          if (room && isCityRoom(room)) emitCityLeft(room, player);
+          else if (room) socket.to(roomChannel(room.code)).emit("player:left", { id: socket.id });
           removeFromRoom(player, "disconnect");
         } else {
           socket.to(LOBBY_CHANNEL).emit("player:left", { id: socket.id });

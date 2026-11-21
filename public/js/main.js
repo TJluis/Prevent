@@ -44,7 +44,9 @@ import { createColiseoHud } from "./coliseo.js";
 import { createEsconditeHud } from "./escondite.js";
 import { createTntHud } from "./tnt.js";
 import { createKartsHud } from "./kartsHud.js";
+import { createCityHud } from "./ciudadHud.js";
 import { createKartModel } from "./kartModels.js";
+import { cityItemById, cityNearestCollectible } from "./cityDefs.js";
 import {
   KARTS_MAP_ID,
   KARTS_PORTALS,
@@ -298,6 +300,11 @@ addEventListener("keydown", (event) => {
     }
   }
   if ((event.code === "KeyE" || event.key === "e" || event.key === "E") && !typing) {
+    // En Ciudad la E recoge el objeto cercano antes que activar portales.
+    if (cityArena() && cityInteract()) {
+      event.preventDefault();
+      return;
+    }
     if (activatePortal()) {
       event.preventDefault();
       return;
@@ -502,6 +509,10 @@ let coliseoUI = null;
 let esconditeUI = null;
 let tntUI = null;
 let kartsUI = null;
+let cityUI = null;
+// Último snapshot del controlador de Ciudad. El servidor decide distancias,
+// precios y respawns; aquí solo se pinta y se calcula el objeto cercano.
+let cityState = null;
 // Último snapshot del controlador de Karts. La física la decide el servidor;
 // aquí solo se usa para colocar avatares, pintar el HUD y detectar proximidad.
 let kartsState = null;
@@ -756,7 +767,8 @@ function removeViewGun() {
 
 function swapViewGun() {
   removeViewGun();
-  if (!fpMode || !combat) return;
+  // Ciudad usa la FP para pasear, no para disparar: nunca se monta viewmodel.
+  if (!fpMode || !combat || cityArena()) return;
   const wid = combat.getWeaponId();
   viewWid = wid;
   const rig = buildViewmodel(wid, myAppearance);
@@ -814,7 +826,14 @@ function setFPMode(on) {
 }
 
 function toggleFPView() {
-  if (!running || !started || !myAvatar || !myOwnAlive || !inCombatZone()) return;
+  if (!running || !started || !myAvatar || !myOwnAlive) return;
+  // En Ciudad la primera persona es obligatoria: V solo la restaura si algo la
+  // apagó, pero nunca permite volver a la vista en tercera persona.
+  if (cityArena()) {
+    if (!fpMode) setFPMode(true);
+    return;
+  }
+  if (!inCombatZone()) return;
   if (!combat) return;
   if (combat.isAnimating(myId)) return;
   setFPMode(!fpMode);
@@ -1086,6 +1105,13 @@ combat.setOwn(myOwnHp, myOwnAlive);
     onLeave: () => leaveMode(),
   });
 
+  cityUI = createCityHud({
+    getMyId: () => myId,
+    onBuy: (itemId, qty) => sendModeAction({ type: "buy", itemId, qty }),
+    onSell: (itemId, qty) => sendModeAction({ type: "sell", itemId, qty }),
+    onLeave: () => leaveMode(),
+  });
+
   if (TOUCH_MODE) {
     const needRoom = () => {
       if (!inCombatZone()) {
@@ -1158,8 +1184,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
     esconditeUI,
     tntUI,
     kartsUI,
+    cityUI,
     remotes,
     walkTo,
+    // Ciudad: recoge el objeto cercano y expone el estado para las pruebas de
+    // cámara FP, economía e interest management.
+    collectNearest: () => cityInteract(),
+    get cityNearby() {
+      return cityNearbySpot();
+    },
     // Ganchos de prueba para la isla y los minijuegos: el servidor valida
     // igualmente proximidad, turno y presupuesto de movimiento.
     enterHub,
@@ -1182,6 +1215,12 @@ combat.setOwn(myOwnHp, myOwnAlive);
     get esconditeFrozen() { return esconditeSeekerFrozen(); },
     get tntState() { return tntUI ? tntUI.getState() : null; },
     get kartsState() { return kartsState; },
+    get cityState() { return cityState; },
+    get cityZone() {
+      return myRoom && myRoom.kind === "mode" && myRoom.modeId === "ciudad"
+        ? { modeId: myRoom.modeId, mapId: myRoom.mapId, combat: myRoom.combat, camera: "first" }
+        : null;
+    },
     get kartsTarget() { return portalTarget && portalTarget.kind ? portalTarget : null; },
     get tntBaseY() { return tntBaseY; },
     get tntFalling() { return tntFalling; },
@@ -1320,17 +1359,23 @@ combat.setOwn(myOwnHp, myOwnAlive);
           kind === "mode" && room.modeId === "coliseo" ? room.variant || "1v1" : "1v1"
         );
       }
-      if (!hasCombat && fpMode) {
+      // Ciudad es el único modo sin combate que exige FP: las demás zonas sin
+      // combate vuelven a la vista en tercera persona al entrar.
+      if (cityArena()) {
+        if (!fpMode) setFPMode(true);
+      } else if (!hasCombat && fpMode) {
         setFPMode(false);
       }
       if (combat) combat.setEnabled(hasCombat);
       if (!hasCombat) stopBlocking();
       syncShieldButton();
       if (hockey) hockey.setActive(!room);
-      // En Karts no hay inventario: la mochila estorba en la pista y no aplica
-      // a este modo. Se restaura al salir a cualquier otra zona.
+      // En Karts y Ciudad se oculta la mochila de combate: Karts no la usa y
+      // Ciudad tiene su propia mochila/economía en el HUD del distrito.
       if (inventoryBar) {
-        inventoryBar.setEnabled(!(kind === "mode" && room && room.modeId === "karts"));
+        inventoryBar.setEnabled(
+          !(kind === "mode" && room && (room.modeId === "karts" || room.modeId === "ciudad"))
+        );
       }
       if (loot) loot.setEnabled(isPrivateRoom);
       if (scoreboard) scoreboard.setRoom(isPrivateRoom);
@@ -1380,6 +1425,13 @@ combat.setOwn(myOwnHp, myOwnAlive);
         else {
           kartsUI.hide();
           kartsState = null;
+        }
+      }
+      if (cityUI) {
+        if (cityArena()) cityUI.show();
+        else {
+          cityUI.hide();
+          cityState = null;
         }
       }
       updatePortalPrompt();
@@ -1572,6 +1624,15 @@ combat.setOwn(myOwnHp, myOwnAlive);
       // El servidor no manda el equipo propio: se deduce del id local para que
       // el HUD y el resaltado del tablero sepan a quién pertenece el turno.
       const mine = (snapshot.players || []).find((player) => player.id === myId);
+      if (snapshot.modeId === "ciudad") {
+        cityState = snapshot;
+        if (cityUI) {
+          if (cityArena() && !cityUI.isOpen()) cityUI.show();
+          cityUI.setState(snapshot);
+        }
+        if (world && world.setCityState) world.setCityState(snapshot);
+        return;
+      }
       if (snapshot.modeId === "karts") {
         kartsState = snapshot;
         if (kartsUI) {
@@ -1631,6 +1692,14 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (pairsBoard) pairsBoard.setState(snapshot);
     },
     onModeEvent: (payload) => {
+      if (payload && payload.modeId === "ciudad") {
+        if (cityUI) cityUI.event(payload);
+        if (payload.type === "collect" && payload.playerId === myId) {
+          const item = cityItemById(payload.item);
+          showToast(`+${payload.coins} 🪙 · ${item ? item.name : payload.name}`, 1800);
+        }
+        return;
+      }
       if (payload && payload.modeId === "karts") {
         if (kartsUI) kartsUI.event(payload);
         if (payload.type === "purchase" && payload.playerId === myId) {
@@ -1690,6 +1759,10 @@ combat.setOwn(myOwnHp, myOwnAlive);
       if (data.modeId === "karts") {
         showToast("Reconectando al paddock…", 2200);
         joinMode("karts", null, true);
+      }
+      if (data.modeId === "ciudad") {
+        showToast("Reconectando al distrito…", 2200);
+        joinMode("ciudad", null, true);
       }
     },
     onModeTeleport: ({ id, x, z, y, yaw } = {}) => {
@@ -1887,6 +1960,11 @@ function leaveGame() {
     kartsUI.hide();
     kartsUI = null;
   }
+  if (cityUI) {
+    cityUI.dispose();
+    cityUI = null;
+  }
+  cityState = null;
   kartsState = null;
   resetTntAvatar();
   tntBaseY = 0;
@@ -2190,6 +2268,10 @@ function loop(now) {
     }
 
     updatePortalPrompt();
+    if (cityArena() && cityUI) {
+      const spot = cityNearbySpot();
+      cityUI.setNearby(spot, spot ? spot.available : true);
+    }
     applyKartsSnapshot(dt);
 
     // Arena de Pares: equipo al pisar plataforma, carta bajo los pies y salto
@@ -2522,6 +2604,38 @@ function resetTntAvatar() {
   tntFallY = 0;
   tntFallVy = 0;
   if (myAvatar) myAvatar.visible = true;
+}
+
+// --- Ciudad social ----------------------------------------------------------
+
+function cityArena() {
+  return !!myRoom && myRoom.kind === "mode" && myRoom.modeId === "ciudad";
+}
+
+function cityCollectibleEntry(spot) {
+  if (!spot || !cityState) return null;
+  return (cityState.collectibles || []).find((entry) => entry.id === spot.id) || null;
+}
+
+// Objeto más cercano dentro del radio de interacción, con el estado de respawn
+// que mandó el servidor. Se usa tanto para el aviso del HUD como para la tecla E.
+function cityNearbySpot() {
+  if (!cityArena()) return null;
+  const spot = cityNearestCollectible(myPosition.x, myPosition.z);
+  if (!spot) return null;
+  const entry = cityCollectibleEntry(spot);
+  return { ...spot, available: entry ? entry.available !== false : true };
+}
+
+function cityInteract() {
+  const spot = cityNearbySpot();
+  if (!spot) return false;
+  if (spot.available === false) {
+    showToast("Ese objeto ya fue recogido; volverá a aparecer.", 1800);
+    return true;
+  }
+  sendModeAction({ type: "collect", id: spot.id });
+  return true;
 }
 
 // --- Karts ------------------------------------------------------------------

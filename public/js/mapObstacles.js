@@ -297,6 +297,33 @@ for (let i = 0; i < 12; i++) {
   });
 }
 
+// --- Distrito de Ciudad social ----------------------------------------------
+// Cuatro manzanas por eje (centros en ±15 y ±45) de 18 × 18 m dejan calles de
+// 12 m entre bloques. Los 13 coleccionables de cityDefs están en los cruces,
+// así que ninguno cae dentro de estas cajas. Los puestos pequeños se apartan de
+// los cruces para no tapar los puntos de interacción.
+const ciudadRol = [];
+for (const x of [-45, -15, 15, 45]) {
+  for (const z of [-45, -15, 15, 45]) {
+    const idx = (x + 45) / 30 + ((z + 45) / 30) * 4;
+    ciudadRol.push({
+      kind: "building",
+      type: "box",
+      x,
+      z,
+      w: 18,
+      d: 18,
+      h: 9 + (idx % 3) * 2,
+    });
+  }
+}
+for (const [x, z] of [
+  [-30, -10], [30, 10], [-10, 30], [10, -30],
+  [60, 30], [-60, -30], [30, -60], [-30, 60],
+]) {
+  ciudadRol.push({ kind: "crate", type: "box", x, z, w: 2.4, d: 2.4 });
+}
+
 export const MAP_OBSTACLES = {
   selva,
   desierto,
@@ -315,6 +342,8 @@ export const MAP_OBSTACLES = {
   // El paddock y la pista son decoración 3D; su colisión la resuelve la spline
   // del controlador, no los obstáculos rígidos del mundo compartido.
   karts: [],
+  // El distrito social usa edificios y puestos como colisión compartida.
+  "ciudad-rol": ciudadRol,
 };
 
 // Devuelve la lista de obstáculos de un mapa de sala (o null si no tiene layout

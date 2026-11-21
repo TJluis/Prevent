@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CITY_START_COINS } from "../public/js/cityDefs.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || path.join(__dirname, "..", "data", "club.db");
@@ -66,6 +67,32 @@ db.exec(`
     equipped INTEGER NOT NULL DEFAULT 0,
     unlocked_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, kart_id)
+  );
+
+  -- Ciudad social (C1-C2): cartera, mochila y estado global de coleccionables.
+  CREATE TABLE IF NOT EXISTS city_wallets (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    coins INTEGER NOT NULL DEFAULT 0,
+    collected INTEGER NOT NULL DEFAULT 0,
+    earned INTEGER NOT NULL DEFAULT 0,
+    sold INTEGER NOT NULL DEFAULT 0,
+    bought INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS city_inventory (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    item_id TEXT NOT NULL,
+    qty INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, item_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS city_collectibles (
+    id TEXT PRIMARY KEY,
+    available_at INTEGER NOT NULL DEFAULT 0,
+    collector_id TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
 
@@ -201,6 +228,106 @@ export function getEquippedKart(userId) {
     .prepare("SELECT kart_id FROM user_karts WHERE user_id = ? AND equipped = 1 LIMIT 1")
     .get(userId);
   return row ? row.kart_id : null;
+}
+
+// ---- Ciudad social ---------------------------------------------------------
+// El distrito guarda tres cosas: la cartera del avatar, su mochila y el estado
+// de respawn de cada fuente. Las cuentas sobreviven al reinicio; los invitados
+// conservan su espejo en memoria mientras vive el controlador.
+
+const CITY_EMPTY_WALLET = () => ({
+  coins: CITY_START_COINS,
+  collected: 0,
+  earned: 0,
+  sold: 0,
+  bought: 0,
+});
+
+export function getCityWallet(userId) {
+  if (!userId) return CITY_EMPTY_WALLET();
+  const row = db.prepare("SELECT coins, collected, earned, sold, bought FROM city_wallets WHERE user_id = ?").get(userId);
+  if (!row) return CITY_EMPTY_WALLET();
+  return {
+    coins: row.coins,
+    collected: row.collected,
+    earned: row.earned,
+    sold: row.sold,
+    bought: row.bought,
+  };
+}
+
+export function ensureCityWallet(userId) {
+  if (!userId) return getCityWallet(userId);
+  const wallet = CITY_EMPTY_WALLET();
+  db.prepare(
+    `INSERT OR IGNORE INTO city_wallets (user_id, coins, collected, earned, sold, bought)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(userId, wallet.coins, wallet.collected, wallet.earned, wallet.sold, wallet.bought);
+  return getCityWallet(userId);
+}
+
+export function setCityWallet(userId, wallet) {
+  if (!userId || !wallet) return null;
+  ensureCityWallet(userId);
+  db.prepare(
+    `UPDATE city_wallets
+        SET coins = ?, collected = ?, earned = ?, sold = ?, bought = ?,
+            updated_at = datetime('now')
+      WHERE user_id = ?`
+  ).run(
+    Math.max(0, Math.round(Number(wallet.coins) || 0)),
+    Math.max(0, Math.round(Number(wallet.collected) || 0)),
+    Math.max(0, Math.round(Number(wallet.earned) || 0)),
+    Math.max(0, Math.round(Number(wallet.sold) || 0)),
+    Math.max(0, Math.round(Number(wallet.bought) || 0)),
+    userId
+  );
+  return getCityWallet(userId);
+}
+
+export function getCityInventory(userId) {
+  if (!userId) return [];
+  return db
+    .prepare("SELECT item_id, qty FROM city_inventory WHERE user_id = ? ORDER BY item_id")
+    .all(userId)
+    .map((row) => ({ id: row.item_id, qty: row.qty }));
+}
+
+export function setCityInventory(userId, items) {
+  if (!userId || !Array.isArray(items)) return [];
+  const clean = items
+    .filter((item) => item && item.id && Number(item.qty) > 0)
+    .map((item) => ({ id: String(item.id).slice(0, 40), qty: Math.min(999, Math.round(item.qty)) }));
+  db.prepare("DELETE FROM city_inventory WHERE user_id = ?").run(userId);
+  const insert = db.prepare(
+    `INSERT INTO city_inventory (user_id, item_id, qty) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, item_id) DO UPDATE SET qty = excluded.qty, updated_at = datetime('now')`
+  );
+  for (const item of clean) insert.run(userId, item.id, item.qty);
+  return getCityInventory(userId);
+}
+
+export function getCityCollectibles() {
+  return db
+    .prepare("SELECT id, available_at, collector_id FROM city_collectibles")
+    .all()
+    .map((row) => ({
+      id: row.id,
+      availableAt: row.available_at,
+      collectorId: row.collector_id || null,
+    }));
+}
+
+export function setCityCollectible(id, availableAt, collectorId = null) {
+  if (!id) return false;
+  db.prepare(
+    `INSERT INTO city_collectibles (id, available_at, collector_id) VALUES (?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       available_at = excluded.available_at,
+       collector_id = excluded.collector_id,
+       updated_at = datetime('now')`
+  ).run(String(id).slice(0, 40), Math.max(0, Math.round(availableAt) || 0), collectorId ? String(collectorId).slice(0, 80) : null);
+  return true;
 }
 
 // Suma el resultado de una partida al historial de la cuenta. `bestStreak` es la

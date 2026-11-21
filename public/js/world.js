@@ -36,6 +36,7 @@ import {
   kartsPointAt,
 } from "./kartsDefs.js";
 import { createKartPedestal } from "./kartModels.js";
+import { CITY_COLLECTIBLES, CITY_MAP_ID } from "./cityDefs.js";
 
 export { MAPS, getMap, getRoomMaps, getMapBoundary };
 export { makeCordilleraScenery, makeTerrain };
@@ -2410,6 +2411,14 @@ export const MAP_DEFS = {
     obstacles: MAP_OBSTACLES.tnt,
     palette: {},
   },
+
+  "ciudad-rol": {
+    obstacles: MAP_OBSTACLES["ciudad-rol"],
+    palette: {
+      building: { body: 0xe7c9a3 },
+      crate: { box: 0xc6a06f, bands: [0x7fa8c9, 0xe79b6a, 0x9bc99a] },
+    },
+  },
 };
 
 export const THEMES = {
@@ -2662,6 +2671,28 @@ export const THEMES = {
     ambient: { color: 0x93a4bd, intensity: 0.65 },
     sun: { color: 0xfff2d6, intensity: 1.35 },
     particles: { color: 0xfbcfe8, count: 90, size: 0.09, opacity: 0.35 },
+  },
+
+  // Distrito social: luz diurna y niebla corta. La niebla no sustituye al
+  // interest management, pero evita que el mundo se lea hasta el horizonte.
+  "ciudad-rol": {
+    sky: { top: 0x5aa7e8, mid: 0xa9d8f5, horizon: 0xfef3dc },
+    fog: { color: 0xdbeaf6, near: 34, far: 96 },
+    ground: {
+      base: "#b9c7d1",
+      light: "rgba(255,255,255,0.45)",
+      dark: "rgba(80,105,130,0.28)",
+      repeat: 12,
+      speckles: 1200,
+      roughness: 0.95,
+      grid: "rgba(255,255,255,0.22)",
+    },
+    wall: 0x8aa2b8,
+    wallTop: 0xf1f5f9,
+    hemisphere: 0xdff1ff,
+    ambient: { color: 0xe8f2ff, intensity: 0.7 },
+    sun: { color: 0xfff3d6, intensity: 1.35 },
+    particles: { color: 0xffe8b0, count: 90, size: 0.08, opacity: 0.28 },
   },
 };
 
@@ -3249,6 +3280,15 @@ export const GROUND_COVER = {
     tuftColor: [0x5aa85a, 0x76bf6a, 0x8fd07a],
     pebbleColor: 0xb8ad8a,
   },
+  "ciudad-rol": {
+    seed: 4111,
+    keepOut: [{ x: 0, z: 0, r: 5 }],
+    tufts: 50,
+    pebbles: 130,
+    flowers: 24,
+    tuftColor: [0x7fb886, 0x9ccf9a],
+    pebbleColor: 0x9aa6b0,
+  },
 };
 
 function makeGroundCover(scene, mapId, boundary) {
@@ -3693,6 +3733,94 @@ function addExtraDecor(scene, mapId) {
   }
 }
 
+// Distrito social: fuente central, farolas y un marcador flotante por punto
+// coleccionable. Los marcadores se ocultan cuando el servidor dice que ya fue
+// recogido y vuelven a aparecer con el evento `respawn`.
+function makeCityWorld() {
+  const group = new THREE.Group();
+  const markers = new Map();
+
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd9e2ea, roughness: 0.85 });
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x66c7e8,
+    emissive: 0x2b8fb8,
+    emissiveIntensity: 0.35,
+    roughness: 0.25,
+  });
+  const basin = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.75, 24), stoneMat);
+  basin.position.y = 0.38;
+  basin.receiveShadow = true;
+  group.add(basin);
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(3.7, 3.7, 0.1, 24), waterMat);
+  water.position.y = 0.8;
+  group.add(water);
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.6, 12), stoneMat);
+  pillar.position.y = 2.05;
+  pillar.castShadow = true;
+  group.add(pillar);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.2, 0.35, 16), stoneMat);
+  top.position.y = 3.45;
+  group.add(top);
+
+  for (const [x, z] of [
+    [-30, -8], [-30, 8], [30, -8], [30, 8],
+    [-8, -30], [8, -30], [-8, 30], [8, 30],
+    [-60, -8], [-60, 8], [60, -8], [60, 8],
+  ]) {
+    const lamp = makeLamp();
+    lamp.position.set(x, 0, z);
+    group.add(lamp);
+  }
+
+  const gemMat = new THREE.MeshStandardMaterial({
+    color: 0xfde68a,
+    emissive: 0xf59e0b,
+    emissiveIntensity: 1.05,
+    roughness: 0.3,
+  });
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xfff2c4,
+    transparent: true,
+    opacity: 0.55,
+  });
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0xaab8c6, roughness: 0.8 });
+  for (const spot of CITY_COLLECTIBLES) {
+    const marker = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.15, 0.22, 12), baseMat);
+    base.position.y = 0.11;
+    base.receiveShadow = true;
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.55, 0), gemMat);
+    gem.position.y = 1.15;
+    gem.castShadow = true;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.06, 8, 24), ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.35;
+    marker.add(base, gem, ring);
+    marker.position.set(spot.x, 0, spot.z);
+    marker.userData.collectibleId = spot.id;
+    group.add(marker);
+    markers.set(spot.id, { marker, gem });
+  }
+
+  return {
+    group,
+    setState(snapshot) {
+      const list = snapshot && snapshot.collectibles ? snapshot.collectibles : [];
+      for (const entry of list) {
+        const found = markers.get(entry.id);
+        if (found) found.marker.visible = entry.available !== false;
+      }
+    },
+    update(elapsed) {
+      for (const { marker, gem } of markers.values()) {
+        if (!marker.visible) continue;
+        gem.rotation.y = elapsed * 1.4;
+        gem.position.y = 1.15 + Math.sin(elapsed * 2 + marker.position.x * 0.3) * 0.12;
+      }
+    },
+  };
+}
+
 let currentResizeHandler = null;
 
 function addResizeListener(camera, renderer) {
@@ -3837,6 +3965,7 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
 
   let tntArena = null;
   let kartsWorld = null;
+  let cityWorld = null;
   let coliseoArenaGroup = null;
   let activeColiseoVariantId = "1v1";
   if (mapId === "nevado") {
@@ -3857,6 +3986,10 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     // Paddock cubierto, pedestales, portales y la pista de 1.000 m.
     kartsWorld = makeKartsWorld();
     scene.add(kartsWorld.group);
+  } else if (mapId === CITY_MAP_ID) {
+    // Fuente, farolas y marcadores de los 13 coleccionables del distrito.
+    cityWorld = makeCityWorld();
+    scene.add(cityWorld.group);
   }
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: theme.wall, roughness: 0.55 });
@@ -3930,6 +4063,9 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
     setKartsState(state) {
       if (kartsWorld) kartsWorld.setKartsState(state);
     },
+    setCityState(state) {
+      if (cityWorld) cityWorld.setState(state);
+    },
     // Mallas de los pedestales: el cliente lanza un raycaster sobre ellas para
     // comprar/equipar haciendo clic en el kart 3D.
     get kartsPickables() {
@@ -3954,6 +4090,7 @@ function buildWorld(mapId = "nevado", existingRenderer = null) {
       if (portalUpdate) portalUpdate(elapsed);
       if (tntArena) tntArena.update(dt);
       if (kartsWorld) kartsWorld.update(elapsed);
+      if (cityWorld) cityWorld.update(elapsed);
       if (isTerrainMap(mapId)) sky.position.copy(camera.position);
     },
   };

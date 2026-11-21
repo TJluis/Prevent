@@ -27,6 +27,9 @@ export const MAPS = [
   // Paddock cubierto y circuito de 1.000 m. El recinto es grande porque la
   // pista se dibuja lejos del lobby para que no se pisen las dos escenas.
   { id: "karts", name: "Paddock de Karts", room: false, size: 1400 },
+  // Distrito de Ciudad social: 180 m de lado para acomodar 50 jugadores con
+  // celdas de interés de 20 m sin que la niebla y el mundo carguen de golpe.
+  { id: "ciudad-rol", name: "Distrito de Pingüí", room: false, size: 180 },
 ];
 
 export function getMap(id) {
