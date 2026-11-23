@@ -2,7 +2,7 @@
 
 **Alumno:** Luis Javier Tovar Segura
 **Materia:** Formulación de Proyectos de Tecnología (7A) · Mtro. Domingo Fraga Hernández
-**Duración objetivo:** 14–16 min + preguntas
+**Duración objetivo:** 14–15 min + preguntas
 **Entrega:** hasta el 23/NOV/2026. La presentación comienza apenas empiece la clase.
 **Regla de oro:** no leer la diapositiva. Cada una tiene una idea; el texto de apoyo ya está en pantalla.
 **Corte:** estado técnico y capturas del 22–23/11/2026; valor ganado sigue siendo del 06/10/2026.
@@ -26,9 +26,6 @@
 | 11 | Factibilidad e impactos | 0:55 | “Viable dentro del corte académico.” |
 | 12 | Demo · recorrido | 1:40 | “Isla, seis portales, seis modos reales.” |
 | 13 | Demo · Ciudad | 1:40 | “C1 y C2 están cerradas; C3–C5, no.” |
-| 14 | Validación | 0:50 | “Revisé antes de subir y validé que se vea.” |
-| 15 | Objetivos pendientes | 0:50 | “No subo un objetivo sin su evidencia.” |
-| 16 | Cierre | 0:40 | “Real y medible; lo incompleto tiene nombre y fecha.” |
 
 ---
 
@@ -128,25 +125,6 @@
 
 ---
 
-## Bloque VI · Cierre (1:30)
-
-### 14 · Validación
-**Di:** “Antes de subirlo ejecuté las catorce suites, revisé el reporte de carga y verifiqué los logs de captura: trece imágenes del juego y cuatro de documentos, con ok en verdadero y cero errores de consola. Después validé que el HTML se navegue con flechas, que el PDF tenga 16 páginas y que el PPTX tenga 16 diapositivas editables.”
-**Señala:** los cuatro KPI y la tabla de revisiones.
-**Transición:** “Y esto es lo que todavía no cierro.”
-
-### 15 · Objetivos pendientes
-**Di:** “O1 se queda en 95 %: la técnica funciona, pero no hay acta con dos o más clientes en la carpeta de documentos. O4 está cumplido con reserva hasta repetir el tuner de mapas. O6 está en proceso: la carga y el servidor local responden, pero faltan publicación y aceptación. O2, O3 y O5 sí están cerrados.”
-**Señala:** la fila de O1.
-**Dato clave:** “No subo un objetivo a 100 % sin la evidencia que su indicador exige.”
-**Transición:** “Una última idea.”
-
-### 16 · Cierre
-**Di:** “El 27 de octubre dijimos que el avance era real, medible y todavía incompleto. Hoy es real y medible —seis modos, Ciudad C1–C2, 14 suites y 60 bots— y la parte incompleta tiene nombre, responsable y fecha: acta el 15 de diciembre, entrega final el 2. Quedo atento a preguntas.”
-**Señala:** la línea de hitos y el chip “Preguntas”.
-
----
-
 ## Preguntas previsibles · respuesta en una línea
 
 - **¿Ya están los 50 jugadores en Ciudad?** No. El contrato declara 50; la evidencia es de 60 sesiones totales y el DoD de Ciudad pide 30 bots + 2 humanos antes de hablar de 50.
@@ -166,10 +144,11 @@
 - HTML en `#1`; PDF de respaldo abierto.
 - Comprobar que las tres rutas nuevas (`presentacion_23nov.html`, `.pdf`, `.pptx`) se vean desde esta carpeta.
 - Botella de agua fuera de cuadro. Respirar.
+- Al terminar la diapositiva 13: “Quedo atento a preguntas”.
 
 ## Versión de 8 minutos
 
-Mantener **1, 3, 4, 6, 7, 8, 10, 12, 13, 15 y 16**. Comprimir 2, 5, 9, 11 y 14 a una frase cada una.
+Mantener **1, 3, 4, 6, 7, 8, 10, 12 y 13**. Comprimir 2, 5, 9 y 11 a una frase cada una.
 
 ## Si te quedas en blanco
 

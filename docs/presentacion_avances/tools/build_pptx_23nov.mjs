@@ -65,7 +65,7 @@ function head(kicker, title, sub) {
 function foot(slide, label) {
   slide.addShape(pptx.ShapeType.line, { x: 0.55, y: 7.02, w: 12.23, h: 0, line: { color: C.line, width: 0.8 } });
   txt(slide, label, 0.55, 7.08, 10.8, 0.22, { size: 7.6, color: C.dim });
-  txt(slide, `${String(page).padStart(2, "0")} / 16`, 11.6, 7.08, 1.18, 0.22, { size: 7.6, color: C.muted, bold: true, align: "right" });
+  txt(slide, `${String(page).padStart(2, "0")} / 13`, 11.6, 7.08, 1.18, 0.22, { size: 7.6, color: C.muted, bold: true, align: "right" });
 }
 
 function cell(text, opts = {}) {
@@ -371,75 +371,6 @@ function shot(slide, file, x, y, w, h, cap) {
   box(s, 0.55, 6.58, 12.23, 0.32);
   txt(s, "Límite honesto: C1–C2 están cerradas. Parcelas, trabajos y moderación (C3–C5) no forman parte de esta versión estable.", 0.75, 6.64, 11.85, 0.22, { size: 8.5, bold: true, color: C.amber });
   foot(s, "Demo 2 · Ciudad C1–C2 · commit f1caf59");
-}
-
-/* ------------------------------------------------------------------ 14 */
-{
-  const s = head("Revisión antes de subir · validación después", "La evidencia se revisó antes de entregarse",
-    "Se ejecutaron las pruebas, se tomaron capturas reales y se validó la visualización de los tres formatos de la presentación.");
-  kpis(s, [
-    { label: "Suites", value: "14/14", note: "test-all.ps1", color: C.green },
-    { label: "Carga", value: "60/60", note: "0 desconexiones · 25 s", color: C.cy },
-    { label: "RTT chat p95", value: "132 ms", note: "umbral < 250 ms", color: C.green },
-    { label: "Consola", value: "0", note: "errores JS en capturas", color: C.green },
-  ], 0.55, 1.65, 12.23, 1.1);
-  table(s, [
-    [hcell("Revisión"), hcell("Resultado"), hcell("Evidencia")],
-    [cell("Pruebas automáticas", { bold: true, color: C.text }), cell("14 suites: protocolo 45/45, lógica 8/8, combate 18/18, armas 13/13, movimiento 8/8, loot 7/7, assets 10/10 y modos", { color: C.muted }), cell("scripts/test-all.ps1 · Documentación técnica")],
-    [cell("Prueba de carga", { bold: true, color: C.text }), cell("60 bots admitidos, 73 game:full reintentados, 387 disparos, RSS 100.4 MB", { color: C.muted }), cell("Reporte_Pruebas_Carga_A11.md")],
-    [cell("Capturas nuevas", { bold: true, color: C.text }), cell("13 capturas del juego y 4 de documentos, logs ok:true y contenido verificado", { color: C.muted }), cell("img/capture*-23nov-log.json")],
-    [cell("Visualización de entregables", { bold: true, color: C.text }), cell("HTML navegable, PDF paginado y PPTX editable; revisados antes de subir", { color: C.muted }), cell("presentacion_23nov.html / .pdf / .pptx")],
-  ], 0.55, 2.95, 12.23, { colW: [2.25, 6.1, 3.88], rowH: [0.36, 0.9, 0.72, 0.72, 0.72], size: 8.3 });
-  box(s, 0.55, 6.6, 12.23, 0.3);
-  txt(s, "Estado de Git: Ciudad quedó commiteada y pusheada en f1caf59, con HEAD = origin/main y árbol limpio al iniciar esta presentación.", 0.75, 6.65, 11.85, 0.22, { size: 8.4, bold: true });
-  foot(s, "Validación · informes, logs de captura y revisión de formatos");
-}
-
-/* ------------------------------------------------------------------ 15 */
-{
-  const s = head("Estado de objetivos · lo que todavía no se cierra", "No subir un objetivo a 100 % sin su evidencia completa",
-    "Donde falta evidencia, se dice dónde falta y qué la reemplaza de forma provisional.");
-  table(s, [
-    [hcell("Objetivo"), hcell("Estado 23/11"), hcell("Evidencia disponible"), hcell("Condición pendiente")],
-    [cell("O1 · Núcleo multijugador", { bold: true, color: C.text }), cell("95 %", { bold: true, color: C.amber }), cell("60/60 bots, 0 disconnects, salas sincronizadas"), cell("Acta con 2+ clientes: no hay acta real en docs/")],
-    [cell("O2 · 17 armas", { bold: true, color: C.text }), cell("100 %", { bold: true, color: C.green }), cell("Suite de armas 13/13 y tuner con exportación"), cell("Ninguna")],
-    [cell("O3 · 8 mapas", { bold: true, color: C.text }), cell("100 %", { bold: true, color: C.green }), cell("8/8 mapas sin errores JS; más 6 arenas"), cell("Ninguna")],
-    [cell("O4 · Tuners", { bold: true, color: C.text }), cell("100 % con reserva", { bold: true, color: C.amber }), cell("Armas verificadas; tuner de mapas el 27/10"), cell("Repetir la verificación del tuner de mapas")],
-    [cell("O5 · 0 regresiones", { bold: true, color: C.text }), cell("100 %", { bold: true, color: C.green }), cell("14 suites en verde tras móvil, HUD y modos"), cell("Ninguna")],
-    [cell("O6 · Carga y entrega", { bold: true, color: C.text }), cell("En proceso", { bold: true, color: C.cy }), cell("Carga A11 completa; /healthz y proxy local OK"), cell("Publicación, aceptación y acta del 15/12")],
-  ], 0.55, 1.7, 12.23, { colW: [2.4, 1.5, 4.1, 4.23], rowH: [0.38, 0.82, 0.65, 0.65, 0.72, 0.65, 0.72], size: 8.2 });
-  box(s, 0.55, 6.55, 12.23, 0.35);
-  txt(s, "Cierre honesto: hoy el avance es real y medible; la parte incompleta tiene nombre, responsable y fecha.", 0.75, 6.62, 11.85, 0.25, { size: 9, bold: true });
-  foot(s, "Objetivos O1–O6 · actualización al 23/11/2026");
-}
-
-/* ------------------------------------------------------------------ 16 */
-{
-  const s = head("Conclusión y próximos pasos", "Versión estable entregada; falta la aceptación");
-  box(s, 0.55, 1.55, 6.0, 4.05);
-  txt(s, "LO QUE SE DEMOSTRÓ HOY", 0.78, 1.78, 5.55, 0.28, { size: 9, color: C.cy, bold: true });
-  bullets(s, ["Seis modos jugables y Ciudad C1–C2 con persistencia real.",
-    "14 suites en verde y carga de 60 bots sin caídas.",
-    "15 defectos táctiles corregidos en siete viewports.",
-    "Riesgos con medidas, plazos y métricas de salida.",
-    "Presentación revisada en HTML, PDF y PPTX."], 0.78, 2.2, 5.55, 2.85, { size: 10 });
-  box(s, 0.55, 5.75, 6.0, 0.95);
-  txt(s, "«El avance es real, medible y todavía incompleto» → hoy es real y medible; lo incompleto tiene nombre, responsable y fecha.", 0.78, 5.95, 5.55, 0.6, { size: 9.3, color: C.amber, bold: true, ls: 1.16 });
-  box(s, 6.75, 1.55, 6.03, 5.15);
-  txt(s, "PRÓXIMOS HITOS", 6.98, 1.78, 5.55, 0.28, { size: 9, color: C.cy, bold: true });
-  const next = [["23/11/2026", "Versión estable", "Tag v0.2 · esta presentación"],
-    ["02/12/2026", "Entrega final", "Documentación y aceptación interna"],
-    ["15/12/2026", "Aceptación", "Acta con 2+ clientes y despliegue"],
-    ["Después", "C3–C5", "Casas, trabajos y moderación"]];
-  next.forEach((n, i) => {
-    const yy = 2.28 + i * 0.98;
-    s.addShape(pptx.ShapeType.ellipse, { x: 7.0, y: yy + 0.05, w: 0.16, h: 0.16, fill: { color: i < 1 ? C.cy : C.amber } });
-    txt(s, n[0], 7.32, yy, 1.55, 0.25, { size: 9, color: i < 1 ? C.cy : C.amber, bold: true });
-    txt(s, n[1], 8.9, yy, 3.6, 0.25, { size: 10, bold: true });
-    txt(s, n[2], 7.32, yy + 0.3, 5.2, 0.35, { size: 8.5, color: C.muted });
-  });
-  txt(s, "6/6 modos   ·   C1–C2   ·   14 suites   ·   acta pendiente   ·   Preguntas", 6.98, 6.25, 5.55, 0.3, { size: 8.5, color: C.text, bold: true });
-  foot(s, "Cierre · Club Pingüí · 23/11/2026 · Luis Javier Tovar Segura");
 }
 
 await pptx.writeFile({ fileName: OUT });

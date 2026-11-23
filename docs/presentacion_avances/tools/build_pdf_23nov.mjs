@@ -47,7 +47,7 @@ async function main() {
   await cdp("Page.navigate", { url: pathToFileURL(HTML).href });
   for (let i = 0; i < 60; i++) {
     const r = await cdp("Runtime.evaluate", { expression: "document.readyState + '|' + document.querySelectorAll('.slide').length + '|' + [...document.images].every(i => i.complete && i.naturalWidth > 0)", returnByValue: true });
-    if (r.result?.value === "complete|16|true") break;
+    if (r.result?.value === "complete|13|true") break;
     await sleep(250);
   }
   const pdf = await cdp("Page.printToPDF", {
@@ -60,6 +60,6 @@ async function main() {
   writeFileSync(OUT, buf);
   const pages = (buf.toString("latin1").match(/\/Type\s*\/Page\b/g) || []).length;
   console.log(`PDF generado · ${Math.round(buf.length / 1024)} KB · objetos /Type /Page: ${pages}`);
-  if (pages < 16) process.exitCode = 1;
+  if (pages < 13) process.exitCode = 1;
 }
 main().catch((e) => { console.error("PDF FAIL", e); process.exitCode = 1; }).finally(() => browser.kill());

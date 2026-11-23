@@ -16,8 +16,8 @@ const body = `<body>
   <header class="top">
     <div>
       <div class="brand">Club Pingüí · Tarjeta de presentación</div>
-      <h1>Guion de bolsillo · 16 diapositivas</h1>
-      <div class="who"><b>Luis Javier Tovar Segura</b> · Versión estable · 14–16 min + preguntas</div>
+      <h1>Guion de bolsillo · 13 diapositivas</h1>
+      <div class="who"><b>Luis Javier Tovar Segura</b> · Versión estable · 14–15 min + preguntas</div>
     </div>
     <div class="stamp"><b>23 · NOV · 2026</b>Versión estable · tag v0.2<br>Demo: recorrido + Ciudad C1–C2</div>
   </header>
@@ -47,10 +47,7 @@ const body = `<body>
         <div class="row"><div class="k">10</div><div class="t"><b>Factibilidad técnica.</b> “El stack ya sostiene el producto.” <span>Three.js · Socket.IO · SQLite.</span></div></div>
         <div class="row"><div class="k">11</div><div class="t"><b>Impactos.</b> Viable dentro del corte académico. <em>C3–C5 quedan fuera.</em></div></div>
         <div class="row hot"><div class="k">12</div><div class="t"><b>Demo recorrido.</b> Isla → seis portales → Pares, TNT, Karts, Coliseo, Escondite.</div></div>
-        <div class="row hot"><div class="k">13</div><div class="t"><b>Demo Ciudad.</b> FP, recogida y tienda. <em>wallet.collected > 0 · C1–C2 cerradas.</em></div></div>
-        <div class="row"><div class="k">14</div><div class="t"><b>Validación.</b> Revisé antes de subir y validé que se vea. <span>HTML 16 · PDF 16 · PPTX 16.</span></div></div>
-        <div class="row"><div class="k">15</div><div class="t"><b>Pendientes.</b> O1 95 % · O4 con reserva · O6 en proceso. <span>O2, O3 y O5 cerrados.</span></div></div>
-        <div class="row"><div class="k">16</div><div class="t"><b>Cierre.</b> Real y medible; lo incompleto tiene nombre y fecha. <span>Preguntas.</span></div></div>
+        <div class="row hot"><div class="k">13</div><div class="t"><b>Demo Ciudad.</b> FP, recogida y tienda. <em>wallet.collected > 0 · C1–C2 cerradas.</em> Cierra con “Quedo atento a preguntas”.</div></div>
       </div>
     </section>
 
@@ -93,14 +90,14 @@ const body = `<body>
 
       <div class="box">
         <h3>Versión de 8 minutos</h3>
-        <div class="plan">Mantén <b>1, 3, 4, 6, 7, 8, 10, 12, 13, 15 y 16</b>. Comprime 2, 5, 9, 11 y 14 a una frase.</div>
+        <div class="plan">Mantén <b>1, 3, 4, 6, 7, 8, 10, 12 y 13</b>. Comprime 2, 5, 9 y 11 a una frase.</div>
       </div>
 
     </aside>
   </div>
 
   <footer class="foot">
-    <span><b>Archivos:</b> presentacion_23nov.html · presentacion_23nov.pdf · presentacion_23nov.pptx · guion_presentacion_23nov.md</span>
+    <span><b>Archivos:</b> presentacion_23nov.html · presentacion_23nov.pdf · presentacion_23nov.pptx · guion_presentacion_23nov.md · guia_presentacion_23nov.docx</span>
     <span>Club Pingüí · 23/11/2026</span>
   </footer>
 
