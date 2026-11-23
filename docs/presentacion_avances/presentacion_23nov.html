@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Club Pingüí · Presentación de avances · 23/11/2026</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#060b14; --card:#101c2f; --card2:#16263f; --line:#1e3350;
+    --text:#e9f2fc; --muted:#8ea8c6; --dim:#5f7a99;
+    --cyan:#22d3ee; --blue:#3b82f6; --amber:#fbbf24; --coral:#fb7185;
+    --green:#34d399; --violet:#a78bfa;
+  }
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1100px 680px at 12% -12%, #102740 0%, transparent 62%),
+      radial-gradient(900px 620px at 112% 112%, #0c2b33 0%, transparent 58%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    overflow:hidden;
+    display:grid;place-items:center;
+  }
+  .deck{width:1280px;height:720px;position:relative;transform:scale(var(--scale,1));transform-origin:center center}
+
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:36px 46px 26px;overflow:hidden;
+  }
+  .slide.active{display:flex}
+
+  /* ---------- encabezado / pie ---------- */
+  .s-head{margin-bottom:16px;flex:0 0 auto}
+  .kicker{font-size:10.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--cyan);font-weight:700;margin-bottom:7px}
+  .s-head h1{font-size:29px;line-height:1.13;font-weight:700;letter-spacing:-.3px;max-width:1080px}
+  .s-head h1 em{font-style:normal;color:var(--cyan)}
+  .s-head .sub{font-size:12.5px;color:var(--muted);margin-top:7px;max-width:1020px;line-height:1.45}
+  .s-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:12px}
+  .s-foot{
+    flex:0 0 auto;margin-top:10px;padding-top:8px;border-top:1px solid rgba(30,51,80,.7);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:9.5px;color:var(--dim);letter-spacing:.4px
+  }
+  .s-foot .pg{font-weight:700;color:var(--muted)}
+
+  /* ---------- utilidades ---------- */
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:13px;min-height:0}
+  .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;min-height:0}
+  .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-height:0}
+  .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .row{display:flex;gap:13px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:11px;min-height:0}
+  .fill{flex:1 1 auto;min-height:0}
+  .center{align-items:center}
+  .between{justify-content:space-between}
+
+  .card{
+    background:linear-gradient(158deg,var(--card) 0%,var(--card2) 100%);
+    border:1px solid var(--line);border-radius:14px;padding:13px 15px;min-height:0
+  }
+  .card.tight{padding:10px 12px}
+  .card h3{font-size:12.5px;font-weight:700;letter-spacing:.2px;margin-bottom:6px}
+  .card p{font-size:11.5px;line-height:1.45;color:var(--muted)}
+  .card .mini{font-size:10px;color:var(--dim);line-height:1.4}
+  .rule{height:1px;background:var(--line);margin:8px 0}
+
+  .kpi{background:linear-gradient(158deg,#101c2f,#152741);border:1px solid var(--line);border-radius:13px;padding:11px 13px}
+  .kpi .lab{font-size:9.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);font-weight:700}
+  .kpi .v{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-top:4px;line-height:1}
+  .kpi .v small{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0}
+  .kpi .n{font-size:9.5px;color:var(--dim);margin-top:4px}
+  .v.cy{color:var(--cyan)} .v.gr{color:var(--green)} .v.am{color:var(--amber)} .v.co{color:var(--coral)} .v.vi{color:var(--violet)}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.3px;border:1px solid transparent;white-space:nowrap}
+  .chip.ok{background:rgba(52,211,153,.12);color:var(--green);border-color:rgba(52,211,153,.35)}
+  .chip.wip{background:rgba(251,191,36,.12);color:var(--amber);border-color:rgba(251,191,36,.35)}
+  .chip.warn{background:rgba(251,113,133,.12);color:var(--coral);border-color:rgba(251,113,133,.35)}
+  .chip.plan{background:rgba(59,130,246,.14);color:#7cb3ff;border-color:rgba(59,130,246,.35)}
+  .chip.cy{background:rgba(34,211,238,.12);color:var(--cyan);border-color:rgba(34,211,238,.35)}
+  .chip.vi{background:rgba(167,139,250,.13);color:var(--violet);border-color:rgba(167,139,250,.35)}
+
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);font-weight:700;padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:5px 7px;border-bottom:1px solid rgba(30,51,80,.55);vertical-align:top;line-height:1.35}
+  tr:last-child td{border-bottom:none}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tbl-wrap{background:linear-gradient(158deg,rgba(16,28,47,.92),rgba(21,39,65,.92));border:1px solid var(--line);border-radius:13px;padding:6px 10px 4px}
+
+  .pb{height:6px;border-radius:99px;background:#0a1424;border:1px solid rgba(30,51,80,.8);overflow:hidden}
+  .pb i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--blue))}
+  .pb i.gr{background:linear-gradient(90deg,#34d399,#22d3ee)}
+  .pb i.am{background:linear-gradient(90deg,#fbbf24,#f97316)}
+  .pb i.co{background:linear-gradient(90deg,#fb7185,#f43f5e)}
+
+  .shot{border-radius:12px;border:1px solid var(--line);overflow:hidden;background:#04080f;position:relative;display:flex;flex-direction:column}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .shot .cap{position:absolute;left:0;right:0;bottom:0;padding:6px 10px;font-size:9.5px;color:#dbe9f8;background:linear-gradient(0deg,rgba(4,8,15,.92),transparent);letter-spacing:.3px}
+
+  ul.tick{list-style:none;display:flex;flex-direction:column;gap:7px}
+  ul.tick li{font-size:11.5px;line-height:1.4;color:var(--muted);padding-left:20px;position:relative}
+  ul.tick li b{color:var(--text)}
+  ul.tick li::before{content:"";position:absolute;left:4px;top:6px;width:7px;height:7px;border-radius:2px;background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,.6)}
+  ul.tick.gr li::before{background:var(--green);box-shadow:0 0 8px rgba(52,211,153,.55)}
+  ul.tick.am li::before{background:var(--amber);box-shadow:0 0 8px rgba(251,191,36,.5)}
+
+  .footnote{font-size:9.5px;color:var(--dim);line-height:1.4}
+  .footnote b{color:var(--muted)}
+
+  /* ---------- navegación ---------- */
+  .nav{position:fixed;right:18px;bottom:14px;display:flex;align-items:center;gap:8px;z-index:50}
+  .nav button{
+    width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(16,28,47,.9);color:var(--muted);font-size:14px;cursor:pointer;line-height:1
+  }
+  .nav button:hover{color:var(--cyan);border-color:var(--cyan)}
+  .nav .count{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+  .progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--blue));z-index:60;transition:width .18s ease}
+  .hint{position:fixed;left:18px;bottom:16px;font-size:9.5px;color:#3f5875;z-index:50}
+
+  /* ---------- portada ---------- */
+  .cover{padding:0;display:none}
+  .cover.active{display:grid;grid-template-columns:1.32fr .68fr}
+  .cover-l{padding:52px 30px 40px 62px;display:flex;flex-direction:column;justify-content:center;position:relative}
+  .cover-l::before{content:"";position:absolute;inset:0;background:radial-gradient(700px 460px at 20% 30%,rgba(34,211,238,.09),transparent 65%);pointer-events:none}
+  .uni{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .uni b{color:var(--cyan)}
+  .cover h1{font-size:53px;line-height:1.02;letter-spacing:-1.6px;margin:18px 0 0;font-weight:800}
+  .cover h1 span{display:block;color:var(--cyan);text-shadow:0 0 34px rgba(34,211,238,.35)}
+  .cover .tagline{font-size:15px;color:var(--muted);margin-top:14px;max-width:520px;line-height:1.4}
+  .cover .meta{margin-top:26px;display:grid;grid-template-columns:auto auto;gap:7px 26px;font-size:11.5px;color:var(--muted);width:max-content}
+  .cover .meta b{color:var(--text);font-weight:600}
+  .cover .who{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:flex-end;gap:20px}
+  .cover .who .name{font-size:19px;font-weight:700}
+  .cover .who .role{font-size:10.5px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase;margin-top:3px}
+  .cover .date{font-size:12.5px;color:var(--amber);font-weight:700;margin-left:auto;text-align:right}
+  .cover .date small{display:block;color:var(--dim);font-weight:500;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+  .cover-r{position:relative;display:grid;place-items:center;overflow:hidden;border-left:1px solid rgba(30,51,80,.6)}
+  .cover-r::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.16),transparent 62%);filter:blur(4px)}
+  .cover-r .mascot{width:300px;height:auto;position:relative;filter:drop-shadow(0 24px 44px rgba(0,0,0,.55))}
+  .cover-chips{position:absolute;bottom:34px;left:0;right:0;display:flex;justify-content:center;gap:7px;flex-wrap:wrap;padding:0 22px}
+  .cover-chips span{font-size:9.5px;letter-spacing:.6px;color:var(--muted);border:1px solid var(--line);background:rgba(16,28,47,.75);padding:4px 9px;border-radius:999px}
+
+  /* ---------- misceláneos ---------- */
+  .phase{position:relative;padding-left:38px}
+  .phase .n{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:800;background:rgba(34,211,238,.12);color:var(--cyan);border:1px solid rgba(34,211,238,.35)}
+  .tl{display:flex;align-items:flex-start;gap:0;position:relative;padding-top:14px}
+  .tl::before{content:"";position:absolute;left:0;right:0;top:24px;height:2px;background:linear-gradient(90deg,rgba(34,211,238,.7),rgba(59,130,246,.45),rgba(251,191,36,.6))}
+  .tl .step{flex:1;position:relative;padding:24px 12px 0 0}
+  .tl .dot{position:absolute;top:-3px;left:0;width:13px;height:13px;border-radius:50%;background:var(--bg);border:2px solid var(--cyan);box-shadow:0 0 10px rgba(34,211,238,.5)}
+  .tl .step.am .dot{border-color:var(--amber);box-shadow:0 0 10px rgba(251,191,36,.45)}
+  .tl .d{font-size:10.5px;color:var(--amber);font-weight:700;letter-spacing:.3px}
+  .tl .t{font-size:11.5px;font-weight:600;margin-top:3px;line-height:1.25}
+  .tl .s{font-size:9.5px;color:var(--dim);margin-top:3px;line-height:1.3}
+
+  .svgs{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:18px;align-items:center;font-size:10px;color:var(--muted);flex-wrap:wrap}
+  .legend i{display:inline-block;width:16px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px}
+  .legend .ln{display:inline-block;width:18px;height:2px;margin-right:5px;vertical-align:3px}
+
+  .gate{position:relative;overflow:hidden}
+  .gate .gn{position:absolute;right:-6px;top:-14px;font-size:52px;font-weight:800;color:rgba(34,211,238,.07);letter-spacing:-3px}
+  .gate h3{font-size:12px;margin-bottom:2px}
+  .gate .crit{font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:5px}
+  .gate .ev{font-size:9.5px;color:var(--dim);line-height:1.35;margin-top:7px;padding-top:6px;border-top:1px solid rgba(30,51,80,.8)}
+
+  .quote{font-size:11.5px;line-height:1.45;color:var(--muted);border-left:2px solid var(--cyan);padding-left:11px}
+
+  .qa{border-left:2px solid var(--line);padding-left:9px}
+  .qa b{display:block;font-size:10.5px;color:var(--cyan);margin-bottom:2px}
+  .qa span{font-size:10px;color:var(--muted);line-height:1.35;display:block}
+
+  .risk td:first-child{font-weight:600;color:var(--text)}
+
+  @page{size:13.333in 7.5in;margin:0}
+  @media print{
+    html,body{background:var(--bg);display:block;overflow:visible}
+    .deck{width:auto;height:auto;transform:none}
+    .slide,.slide.active{
+      display:flex !important;position:relative;width:1280px;height:720px;
+      page-break-after:always;break-after:page;transform:none
+    }
+    .cover.active{display:grid !important}
+    .nav,.progress,.hint{display:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+<!-- ================= 1 · PORTADA ================= -->
+<!-- ================= 1 · PORTADA ================= -->
+<section class="slide cover active">
+  <div class="cover-l">
+    <div class="uni">Universidad Tecnológica del Norte de Coahuila<br><b>Ingeniería en Tecnologías de la Información e Innovación Digital</b></div>
+    <h1>Club Pingüí<span>Presentación de avances</span></h1>
+    <p class="tagline">Del documento al producto ejecutable: seis modos en vivo, Ciudad C1–C2 y evidencia que se puede verificar en pantalla.</p>
+    <div class="meta">
+      <div><b>Materia:</b> Formulación de Proyectos de Tecnología (7A)</div>
+      <div><b>Docente:</b> Mtro. Domingo Fraga Hernández</div>
+      <div><b>Avance:</b> Parcial · Versión estable 23/11/2026</div>
+      <div><b>Lugar:</b> Piedras Negras, Coahuila</div>
+    </div>
+    <div class="who">
+      <div>
+        <div class="name">Luis Javier Tovar Segura</div>
+        <div class="role">Alumno · Líder de proyecto y desarrollador</div>
+      </div>
+      <div class="date">23 de noviembre de 2026<small>Corte de la presentación</small></div>
+    </div>
+  </div>
+  <div class="cover-r">
+    <svg class="mascot" viewBox="0 0 260 320" aria-label="Pingüino de Club Pingüí">
+      <defs>
+        <linearGradient id="pgBody2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16263f"/><stop offset="1" stop-color="#0a1526"/></linearGradient>
+        <linearGradient id="pgBelly2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f8ff"/><stop offset="1" stop-color="#c9dcef"/></linearGradient>
+        <linearGradient id="pgBeak2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcd34d"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+      </defs>
+      <ellipse cx="130" cy="300" rx="82" ry="14" fill="#02060d" opacity=".65"/>
+      <ellipse cx="130" cy="168" rx="96" ry="126" fill="url(#pgBody2)" stroke="#22d3ee" stroke-opacity=".45" stroke-width="2"/>
+      <ellipse cx="130" cy="182" rx="66" ry="100" fill="url(#pgBelly2)"/>
+      <ellipse cx="74" cy="262" rx="30" ry="13" fill="url(#pgBeak2)" transform="rotate(-12 74 262)"/>
+      <ellipse cx="186" cy="262" rx="30" ry="13" fill="url(#pgBeak2)" transform="rotate(12 186 262)"/>
+      <ellipse cx="42" cy="170" rx="17" ry="52" fill="#101f36" stroke="#22d3ee" stroke-opacity=".3" transform="rotate(14 42 170)"/>
+      <ellipse cx="218" cy="170" rx="17" ry="52" fill="#101f36" stroke="#22d3ee" stroke-opacity=".3" transform="rotate(-14 218 170)"/>
+      <circle cx="103" cy="92" r="13" fill="#f8fbff"/><circle cx="157" cy="92" r="13" fill="#f8fbff"/>
+      <circle cx="105" cy="94" r="7" fill="#0a1526"/><circle cx="159" cy="94" r="7" fill="#0a1526"/>
+      <circle cx="108" cy="91" r="2.4" fill="#7ee7ff"/><circle cx="162" cy="91" r="2.4" fill="#7ee7ff"/>
+      <path d="M130 104 L110 122 L130 133 L150 122 Z" fill="url(#pgBeak2)"/>
+      <path d="M96 148 q34 16 68 0" stroke="#a8c0d8" stroke-width="2.5" fill="none" opacity=".5"/>
+      <path d="M130 40 l9 18 l20 3 l-15 14 l4 20 l-18-10 l-18 10 l4-20 l-15-14 l20-3 z" fill="#fbbf24" opacity=".9"/>
+      <circle cx="130" cy="66" r="3.2" fill="#7c4a03"/>
+    </svg>
+    <div class="cover-chips">
+      <span>6 modos en vivo</span><span>Ciudad C1–C2</span><span>14 suites</span><span>60 bots · p95 132 ms</span><span>Node.js + Three.js</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 · PUNTO DE PARTIDA ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Punto de partida · cierre del 27/10/2026</div>
+    <h1>Retomamos donde quedó: <em>real, medible y todavía incompleto</em></h1>
+    <p class="sub">La última presentación cerró con tres condicionantes explícitos. Esta sesión muestra qué se resolvió, qué se construyó y qué sigue pendiente con nombre y fecha.</p>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Frase de cierre que se retoma</h3>
+          <div class="quote" style="font-size:14px;color:var(--text)">«El avance es real, medible y todavía incompleto»</div>
+          <div class="rule"></div>
+          <h3>Tres pendientes del 27/10</h3>
+          <table>
+            <tr><td style="width:64px"><span class="chip warn">O1</span></td><td><b>Acta con 2+ clientes</b> para cerrar el núcleo multijugador.</td></tr>
+            <tr><td><span class="chip wip">O4</span></td><td><b>Repetir la verificación del tuner de mapas.</b></td></tr>
+            <tr><td><span class="chip plan">O6</span></td><td><b>Carga, despliegue y aceptación</b> en noviembre.</td></tr>
+          </table>
+        </div>
+        <div class="card tight">
+          <p><b>Lo que ya estaba cerrado:</b> O2 (17/17 armas), O3 (8/8 mapas) y O5 (0 regresiones). El valor ganado quedó registrado al 06/10: SPI 1.13 · CPI 1.04.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+          <h3>Hitos comprometidos</h3>
+          <div class="tl">
+            <div class="step"><div class="dot"></div><div class="d">06/11/2026</div><div class="t">Prototipo funcional</div><div class="s">Cumplido · servidor y cliente integrados.</div></div>
+            <div class="step"><div class="dot"></div><div class="d">23/11/2026</div><div class="t">Versión estable</div><div class="s">Hoy · se presenta con este corte.</div></div>
+            <div class="step am"><div class="dot"></div><div class="d">02/12/2026</div><div class="t">Entrega final</div><div class="s">Proyecto y documentación.</div></div>
+            <div class="step am"><div class="dot"></div><div class="d">15/12/2026</div><div class="t">Aceptación</div><div class="s">Pendiente · depende del acta.</div></div>
+          </div>
+          <div class="rule"></div>
+          <div class="row" style="gap:7px;flex-wrap:wrap">
+            <span class="chip ok">60/60 admitidos</span><span class="chip ok">6/6 modos</span><span class="chip ok">C1–C2 cerradas</span><span class="chip wip">acta pendiente</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Punto de partida · guion de la presentación del 27/10/2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 3 · RUTA Y KPI ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Ruta de la presentación</div>
+    <h1>Qué cambió desde octubre y <em>cómo se demuestra</em></h1>
+    <p class="sub">Cuatro bloques: las seis prácticas con sus capturas, la matriz de riesgos, la factibilidad y la demostración del avance actual.</p>
+  </div>
+  <div class="s-body">
+    <div class="g5">
+      <div class="kpi"><div class="lab">Modos en vivo</div><div class="v cy">6/6</div><div class="n">anillo completo en la isla</div></div>
+      <div class="kpi"><div class="lab">Suites verdes</div><div class="v gr">14</div><div class="n">protocolo, modos y Ciudad</div></div>
+      <div class="kpi"><div class="lab">Carga real</div><div class="v">60<small> bots</small></div><div class="n">p95 chat 132 ms</div></div>
+      <div class="kpi"><div class="lab">Móvil</div><div class="v">15</div><div class="n">bugs corregidos y medidos</div></div>
+      <div class="kpi"><div class="lab">Ciudad</div><div class="v vi">C1–C2</div><div class="n">distrito + economía</div></div>
+    </div>
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Criterios de la rúbrica y dónde se atienden</h3>
+          <table>
+            <tr><th style="width:44%">Criterio</th><th>Diapositivas</th></tr>
+            <tr><td><b>Presentación · 5 pts</b><div class="mini">Datos generales y capturas de las prácticas</div></td><td>1 · 4–6</td></tr>
+            <tr><td><b>Matriz de riesgos · 10 pts</b><div class="mini">Ocurridos, prospectivos y medidas</div></td><td>7 · 8 · 9</td></tr>
+            <tr><td><b>Factibilidad · 10 pts</b><div class="mini">Tecnologías, costos e impactos</div></td><td>10 · 11</td></tr>
+            <tr><td><b>Penúltimo avance · 10 pts</b><div class="mini">Demo en vivo: recorrido y Ciudad</div></td><td>12 · 13</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Cambios verificables desde el 27/10</h3>
+          <ul class="tick gr">
+            <li>La isla pasó de portales anunciados a <b>seis modos jugables</b>: Pares, TNT, Karts, Ciudad, Coliseo y Escondite.</li>
+            <li><b>Ciudad C1–C2</b> quedó cerrada: distrito en primera persona, coleccionables, economía y persistencia.</li>
+            <li>El HUD táctil se reordenó y se corrigieron <b>15 defectos visuales</b> en siete viewports.</li>
+            <li>La verificación técnica sumó <b>14 suites</b> y una corrida de carga de 60 bots sin desconexiones.</li>
+          </ul>
+        </div>
+        <div class="card tight">
+          <p><b>Regla que se mantiene:</b> ningún objetivo sube a 100 % sin la evidencia que su propio indicador exige. El acta de 2+ clientes sigue pendiente.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Ruta · KPIs con corte 23/11/2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 4 · PRÁCTICAS 1–3 ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Prácticas 1–3 · planeación, tecnología y arquitectura</div>
+    <h1>Primero se decidió <em>qué, con qué y cómo se conectaría</em></h1>
+    <p class="sub">Tres entregas tempranas que fijaron el alcance, las herramientas y la forma cliente-servidor. Cada una dejó un artefacto que hoy todavía se usa.</p>
+  </div>
+  <div class="s-body">
+    <div class="g3" style="flex:1">
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/41-practica1-fases-23nov.png" alt="Documento de organización por fases"><div class="cap">Resultado · práctica de organización de fases</div></div>
+        <div class="card tight">
+          <h3>Fases y actividades</h3>
+          <p>15 actividades en 4 fases con entregable por fase y línea base del 15/09/2026.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/44-arquitectura-23nov.png" alt="Diagrama de arquitectura del sistema"><div class="cap">Resultado · arquitectura cliente-servidor</div></div>
+        <div class="card tight">
+          <h3>Investigación de tecnologías</h3>
+          <p>Se compararon motores 3D y se conservó Three.js: costo de migración cero frente a ~250 KB de lógica propia.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/10-tuner-armas.png" alt="Herramienta tuner de armas"><div class="cap">Resultado · herramienta de producción</div></div>
+        <div class="card tight">
+          <h3>Diseño y herramientas</h3>
+          <p>El tuner nació como decisión de diseño: editar 17 armas y exportar JSON sin tocar código.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card tight">
+      <p><b>Por qué importa hoy:</b> la arquitectura permitió añadir seis modos como módulos de reglas sin reescribir el render, el chat ni la red.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Prácticas 1–3 · capturas de documentos y herramienta real</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 5 · PRÁCTICAS 4–5 ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Prácticas 4–5 · seguimiento de objetivos y estimación</div>
+    <h1>Medir el avance y <em>calcular el riesgo de la fecha</em></h1>
+    <p class="sub">Los objetivos se escribieron con indicadores verificables y la duración se estimó con tres valores, no con un número single.</p>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/42-practica4-seguimiento-23nov.png" alt="Documento de seguimiento y validación de objetivos"><div class="cap">Práctica 4 · O1–O6, técnicas y reporte</div></div>
+        <div class="card tight">
+          <h3>Seguimiento y validación</h3>
+          <p>MBO, SMART, OKR, PMBOK, valor ganado y Stage-Gate aplicados. KPI: <b>SPI 1.13 · CPI 1.04</b> al corte del 06/10.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="g2" style="flex:1">
+          <div class="shot"><img src="img/30-gantt.png" alt="Diagrama de Gantt"><div class="cap">Gantt · 15 actividades</div></div>
+          <div class="shot"><img src="img/31-pert.png" alt="Red PERT"><div class="cap">PERT · red y ruta crítica</div></div>
+        </div>
+        <div class="card tight">
+          <h3>Estimación</h3>
+          <p>Ruta crítica de <b>85.17 días</b>, sigma 4.02 y <b>88 %</b> de probabilidad de cerrar en 90 días. A8 y A9 concentran la mayor varianza.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card tight">
+      <p><b>Qué cambió una decisión:</b> el valor ganado sostuvo la fecha de O6; el Stage-Gate impidió declarar cerrados el acta de clientes y el tuner de mapas sin evidencia.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Prácticas 4–5 · capturas de resultados y cálculo PERT</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 6 · PRÁCTICA 6 ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Práctica 6 · gestión de recursos</div>
+    <h1>Los recursos explican <em>por qué el avance es sostenible</em></h1>
+    <p class="sub">Presupuesto, esfuerzo y herramientas se derivaron del alcance aprobado; la distinción entre gasto y valor evita inflar la inversión real.</p>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/43-practica6-recursos-23nov.png" alt="Documento de gestión de recursos"><div class="cap">Práctica 6 · financieros, humanos y materiales</div></div>
+      </div>
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Recursos comprometidos</h3>
+          <table>
+            <tr><th>Tipo</th><th>Detalle</th><th style="width:88px">Medida</th></tr>
+            <tr><td><b>Financieros</b></td><td>VPS, dominio, internet, energía y contingencia del 10 %</td><td class="num">$3,025</td></tr>
+            <tr><td><b>Valor total</b></td><td>Incluye el equipo de cómputo propio; suma valor, no gasto nuevo</td><td class="num">$21,025</td></tr>
+            <tr><td><b>Humanos</b></td><td>95 h desarrollo · 35 h diseño 3D · 20 h calidad · 10 h documentación</td><td class="num">160 h</td></tr>
+            <tr><td><b>Materiales</b></td><td>Three.js, Socket.IO, SQLite, Node.js y Blender para los assets</td><td class="num">MIT / Apache</td></tr>
+          </table>
+          <div class="rule"></div>
+          <div class="quote">3,025 es lo que se gasta; 21,025 es lo que vale.</div>
+        </div>
+        <div class="card tight">
+          <p><b>Control:</b> la reserva de contingencia y las 160 h de línea base permitieron absorber la corrección de 15 defectos móviles sin cambiar el alcance del 23/11.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Práctica 6 · gestión de recursos del proyecto</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 7 · RIESGOS OCURRIDOS ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Matriz de riesgos · riesgos que se presentaron</div>
+    <h1>Lo que sí pasó, <em>su impacto real y cómo se corrigió</em></h1>
+    <p class="sub">No se listan riesgos hipotéticos como si hubieran ocurrido. Estos cinco tienen evidencia en bitácora, reporte de carga o documentación.</p>
+  </div>
+  <div class="s-body">
+    <div class="tbl-wrap fill">
+      <table class="risk">
+        <tr><th style="width:21%">Riesgo ocurrido</th><th style="width:12%">Cuándo</th><th style="width:31%">Impacto</th><th>Corrección y evidencia</th></tr>
+        <tr><td><b>Error crítico en crystalTick</b></td><td>28/09 · smoke de carga</td><td><span class="chip warn">Alto</span> Variable en zona muerta (TDZ): cualquier cristal ofertado apagaba <b>todo el servidor</b>.</td><td>Renombrar la variable interna a <code>tickNow</code> (1 línea). Después: 60/60 bots y 0 excepciones.</td></tr>
+        <tr><td><b>15 defectos visuales en móvil</b></td><td>29–30/10 · auditoría</td><td><span class="chip warn">Alto</span> Login cortado, joystick fuera de pantalla, HUD solapado e inventario no táctil en 7 viewports.</td><td>Corrección en CSS/JS y arnés <code>mobilecheck.html</code>: 0 solapes, botones 32–36 px e inputs de 16 px.</td></tr>
+        <tr><td><b>O1 sin acta formal</b></td><td>27/10 → hoy</td><td><span class="chip wip">Medio</span> La verificación individual no satisface el indicador de 2+ clientes; objetivo quedó en 95 %.</td><td>Se mantiene honesto: 60/60 admitidos y 0 disconnects, pero <b>no hay acta en docs/</b>. Pendiente para aceptación.</td></tr>
+        <tr><td><b>Tuner de mapas sin repetir</b></td><td>27/10 → hoy</td><td><span class="chip wip">Medio</span> O4 se reportó cumplido con reserva; no se podía cerrar sin repetir la prueba.</td><td>Se conserva la reserva y se agenda la reverificación; no se declara 100 % sin evidencia.</td></tr>
+        <tr><td><b>Chat y HUD encimados</b></td><td>18/11 · BC-02/03</td><td><span class="chip cy">Bajo</span> El panel social tapaba el HUD y los controles táctiles durante la partida.</td><td>Menú ☰ arriba a la izquierda y chat como botón circular abajo a la izquierda; 0 errores en consola.</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Balance:</b> 1 fallo crítico de servidor, 15 defectos de interfaz y 2 evidencias formales pendientes. Después de las correcciones: <b>14 suites en verde y 0 regresiones</b>.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Riesgos ocurridos · Reporte de carga A11 y Bitácora continua 2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 8 · MATRIZ PROSPECTIVA ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Matriz de riesgos · riesgos que pueden ocurrir</div>
+    <h1>Probabilidad × impacto para <em>priorizar las medidas</em></h1>
+    <p class="sub">Escala 1–3 en ambas ejes. Nivel = probabilidad × impacto: <span class="chip warn">≥ 6 alto</span> <span class="chip wip">4–5 medio</span> <span class="chip ok">≤ 3 bajo</span>. Se evalúa al cierre del 23/11.</p>
+  </div>
+  <div class="s-body">
+    <div class="tbl-wrap fill">
+      <table>
+        <tr><th style="width:52px">ID</th><th style="width:27%">Riesgo prospectivo</th><th style="width:62px">Prob.</th><th style="width:66px">Impacto</th><th style="width:74px">Nivel</th><th>Señal de detección temprana</th></tr>
+        <tr><td><b>R1</b></td><td>Rendimiento de Ciudad con 30–50 avatares</td><td class="num">2</td><td class="num">3</td><td><span class="chip warn">6 alto</span></td><td>FPS y RTT p95 en prueba de 30 bots + 2 humanos; etiquetas y animación de lejanos.</td></tr>
+        <tr><td><b>R2</b></td><td>Techo de ~60 sesiones en un solo proceso Node</td><td class="num">2</td><td class="num">3</td><td><span class="chip warn">6 alto</span></td><td><code>/healthz</code>, RSS y <code>game:full</code>; la corrida plena ya mostró 73 reintentos.</td></tr>
+        <tr><td><b>R3</b></td><td>Extender C3–C5 antes de la entrega final</td><td class="num">3</td><td class="num">2</td><td><span class="chip warn">6 alto</span></td><td>Cambios de alcance posteriores al 23/11; revisión semanal del plan por olas.</td></tr>
+        <tr><td><b>R4</b></td><td>Sin acta de 2+ clientes ni despliegue aceptado</td><td class="num">2</td><td class="num">3</td><td><span class="chip warn">6 alto</span></td><td>Ausencia de acta en <code>docs/</code>; publicación y aceptación del 15/12 sin cerrar.</td></tr>
+        <tr><td><b>R5</b></td><td>WebGL pesado en teléfonos de gama baja</td><td class="num">2</td><td class="num">2</td><td><span class="chip wip">4 medio</span></td><td>Arnés de 7 viewports, FPS y mediciones de rectángulos en cada cambio de UI.</td></tr>
+        <tr><td><b>R6</b></td><td>Regresión al integrar un modo nuevo</td><td class="num">1</td><td class="num">3</td><td><span class="chip wip">3 medio</span></td><td>14 suites en <code>scripts/test-all.ps1</code> y smoke de cada commit.</td></tr>
+        <tr><td><b>R7</b></td><td>Abuso de chat / falta de moderación al publicar</td><td class="num">1</td><td class="num">3</td><td><span class="chip wip">3 medio</span></td><td>Filtro, límite de velocidad y reportes: hoy parcial, requiere seguimiento.</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Lectura:</b> los cuatro riesgos altos concentran rendimiento, techo de sesiones, alcance y aceptación. Los tres medios se controlan con pruebas ya existentes.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Matriz prospectiva · plan de modalidades e investigación de herramientas (18/11/2026)</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 9 · MEDIDAS ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Matriz de riesgos · medidas a aplicar</div>
+    <h1>Cada riesgo tiene <em>una acción, un plazo y una métrica</em></h1>
+    <p class="sub">Las medidas ya aplicadas se marcan en verde; las que dependen de noviembre y diciembre se dejan explícitas como pendientes.</p>
+  </div>
+  <div class="s-body">
+    <div class="tbl-wrap fill">
+      <table>
+        <tr><th style="width:48px">ID</th><th style="width:34%">Medida</th><th style="width:14%">Estado</th><th style="width:80px">Cuándo</th><th>Métrica de salida</th></tr>
+        <tr><td><b>R1</b></td><td>Culling por celdas de 20 m, etiquetas solo a &lt; 15 m, animación a 15 Hz para lejanos.</td><td><span class="chip ok">Aplicada en C1</span></td><td>20/11</td><td>p95 &lt; 200 ms con 30 bots + 2 humanos; nadie ve a más de 40 m.</td></tr>
+        <tr><td><b>R2</b></td><td>Documentar el límite y preparar <code>/city</code> con namespaces o shard; no prometer más de lo medido.</td><td><span class="chip wip">En diseño</span></td><td>Dic–Feb</td><td>60/60 admitidos hoy; RSS &lt; 400 MB y 0 desconexiones.</td></tr>
+        <tr><td><b>R3</b></td><td>Congelación de modos hasta el 23/11 y tag <code>v0.2</code>; C3–C5 después de la entrega final.</td><td><span class="chip ok">Aplicada</span></td><td>18–23/11</td><td>Alcance de hoy = C1–C2; sin cambios de alcance en el corte.</td></tr>
+        <tr><td><b>R4</b></td><td>Reunir acta con 2+ clientes, publicar en Railway con <code>DB_PATH</code> en volumen y pedir aceptación.</td><td><span class="chip warn">Pendiente</span></td><td>02–15/12</td><td>Acta firmada en <code>docs/</code> y <code>/healthz</code> respondiendo en público.</td></tr>
+        <tr><td><b>R5</b></td><td>LOD / <code>frustumCulled</code> en decorado y medición con <code>mobilecheck.html</code>.</td><td><span class="chip ok">Aplicada</span></td><td>30/10</td><td>0 solapes en 7 viewports y HUD de 243×59 en 640×360.</td></tr>
+        <tr><td><b>R6</b></td><td>Ejecutar <code>scripts/test-all.ps1</code> y smoke antes de cada entrega.</td><td><span class="chip ok">Aplicada</span></td><td>Continuo</td><td>14 suites en verde, incluidas t-modos, t-tnt, t-karts y t-ciudad.</td></tr>
+        <tr><td><b>R7</b></td><td>Filtro de chat, límite de velocidad, reportes y zonas seguras antes de abrir la plataforma.</td><td><span class="chip wip">Parcial</span></td><td>C5</td><td>Sin mensajes ofensivos sin sanción en la prueba de aceptación.</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Responsable de seguimiento:</b> Luis Javier Tovar Segura. Revisión semanal de los riesgos con nivel 6 hasta la aceptación del 15/12.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Medidas · Plan de modalidades, bitácora y reporte de carga</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 10 · FACTIBILIDAD TECNOLÓGICA ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Factibilidad · tecnologías seleccionadas</div>
+    <h1>El stack no es una apuesta: <em>ya sostiene el producto</em></h1>
+    <p class="sub">Cada tecnología se eligió por un costo de adopción medido y una evidencia en el proyecto. Lo que no se necesita hoy queda diferido, no descartado a ciegas.</p>
+  </div>
+  <div class="s-body">
+    <div class="tbl-wrap fill">
+      <table>
+        <tr><th style="width:20%">Tecnología</th><th style="width:39%">Por qué se seleccionó</th><th>Evidencia en el proyecto</th></tr>
+        <tr><td><b>Three.js 0.187 · MIT</b></td><td>Ya está integrado; mantenerlo cuesta cero y conserva ~250 KB de lógica propia de render, avatar y HUD.</td><td>8 mapas, 6 arenas de modos y Ciudad en primera persona sobre el mismo renderer WebGL.</td></tr>
+        <tr><td><b>Node + Express + Socket.IO 4.8</b></td><td>Un solo proceso cubre salas, chat, combate y modos; el tiempo real es el núcleo del producto.</td><td>60 sesiones concurrentes, 619 eventos <code>player:moved</code>/s, RTT p95 132 ms.</td></tr>
+        <tr><td><b>SQLite · better-sqlite3</b></td><td>Persistencia WAL sin servidor adicional; suficiente para cuentas, estadísticas y mundo social.</td><td><code>user_stats</code>, <code>city_collectibles</code>, <code>city_objects</code> sobreviven al reinicio.</td></tr>
+        <tr><td><b>Contrato de modo</b></td><td>Reglas, tick y condición de victoria como módulos; evita un <code>if</code> gigante en <code>game.js</code>.</td><td>Seis modos <code>live</code> comparten red, HUD y movimiento; Coliseo habilita combate y Ciudad lo bloquea.</td></tr>
+        <tr><td><b>Rapier / Colyseus</b></td><td>Se adoptan solo si Karts o Ciudad lo exigen; hoy no justifican migrar el servidor.</td><td>Decisión diferida a los <em>spikes</em> documentados en la investigación de herramientas (18/11).</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Conclusión:</b> la factibilidad técnica está demostrada para el alcance actual. El techo conocido (~60 sesiones por proceso) está documentado y tiene respuesta prevista, no improvisada.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Factibilidad tecnológica · investigación de herramientas y documentación técnica</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 11 · FACTIBILIDAD ÁMBITOS ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Factibilidad · justificación e impactos</div>
+    <h1>El proyecto es viable <em>dentro del corte académico</em></h1>
+    <p class="sub">La viabilidad no se afirma solo en lo técnico: también depende del dinero, del tiempo de una persona y del impacto real en el usuario y en la materia.</p>
+  </div>
+  <div class="s-body">
+    <div class="g4">
+      <div class="kpi"><div class="lab">Desembolso real</div><div class="v gr">$3,025</div><div class="n">VPS, dominio, internet y reserva</div></div>
+      <div class="kpi"><div class="lab">Valor de recursos</div><div class="v">$21,025</div><div class="n">incluye equipo propio</div></div>
+      <div class="kpi"><div class="lab">Línea base</div><div class="v cy">160 h</div><div class="n">95 / 35 / 20 / 10 h</div></div>
+      <div class="kpi"><div class="lab">Calidad</div><div class="v gr">14</div><div class="n">suites automáticas en verde</div></div>
+    </div>
+    <div class="tbl-wrap fill">
+      <table>
+        <tr><th style="width:16%">Ámbito</th><th style="width:42%">Impacto</th><th>Justificación</th></tr>
+        <tr><td><b>Tecnológico</b></td><td>Producto jugable en navegador, sin instalación y con persistencia.</td><td>Stack ya probado; los modos se añaden como módulos y no obligan a migrar de motor.</td></tr>
+        <tr><td><b>Económico</b></td><td>Costo operativo bajo: hospedaje y dominio; el 86 % del valor es equipo propio.</td><td>No se requiere infraestructura cara para la demo académica; la contingencia del 10 % cubre correcciones.</td></tr>
+        <tr><td><b>Académico</b></td><td>Seis prácticas con entregable, bitácora de cambios y evidencia por objetivo.</td><td>La rúbrica se atiende con artefactos verificables: documentos, capturas, pruebas y demo.</td></tr>
+        <tr><td><b>Operativo</b></td><td>Un desarrollador asistido por IA sostiene el ritmo con hitos y gates.</td><td>Las 160 h y la definición de hecho permiten estimar; la congelación del 18–22/11 evita trabajo innecesario.</td></tr>
+        <tr><td><b>Social / usuario</b></td><td>Salas, chat, seis modos y un distrito social accesible desde escritorio y móvil.</td><td>15 defectos táctiles corregidos y cámara en primera persona estricta en Ciudad para sostener la experiencia de rol.</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Veredicto:</b> viable para la entrega del 02/12 con el alcance C1–C2. Casas, trabajos y moderación (C3–C5) quedan fuera del corte académico y se planifican después.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Factibilidad · práctica 6, investigación de herramientas y plan de modalidades</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 12 · DEMO RECORRIDO ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Penúltimo avance · demostración 1 de 2</div>
+    <h1>Recorrido del sistema: <em>de la isla a los seis modos</em></h1>
+    <p class="sub">En vivo: iniciar sesión → vestidor → isla con anillo de portales → elegir modo → sala oculta <code>MODO-&lt;ID&gt;</code> → volver a la isla.</p>
+  </div>
+  <div class="s-body">
+    <div class="g3" style="flex:1">
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/32-isla-23nov.png" alt="Isla con anillo de portales"><div class="cap">1 · Isla: seis portales en vivo</div></div>
+        <div class="shot" style="flex:1"><img src="img/33-pares-23nov.png" alt="Modalidad Encuentra los pares"><div class="cap">2 · Pares · 1v1 y 2v2</div></div>
+      </div>
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/34-tnt-23nov.png" alt="Modalidad TNT Run"><div class="cap">3 · TNT Run · suelo que cae</div></div>
+        <div class="shot" style="flex:1"><img src="img/35-karts-23nov.png" alt="Modalidad Karts"><div class="cap">4 · Karts · paddock y circuito</div></div>
+      </div>
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/39-coliseo-23nov.png" alt="Modalidad Coliseo"><div class="cap">5 · Coliseo · melee autoritativo</div></div>
+        <div class="shot" style="flex:1"><img src="img/40-escondite-23nov.png" alt="Modalidad Escondite"><div class="cap">6 · Escondite · roles y fases</div></div>
+      </div>
+    </div>
+    <div class="card tight">
+      <p><b>Qué mirar en la demo:</b> los seis portales responden <code>live</code>; el combate solo se habilita en Coliseo; cada modo guarda sus estadísticas en <code>user_stats</code> al volver a la isla.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Demo 1 · capturas tomadas el 22/11 desde el servidor local</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 13 · DEMO CIUDAD ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Penúltimo avance · demostración 2 de 2</div>
+    <h1>Profundización: <em>Ciudad social C1–C2</em></h1>
+    <p class="sub">Cámara en primera persona bloqueada, distrito procedural, coleccionables persistentes, economía y gestión de interés por celdas.</p>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/36-ciudad-fp-23nov.png" alt="Ciudad en primera persona"><div class="cap">C1 · distrito en primera persona</div></div>
+        <div class="shot" style="flex:1"><img src="img/37-ciudad-recogida-23nov.png" alt="Recogida de coleccionables"><div class="cap">C2 · recogida persistente</div></div>
+      </div>
+      <div class="col">
+        <div class="shot" style="flex:1"><img src="img/38-ciudad-tienda-23nov.png" alt="Tienda de Ciudad"><div class="cap">C2 · economía y tienda</div></div>
+        <div class="card" style="flex:1">
+          <h3>Definición de hecho verificada</h3>
+          <ul class="tick gr">
+            <li><b>C1:</b> distrito con cámara FP estricta; sin combate ni tercera persona.</li>
+            <li><b>C2:</b> <code>wallet.collected &gt; 0</code> y compra ejecutada en la corrida de capturas.</li>
+            <li>Persistencia en SQLite: objetos y coleccionables sobreviven al reinicio.</li>
+            <li><b>Interés por celdas:</b> etiquetas &lt; 15 m y animación reducida para jugadores lejanos.</li>
+          </ul>
+          <div class="rule"></div>
+          <div class="mini">Commit <b>f1caf59</b> · 16 archivos · 2,033 inserciones · suite <code>t-ciudad.mjs</code>.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card tight">
+      <p><b>Límite honesto:</b> C1–C2 están cerradas. Parcelas, trabajos y moderación (C3–C5) no forman parte de esta versión estable.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Demo 2 · Ciudad C1–C2 · commit f1caf59</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 14 · VALIDACIÓN ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Revisión antes de subir · validación después</div>
+    <h1>La evidencia se revisó <em>antes de entregarse</em></h1>
+    <p class="sub">Este criterio se aplicó literalmente: se ejecutaron las pruebas, se tomaron capturas reales y se validó la visualización de los tres formatos de la presentación.</p>
+  </div>
+  <div class="s-body">
+    <div class="g4">
+      <div class="kpi"><div class="lab">Suites</div><div class="v gr">14/14</div><div class="n">test-all.ps1</div></div>
+      <div class="kpi"><div class="lab">Carga</div><div class="v cy">60/60</div><div class="n">0 desconexiones · 25 s</div></div>
+      <div class="kpi"><div class="lab">RTT chat p95</div><div class="v gr">132<small> ms</small></div><div class="n">umbral &lt; 250 ms</div></div>
+      <div class="kpi"><div class="lab">Consola</div><div class="v gr">0</div><div class="n">errores JS en capturas</div></div>
+    </div>
+    <div class="tbl-wrap fill">
+      <table>
+        <tr><th style="width:25%">Revisión</th><th style="width:43%">Resultado</th><th>Evidencia</th></tr>
+        <tr><td><b>Pruebas automáticas</b></td><td>14 suites en verde: protocolo 45/45, lógica 8/8, combate 18/18, armas 13/13, movimiento 8/8, loot 7/7, assets 10/10 y las suites de modos.</td><td><code>scripts/test-all.ps1</code> y <code>Documentacion_Tecnica_ClubPingui.md</code>.</td></tr>
+        <tr><td><b>Prueba de carga</b></td><td>60 bots admitidos, 73 <code>game:full</code> reintentados, 387 disparos, RSS 100.4 MB.</td><td><code>Reporte_Pruebas_Carga_A11.md</code>.</td></tr>
+        <tr><td><b>Capturas nuevas</b></td><td>13 capturas del juego y 4 de documentos, con logs <code>ok:true</code> y contenido verificado.</td><td><code>img/capture-23nov-log.json</code> y <code>img/capture-docs-23nov-log.json</code>.</td></tr>
+        <tr><td><b>Visualización de entregables</b></td><td>HTML navegable con teclado, PDF paginado y PPTX editable; se revisan en navegador antes de subir.</td><td>Esta carpeta: <code>presentacion_23nov.html / .pdf / .pptx</code>.</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Estado de Git:</b> Ciudad quedó commiteada y pusheada en <code>f1caf59</code>, con <code>HEAD = origin/main</code> y árbol limpio al iniciar esta presentación.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Validación · informes, logs de captura y revisión de formatos</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 15 · PENDIENTES ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Estado de objetivos · lo que todavía no se cierra</div>
+    <h1>No subir un objetivo a 100 % <em>sin su evidencia completa</em></h1>
+    <p class="sub">La disciplina del 27/10 se conserva: dónde falta evidencia, se dice dónde falta y qué la reemplaza de forma provisional.</p>
+  </div>
+  <div class="s-body">
+    <div class="tbl-wrap fill">
+      <table class="risk">
+        <tr><th style="width:15%">Objetivo</th><th style="width:14%">Estado 23/11</th><th style="width:37%">Evidencia disponible</th><th>Condición pendiente</th></tr>
+        <tr><td><b>O1 · Núcleo multijugador</b></td><td><span class="chip wip">95 %</span></td><td>60/60 bots admitidos, 0 disconnects, sesión y salas sincronizadas.</td><td><b>Acta con 2+ clientes.</b> No se encontró un acta real en <code>docs/</code>; se pedirá en la aceptación.</td></tr>
+        <tr><td><b>O2 · 17 armas</b></td><td><span class="chip ok">100 %</span></td><td>Suite de armas 13/13 y tuner con exportación válida.</td><td>Ninguna.</td></tr>
+        <tr><td><b>O3 · 8 mapas</b></td><td><span class="chip ok">100 %</span></td><td>8/8 mapas sin errores de JavaScript; se ampliaron con 6 arenas.</td><td>Ninguna.</td></tr>
+        <tr><td><b>O4 · Tuners</b></td><td><span class="chip wip">100 % con reserva</span></td><td>Armas verificadas; tuner de mapas verificado el 27/10.</td><td><b>Repetir la verificación del tuner de mapas</b> antes de darla por cerrada sin condición.</td></tr>
+        <tr><td><b>O5 · 0 regresiones</b></td><td><span class="chip ok">100 %</span></td><td>14 suites en verde tras los cambios de móvil, HUD y modos.</td><td>Ninguna.</td></tr>
+        <tr><td><b>O6 · Carga y entrega</b></td><td><span class="chip plan">En proceso</span></td><td>Carga A11 completada; <code>/healthz</code> y proxy local responden.</td><td><b>Publicación, pruebas de aceptación y acta</b> del 15/12.</td></tr>
+      </table>
+    </div>
+    <div class="card tight">
+      <p><b>Cierre honesto:</b> hoy el avance es real y medible; la parte incompleta tiene nombre, responsable y fecha. Eso es lo que se presenta el 23/11.</p>
+    </div>
+  </div>
+  <div class="s-foot"><span>Objetivos O1–O6 · actualización al 23/11/2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ================= 16 · CIERRE ================= -->
+<section class="slide">
+  <div class="s-head">
+    <div class="kicker">Conclusión y próximos pasos</div>
+    <h1>Versión estable entregada; <em>falta la aceptación</em></h1>
+  </div>
+  <div class="s-body">
+    <div class="g2" style="flex:1">
+      <div class="col">
+        <div class="card" style="flex:1">
+          <h3>Lo que se demostró hoy</h3>
+          <ul class="tick gr">
+            <li>Seis modos jugables y un distrito social C1–C2 con persistencia real.</li>
+            <li>14 suites en verde y una carga de 60 bots sin caídas ni regresiones.</li>
+            <li>15 defectos táctiles corregidos y medidos en siete viewports.</li>
+            <li>Riesgos ocurridos y prospectivos con medidas, plazos y métricas de salida.</li>
+            <li>Presentación revisada en HTML, PDF y PPTX antes de subirse.</li>
+          </ul>
+        </div>
+        <div class="card tight">
+          <div class="quote">«El avance es real, medible y todavía incompleto» → hoy es real y medible; lo incompleto tiene nombre, responsable y fecha.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+          <h3>Próximos hitos</h3>
+          <div class="tl">
+            <div class="step"><div class="dot"></div><div class="d">23/11/2026</div><div class="t">Versión estable</div><div class="s">Tag v0.2 · esta presentación.</div></div>
+            <div class="step am"><div class="dot"></div><div class="d">02/12/2026</div><div class="t">Entrega final</div><div class="s">Documentación y aceptación interna.</div></div>
+            <div class="step am"><div class="dot"></div><div class="d">15/12/2026</div><div class="t">Aceptación</div><div class="s">Acta con 2+ clientes y despliegue.</div></div>
+            <div class="step"><div class="dot"></div><div class="d">Después</div><div class="t">C3–C5</div><div class="s">Casas, trabajos y moderación.</div></div>
+          </div>
+          <div class="rule"></div>
+          <div class="row" style="gap:7px;flex-wrap:wrap">
+            <span class="chip ok">6/6 modos</span><span class="chip ok">C1–C2</span><span class="chip ok">14 suites</span><span class="chip wip">acta pendiente</span><span class="chip cy">Preguntas</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="s-foot"><span>Cierre · Club Pingüí · 23/11/2026 · Luis Javier Tovar Segura</span><span class="pg"></span></div>
+</section>
+</div>
+
+<div class="nav">
+  <button id="prev" title="Anterior (←)">‹</button>
+  <span class="count" id="count">1 / 16</span>
+  <button id="next" title="Siguiente (→)">›</button>
+</div>
+<div class="hint">← → navegar · F pantalla completa · Inicio/Fin</div>
+
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const total = slides.length;
+  let i = 0;
+
+  slides.forEach((s, idx) => {
+    const pg = s.querySelector(".pg");
+    if (pg) pg.textContent = String(idx + 1).padStart(2, "0") + " / " + String(total).padStart(2, "0");
+  });
+
+  function fit() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.965;
+    document.documentElement.style.setProperty("--scale", String(s));
+  }
+  function show(n) {
+    i = (n + total) % total;
+    slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+    document.getElementById("count").textContent = (i + 1) + " / " + total;
+    document.getElementById("progress").style.width = ((i + 1) / total * 100) + "%";
+    if (location.hash !== "#" + (i + 1)) history.replaceState(null, "", "#" + (i + 1));
+  }
+
+  document.getElementById("next").addEventListener("click", () => show(i + 1));
+  document.getElementById("prev").addEventListener("click", () => show(i - 1));
+
+  document.addEventListener("keydown", (e) => {
+    if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    else if (e.key === "Home") { e.preventDefault(); show(0); }
+    else if (e.key === "End") { e.preventDefault(); show(total - 1); }
+    else if (e.key.toLowerCase() === "f") {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+
+  window.addEventListener("resize", fit);
+  window.addEventListener("hashchange", () => {
+    const n = parseInt(location.hash.replace("#", ""), 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= total && n - 1 !== i) show(n - 1);
+  });
+
+  fit();
+  const start = parseInt(location.hash.replace("#", ""), 10);
+  show(Number.isNaN(start) ? 0 : Math.max(1, Math.min(total, start)) - 1);
+})();
+</script>
+</body>
+</html>

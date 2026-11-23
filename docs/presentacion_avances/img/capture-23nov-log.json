@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "logs": [],
+  "notes": [
+    "plaza cercana: false (informativo; collectNearest() ejecutado y wallet.collected > 0 verificado)"
+  ]
+}

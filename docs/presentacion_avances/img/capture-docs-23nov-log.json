@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "info": [
+    {
+      "doc": "docs/Practica_Organizacion_Fases_ClubPingui.html",
+      "capture": "41-practica1-fases-23nov.png",
+      "textLen": 8294
+    },
+    {
+      "doc": "docs/Practica_4_Seguimiento_Validacion_Objetivos.html",
+      "capture": "42-practica4-seguimiento-23nov.png",
+      "textLen": 17593
+    },
+    {
+      "doc": "docs/Practica_6_Gestion_Recursos_ClubPingui.html",
+      "capture": "43-practica6-recursos-23nov.png",
+      "textLen": 21600
+    },
+    {
+      "doc": "docs/arquitectura_club_pingui.svg",
+      "capture": "44-arquitectura-23nov.png",
+      "textLen": 0
+    }
+  ]
+}
