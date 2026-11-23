@@ -1,97 +1,103 @@
-// Genera guia_presentacion_23nov.docx: guía breve por diapositiva de la versión de 13 slides.
-import { writeFileSync } from "node:fs";
+// Genera guia_presentacion_23nov.docx con el guion LITERAL de las 13 diapositivas.
+// La fuente es guion_presentacion_23nov.md, para que las palabras habladas sean exactamente las mismas.
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 
-const OUT = join(import.meta.dirname, "..", "guia_presentacion_23nov.docx");
+const BASE = join(import.meta.dirname, "..");
+const MD = join(BASE, "guion_presentacion_23nov.md");
+const OUT = join(BASE, "guia_presentacion_23nov.docx");
 
-const slides = [
-  {
-    title: "Portada",
-    point: "Ubicar qué se presenta, quién lo presenta y con qué corte de fecha.",
-    say: "Buenos días. Soy Luis Javier Tovar Segura y presento el avance de Club Pingüí al 23 de noviembre de 2026: pasamos del documento a un producto ejecutable.",
-    show: "Nombre, fecha y la tira inferior: 6/6 modos · C1–C2 · 14 suites · 60 bots.",
-  },
-  {
-    title: "Punto de partida",
-    point: "Retomar literalmente el cierre del 27/10 y los tres pendientes que quedaban.",
-    say: "El 27 de octubre cerramos diciendo: ‘el avance es real, medible y todavía incompleto’. Faltaban el acta de O1, repetir el tuner de O4 y la carga, despliegue y aceptación de O6. Hoy mostramos la versión estable.",
-    show: "La cita enmarcada y la línea de hitos: 06/11, 23/11, 02/12 y 15/12.",
-  },
-  {
-    title: "Ruta y KPIs",
-    point: "Anunciar los cuatro bloques y los cinco números que resumen el corte.",
-    say: "Cuatro bloques: prácticas con capturas, matriz de riesgos, factibilidad y demo. De arriba abajo: seis modos en vivo, catorce suites, sesenta bots con p95 de 132 ms, quince defectos móviles corregidos y Ciudad C1–C2.",
-    show: "Los cinco KPIs y la tabla que relaciona la rúbrica con las diapositivas.",
-  },
-  {
-    title: "Prácticas 1–3",
-    point: "Mostrar que la planeación, la investigación y la arquitectura dejaron artefactos que hoy se usan.",
-    say: "Primero decidimos el qué, el con qué y el cómo: quince actividades en cuatro fases, Three.js por costo cero de migración y una arquitectura que permitió añadir seis modos sin reescribir render, chat ni red.",
-    show: "Las tres capturas: documento de fases, diagrama de arquitectura y tuner de armas.",
-  },
-  {
-    title: "Prácticas 4–5",
-    point: "Explicar que el avance se mide y que la fecha se calculó con tres valores.",
-    say: "La práctica 4 dejó seis objetivos con indicador, SPI 1.13 y CPI 1.04 al 06/10. La práctica 5 calculó 85.17 días de ruta crítica, sigma 4.02 y 88 % de probabilidad en 90 días. El Stage-Gate frenó dos cierres sin evidencia.",
-    show: "El documento de seguimiento y, al lado, el Gantt y el PERT.",
-  },
-  {
-    title: "Práctica 6",
-    point: "Separar gasto real de valor de recursos para justificar la sostenibilidad.",
-    say: "El desembolso real son $3,025; el valor total es $21,025 porque incluye el equipo que ya tenía. Las 160 horas se reparten en desarrollo, diseño 3D, calidad y documentación.",
-    show: "La frase: ‘3,025 es lo que se gasta; 21,025 es lo que vale’.",
-  },
-  {
-    title: "Riesgos ocurridos",
-    point: "Listar solo riesgos con evidencia, su impacto y la corrección aplicada.",
-    say: "Cinco riesgos ocurrieron de verdad. El crítico fue crystalTick: apagaba el servidor entero y se corrigió con una línea. También 15 defectos móviles en siete viewports, el acta pendiente de O1, el tuner sin repetir y el HUD solapado con el chat. Después: 14 suites en verde y 0 regresiones.",
-    show: "La fila de crystalTick y la fila de O1; después el balance inferior.",
-  },
-  {
-    title: "Matriz prospectiva",
-    point: "Priorizar con probabilidad × impacto, no con una lista de deseos.",
-    say: "La escala es 1 a 3 en ambos ejes. Cuatro riesgos quedan altos: rendimiento de Ciudad, techo de 60 sesiones, extensión de C3–C5 y falta de acta y despliegue. Tres quedan medios: WebGL en gama baja, regresiones y moderación.",
-    show: "La columna de nivel; detenerse en R1 y R4.",
-  },
-  {
-    title: "Medidas",
-    point: "Cada riesgo tiene acción, plazo y métrica de salida; no solo intención.",
-    say: "R1 ya tiene culling por celdas y etiquetas cortas. R3 se controló con la congelación y el tag v0.2. R5 y R6 se cubren con el arnés móvil y las catorce suites. Lo que sigue pendiente es R4: acta, publicación y aceptación del 15 de diciembre.",
-    show: "Las columnas Estado y Métrica de salida.",
-  },
-  {
-    title: "Factibilidad tecnológica",
-    point: "Justificar el stack por evidencia, no por moda.",
-    say: "El stack ya sostiene el producto: Three.js conserva el render propio, Node y Socket.IO sostienen 60 sesiones y 132 ms de p95, SQLite da persistencia sin otro servidor y el contrato de modo permite seis modos compartiendo red y HUD. Rapier y Colyseus quedan diferidos con spikes documentados.",
-    show: "La columna de evidencia de cada tecnología.",
-  },
-  {
-    title: "Factibilidad e impactos",
-    point: "Cerrar la viabilidad en los ámbitos económico, académico, operativo y social.",
-    say: "Es viable dentro del corte académico: $3,025 de gasto real, $21,025 de valor, 160 horas y catorce suites verdes. El impacto llega al usuario en navegador y móvil, y a la materia en seis prácticas con artefactos. C3 a C5 quedan fuera del corte.",
-    show: "La tabla de ámbitos y la frase de veredicto.",
-  },
-  {
-    title: "Demo · recorrido del sistema",
-    point: "Probar en vivo que los seis portales son jugables, no solo decorativos.",
-    say: "Entro con un invitado, paso por el vestidor y llego a la isla. Los seis portales responden ‘live’: Pares, TNT, Karts, Coliseo y Escondite. El combate solo se habilita en Coliseo y cada modo guarda estadísticas en user_stats.",
-    show: "Las seis capturas. Si falla la demo en vivo, usarlas como plan B.",
-  },
-  {
-    title: "Demo · Ciudad C1–C2",
-    point: "Profundizar en el avance más grande desde octubre y marcar su límite honesto.",
-    say: "Ciudad tiene cámara en primera persona bloqueada y sin combate. En C2 recojo un objeto —sube wallet.collected— y compro en la tienda; ambos datos persisten en SQLite. El interés por celdas mantiene etiquetas solo a menos de 15 metros. C1 y C2 están cerradas; C3 a C5 no.",
-    show: "Las tres capturas: primera persona, recogida y tienda. Después decir: ‘Quedo atento a preguntas’.",
-  },
-];
+const md = readFileSync(MD, "utf8");
+const lines = md.split(/\r?\n/);
 
-function linea(etiqueta, valor) {
+// Tiempos del "Mapa rápido".
+const times = new Map();
+for (const line of lines) {
+  const m = line.match(/^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*([0-9:]+)\s*\|/);
+  if (m) times.set(Number(m[1]), m[3].trim());
+}
+
+const clean = (value) => value.trim().replace(/^[“”"]/, "").replace(/[“”"]$/, "").trim();
+
+// Diapositivas y sus bloques **Etiqueta:** valor.
+const slides = [];
+let current = null;
+for (const line of lines) {
+  const h = line.match(/^###\s+(\d+)\s*·\s*(.+)$/);
+  if (h) {
+    current = {
+      num: Number(h[1]),
+      title: h[2].trim(),
+      time: times.get(Number(h[1])) || "",
+      objetivo: "",
+      di: "",
+      senala: "",
+      support: [],
+      transicion: "",
+    };
+    slides.push(current);
+    continue;
+  }
+  if (!current) continue;
+  if (/^##\s/.test(line) || /^---\s*$/.test(line)) {
+    current = null;
+    continue;
+  }
+  const field = line.match(/^\*\*([^*]+):\*\*\s*(.+)$/);
+  if (!field) continue;
+  const key = field[1].trim().replace(/:$/, "");
+  const value = clean(field[2]);
+  if (key === "Objetivo") current.objetivo = value;
+  else if (key === "Di") current.di = value;
+  else if (key === "Señala") current.senala = value;
+  else if (key === "Transición") current.transicion = value;
+  else if (["Dato clave", "Frase honesta", "Si preguntan por 50 jugadores"].includes(key)) {
+    current.support.push({ key, text: value });
+  }
+}
+
+if (slides.length !== 13 || slides.some((s) => !s.di)) {
+  throw new Error(`se esperaban 13 diapositivas con texto literal; se encontraron ${slides.length}`);
+}
+
+// Preguntas previsibles con respuesta literal.
+const qa = [];
+let inQA = false;
+for (const line of lines) {
+  if (/^## Preguntas previsibles/.test(line)) {
+    inQA = true;
+    continue;
+  }
+  if (inQA && /^##\s/.test(line)) break;
+  if (!inQA) continue;
+  const m = line.match(/^-\s+\*\*(.+?)\*\*\s+(.+)$/);
+  if (m) qa.push({ q: clean(m[1]), a: clean(m[2]) });
+}
+
+// Checklist previo y nota de rescate.
+const antes = [];
+let inAntes = false;
+for (const line of lines) {
+  if (/^## 10 minutos antes/.test(line)) {
+    inAntes = true;
+    continue;
+  }
+  if (inAntes && /^##\s/.test(line)) break;
+  if (inAntes && /^-\s+/.test(line)) antes.push(clean(line.replace(/^-\s+/, "")));
+}
+const rescate = (() => {
+  const i = lines.findIndex((l) => /^## Si te quedas en blanco/.test(l));
+  return i >= 0 ? lines.slice(i + 1).find((l) => l.trim() && !/^---/.test(l))?.trim() || "" : "";
+})();
+
+function linea(etiqueta, valor, opts = {}) {
   return new Paragraph({
-    spacing: { after: 70 },
+    spacing: { after: opts.after ?? 80 },
+    indent: opts.indent ? { left: 260 } : undefined,
     children: [
-      new TextRun({ text: etiqueta + ": ", bold: true, color: "0E7490" }),
-      new TextRun({ text: valor, color: "1E293B" }),
+      new TextRun({ text: etiqueta, bold: true, color: "0E7490" }),
+      new TextRun({ text: valor, color: "1E293B", italics: !!opts.italic }),
     ],
   });
 }
@@ -100,39 +106,85 @@ const children = [
   new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 80 },
-    children: [new TextRun({ text: "Guía para la presentación · Club Pingüí", bold: true, size: 30, color: "0F172A" })],
+    children: [new TextRun({ text: "Guía literal para la presentación · Club Pingüí", bold: true, size: 30, color: "0F172A" })],
   }),
   new Paragraph({
     alignment: AlignmentType.CENTER,
-    spacing: { after: 220 },
-    children: [new TextRun({ text: "23 de noviembre de 2026 · Luis Javier Tovar Segura · 13 diapositivas", size: 20, color: "475569" })],
+    spacing: { after: 200 },
+    children: [new TextRun({ text: "23 de noviembre de 2026 · Luis Javier Tovar Segura · 13 diapositivas · 14–15 min", size: 20, color: "475569" })],
   }),
   new Paragraph({
     spacing: { after: 220 },
-    children: [new TextRun({ text: "Uso rápido: cada entrada da el punto de la diapositiva, una frase para decir y qué señalar. No leer literalmente; usarlo como apoyo.", italics: true, color: "475569" })],
+    children: [new TextRun({
+      text: "Forma de uso: di en voz alta exactamente el párrafo que aparece en “Dilo así”. Las frases de apoyo y las transiciones también están escritas literalmente. “Señala” es solo apoyo visual; no se lee en voz alta.",
+      italics: true,
+      color: "475569",
+    })],
   }),
 ];
 
-slides.forEach((slide, i) => {
+slides.forEach((s, i) => {
   children.push(new Paragraph({
     heading: HeadingLevel.HEADING_2,
-    spacing: { before: i === 0 ? 0 : 220, after: 90 },
-    children: [new TextRun(`${i + 1}. ${slide.title}`)],
+    spacing: { before: i === 0 ? 0 : 240, after: 100 },
+    children: [new TextRun(`${s.num}. ${s.title}${s.time ? `  ·  ${s.time}` : ""}`)],
   }));
-  children.push(linea("Punto clave", slide.point));
-  children.push(linea("Di", `“${slide.say}”`));
-  children.push(linea("Señala", slide.show));
+
+  if (s.objetivo) children.push(linea("Objetivo: ", s.objetivo, { after: 60 }));
+  children.push(linea("Dilo así: ", s.di, { after: 120, indent: true }));
+  if (s.senala) children.push(linea("Señala: ", s.senala, { after: 70 }));
+
+  if (s.support.length) {
+    children.push(new Paragraph({
+      spacing: { before: 40, after: 50 },
+      children: [new TextRun({ text: "Frases de apoyo (dilas también):", bold: true, color: "0E7490" })],
+    }));
+    for (const item of s.support) {
+      children.push(linea(`${item.key}: `, item.text, { after: 55, indent: true }));
+    }
+  }
+
+  if (s.transicion) children.push(linea("Transición (dila): ", s.transicion, { after: 110 }));
 });
 
 children.push(new Paragraph({
-  spacing: { before: 280, after: 0 },
-  children: [new TextRun({ text: "Al terminar la diapositiva 13: “Quedo atento a preguntas”.", bold: true, color: "0F172A" })],
+  heading: HeadingLevel.HEADING_1,
+  spacing: { before: 300, after: 120 },
+  children: [new TextRun("Cierre y preguntas")],
+}));
+children.push(linea("Cierre final: ", "Quedo atento a preguntas.", { after: 130, indent: true }));
+
+for (const item of qa) {
+  children.push(linea(`${item.q} `, item.a, { after: 70 }));
+}
+
+if (antes.length) {
+  children.push(new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 260, after: 100 },
+    children: [new TextRun("Antes de empezar")],
+  }));
+  for (const item of antes) children.push(linea("•  ", item, { after: 50 }));
+}
+
+if (rescate) {
+  children.push(new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 220, after: 100 },
+    children: [new TextRun("Si te quedas en blanco")],
+  }));
+  children.push(linea("", rescate, { after: 80, indent: true, italic: true }));
+}
+
+children.push(new Paragraph({
+  spacing: { before: 200, after: 0 },
+  children: [new TextRun({ text: "Versión de 8 minutos: mantener 1, 3, 4, 6, 7, 8, 10, 12 y 13; comprimir 2, 5, 9 y 11 a una frase cada una.", bold: true, color: "0F172A" })],
 }));
 
 const doc = new Document({
   creator: "Luis Javier Tovar Segura",
-  title: "Guía para la presentación · Club Pingüí · 23/11/2026",
-  description: "Guía breve por diapositiva para la presentación de avances.",
+  title: "Guía literal para la presentación · Club Pingüí · 23/11/2026",
+  description: "Guion exacto por diapositiva para la presentación de avances.",
   styles: { default: { document: { run: { font: "Calibri", size: 21 } } } },
   sections: [{
     properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } },
@@ -142,4 +194,4 @@ const doc = new Document({
 
 const buffer = await Packer.toBuffer(doc);
 writeFileSync(OUT, buffer);
-console.log(`DOCX generado · ${slides.length} diapositivas · ${Math.round(buffer.length / 1024)} KB · ${OUT}`);
+console.log(`DOCX generado · ${slides.length} diapositivas · ${qa.length} preguntas · ${Math.round(buffer.length / 1024)} KB · ${OUT}`);
