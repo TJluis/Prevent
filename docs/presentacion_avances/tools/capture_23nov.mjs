@@ -152,6 +152,10 @@ async function main() {
   await waitFor(`(() => { const w = window.__test.cityUI && window.__test.cityUI.getWallet(); return !!(w && w.collected > 0); })()`, 10000);
   await sleep(600);
   await shot("37-ciudad-recogida-23nov.png");
+  // La tienda entra plegada: se despliega solo para la captura de economía.
+  await ev(`(() => { const t = document.getElementById('ciudad-hud-shop-toggle'); const s = document.getElementById('ciudad-hud-shop'); if (t && s && s.hidden) t.click(); return 1; })()`);
+  await waitFor(`(() => { const s = document.getElementById('ciudad-hud-shop'); return !!s && !s.hidden; })()`, 5000);
+  await sleep(300);
   await ev(`(() => { const b = document.querySelector('button[data-action="buy"][data-item-id="manzana"]'); if (b) b.click(); return 1; })()`);
   await waitFor(`(() => { const w = window.__test.cityUI && window.__test.cityUI.getWallet(); return !!(w && w.bought > 0); })()`, 10000);
   await sleep(500);

@@ -3576,6 +3576,33 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
   color: #ddd6fe;
 }
 
+.ciudad-shop-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #ddd6fe;
+}
+.ciudad-shop-toggle:hover,
+.ciudad-shop-toggle:focus-visible { color: #fde68a; }
+
+.ciudad-shop-toggle-hint {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #a7f3d0;
+}
+
 .ciudad-inventory {
   display: flex;
   flex-wrap: wrap;
@@ -3603,6 +3630,8 @@ body.touch-mode:not(.in-room) #touch-actions { display: none; }
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 5px;
 }
+
+.ciudad-shop[hidden] { display: none !important; }
 
 .city-shop-item {
   display: grid;

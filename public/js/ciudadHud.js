@@ -18,6 +18,7 @@ export function createCityHud({ getMyId, onBuy, onSell, onLeave } = {}) {
   const nearbyEl = document.getElementById("ciudad-hud-nearby");
   const inventoryEl = document.getElementById("ciudad-hud-inventory");
   const shopEl = document.getElementById("ciudad-hud-shop");
+  const shopToggleEl = document.getElementById("ciudad-hud-shop-toggle");
   const flashEl = document.getElementById("ciudad-hud-flash");
   const closeBtn = document.getElementById("ciudad-hud-close");
 
@@ -30,8 +31,21 @@ export function createCityHud({ getMyId, onBuy, onSell, onLeave } = {}) {
     if (btn.dataset.action === "buy") onBuy && onBuy(itemId, 1);
     else if (btn.dataset.action === "sell") onSell && onSell(itemId, 1);
   };
+  // La tienda entra plegada para no tapar la vista; el botón la despliega.
+  function setShopOpen(open) {
+    if (shopEl) shopEl.hidden = !open;
+    if (shopToggleEl) {
+      shopToggleEl.setAttribute("aria-expanded", String(!!open));
+      const hint = shopToggleEl.querySelector(".ciudad-shop-toggle-hint");
+      if (hint) hint.textContent = open ? "Plegar ▾" : "Desplegar ▸";
+    }
+  }
+
+  const handleShopToggle = () => setShopOpen(!!shopEl && shopEl.hidden);
+
   if (closeBtn) closeBtn.addEventListener("click", handleLeave);
   if (shopEl) shopEl.addEventListener("click", handleShopClick);
+  if (shopToggleEl) shopToggleEl.addEventListener("click", handleShopToggle);
 
   let state = null;
   let wallet = { ...EMPTY_WALLET };
@@ -148,11 +162,13 @@ export function createCityHud({ getMyId, onBuy, onSell, onLeave } = {}) {
   }
 
   function show() {
+    setShopOpen(false);
     root.hidden = false;
     render();
   }
 
   function hide() {
+    setShopOpen(false);
     root.hidden = true;
     state = null;
     wallet = { ...EMPTY_WALLET };
@@ -215,6 +231,7 @@ export function createCityHud({ getMyId, onBuy, onSell, onLeave } = {}) {
     getInventory: () => inventory.map((item) => ({ ...item })),
     dispose() {
       if (closeBtn) closeBtn.removeEventListener("click", handleLeave);
+      if (shopToggleEl) shopToggleEl.removeEventListener("click", handleShopToggle);
       if (shopEl) {
         shopEl.removeEventListener("click", handleShopClick);
         shopEl.innerHTML = "";

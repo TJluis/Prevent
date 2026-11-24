@@ -403,8 +403,11 @@
           <div id="ciudad-hud-inventory" class="ciudad-inventory"></div>
         </div>
         <div class="ciudad-hud-section">
-          <span class="ciudad-hud-label">Tienda del barrio</span>
-          <div id="ciudad-hud-shop" class="ciudad-shop"></div>
+          <button id="ciudad-hud-shop-toggle" type="button" class="ciudad-hud-label ciudad-shop-toggle" aria-expanded="false" aria-controls="ciudad-hud-shop">
+            <span>Tienda del barrio</span>
+            <span class="ciudad-shop-toggle-hint">Desplegar ▸</span>
+          </button>
+          <div id="ciudad-hud-shop" class="ciudad-shop" hidden></div>
         </div>
       </div>
       <p id="ciudad-hud-flash" class="ciudad-hud-flash" hidden></p>
