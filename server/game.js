@@ -1595,6 +1595,27 @@ function emitCityLeft(room, player) {
   }
 }
 
+// Al cruzar el radio de interés hace falta el mismo par de eventos que al
+// entrar/salir de la sala: sin `player:joined` el cliente no crea el avatar y sin
+// `player:left` se queda un pingüino congelado en el borde del radio.
+function emitCityInterestTransitions(player, previous) {
+  const room = player.roomCode ? rooms.get(player.roomCode) : null;
+  if (!isCityRoom(room)) return;
+  for (const other of roomMembers(room)) {
+    if (other.id === player.id) continue;
+    const wasNear = cityWithinInterest(previous, other, CITY_INTEREST_RANGE);
+    const isNear = cityWithinInterest(player, other, CITY_INTEREST_RANGE);
+    if (wasNear === isNear) continue;
+    if (isNear) {
+      io.to(player.id).emit("player:joined", playerSnapshot(other));
+      io.to(other.id).emit("player:joined", playerSnapshot(player));
+    } else {
+      io.to(player.id).emit("player:left", { id: other.id });
+      io.to(other.id).emit("player:left", { id: player.id });
+    }
+  }
+}
+
 function emitCityState(roomCode, snapshot, event) {
   const room = rooms.get(roomCode);
   if (!room) return;
@@ -1932,6 +1953,7 @@ export function setupGame(ioServer) {
         player.sprinting = !!sprint;
         player.sliding = !!slide;
         const mapId = mapIdOf(player);
+        const cityPrevious = isCityRoom(moveRoom) ? { x: player.x, z: player.z } : null;
         player.x = clampPosition(targetX, mapId);
         player.z = clampPosition(targetZ, mapId);
         if (mapId === COLISEO_MAP_ID) {
@@ -1943,6 +1965,7 @@ export function setupGame(ioServer) {
           player.z = inside.z;
         }
         player.movedSinceSave = true;
+        if (cityPrevious) emitCityInterestTransitions(player, cityPrevious);
 
         const moved = {
           id: socket.id,

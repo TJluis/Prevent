@@ -471,6 +471,14 @@ run("13 servidor: interest management a 40 m en moved y state", () => {
     ),
     "ningún movimiento por encima de los 40 m llega a Alfa"
   );
+  ok(
+    find("player:left", (x) => (x.ch === "#A" || x.ch === "A") && x.d.id === "B", from),
+    "Alfa recibe la baja de Beto al cruzar el radio"
+  );
+  ok(
+    find("player:left", (x) => (x.ch === "#B" || x.ch === "B") && x.d.id === "A", from),
+    "Beto deja de ver a Alfa al cruzar el radio"
+  );
   // Una acción de Alfa fuerza un state nuevo: Beto ya no debe aparecer.
   clock += 300;
   fire(A, "mode:action", { type: "emote", emote: "hola" });
@@ -480,6 +488,20 @@ run("13 servidor: interest management a 40 m en moved y state", () => {
   ok(farState.d.players.some((p) => p.id === "A"), "Alfa sigue en su propio state");
   const ownState = direct("mode:state", "B", null, from);
   ok(ownState.d.players.some((p) => p.id === "B"), "Beto sí se ve a sí mismo");
+
+  // Volver al radio debe recrear los avatares sin esperar a otra acción.
+  const backFrom = emitted.length;
+  moveCity(B, "B", cityPos("B") || B_POS, { x: 0, z: -8 });
+  ok(
+    find("player:joined", (x) => (x.ch === "#A" || x.ch === "A") && x.d.id === "B", backFrom),
+    "Alfa vuelve a ver a Beto al reentrar al radio"
+  );
+  ok(
+    find("player:joined", (x) => (x.ch === "#B" || x.ch === "B") && x.d.id === "A", backFrom),
+    "Beto vuelve a ver a Alfa al reentrar al radio"
+  );
+  // Se deja a Beto lejos otra vez para que la prueba 14 siga siendo válida.
+  moveCity(B, "B", cityPos("B") || { x: 0, z: -8 }, { x: -80, z: -80 });
 });
 
 run("14 servidor: salida filtrada, tick de respawn y rejoin", () => {
